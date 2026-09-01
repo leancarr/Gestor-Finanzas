@@ -1,0 +1,34 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Turbo
+.turbo
+
+# Next.js
+.next/
+out/
+
+# NestJS / TypeScript
+dist/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS / Editor
+.DS_Store
+*.pem
+.idea/
+.vscode/
+*.swp
