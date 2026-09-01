@@ -164,18 +164,44 @@ export async function createExpense(
   data: CreateExpenseInput,
 ): Promise<ExpenseItem> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}/expenses`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Error al registrar gasto (${res.status})`);
+  
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const { addOfflineRequest } = await import('../offline-sync-db');
+    await addOfflineRequest({
+      url: `${API_URL}/expenses`,
+      method: 'POST',
+      headers: headers as Record<string, string>,
+      body: data,
+    });
+    return { ...data, id: 'temp-' + Date.now(), currency: 'ARS', userId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as ExpenseItem;
   }
 
-  return res.json();
+  try {
+    const res = await fetch(`${API_URL}/expenses`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Error al registrar gasto (${res.status})`);
+    }
+
+    return res.json();
+  } catch (err: any) {
+    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+      const { addOfflineRequest } = await import('../offline-sync-db');
+      await addOfflineRequest({
+        url: `${API_URL}/expenses`,
+        method: 'POST',
+        headers: headers as Record<string, string>,
+        body: data,
+      });
+      return { ...data, id: 'temp-' + Date.now(), currency: 'ARS', userId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as ExpenseItem;
+    }
+    throw err;
+  }
 }
 
 /**
