@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -13,7 +13,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  TrendingUp,
   Tag,
   PieChart,
 } from 'lucide-react';
@@ -33,7 +32,8 @@ export default function CategoriasPage() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const loading = isAuthLoading || (user ? isDataLoading : false);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{
@@ -76,29 +76,52 @@ export default function CategoriasPage() {
   }, [supabase]);
 
   // Load categories
-  const loadCategories = async () => {
-    setLoading(true);
+  const loadCategories = useCallback(async () => {
+    setIsDataLoading(true);
     setError(null);
     try {
       const data = await getCategories();
       setCategories(data);
-    } catch (err: any) {
-      setError(
-        err?.message ||
-          'No se pudieron cargar las categorías. Verifica tu sesión y conexión al backend.',
-      );
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'No se pudieron cargar las categorías. Verifica tu sesión y conexión al backend.';
+      setError(msg);
     } finally {
-      setLoading(false);
+      setIsDataLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      loadCategories();
-    } else if (!isAuthLoading) {
-      setLoading(false);
-    }
-  }, [user, isAuthLoading]);
+    if (!user) return;
+    let isMounted = true;
+    getCategories()
+      .then((data) => {
+        if (isMounted) {
+          setCategories(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : 'No se pudieron cargar las categorías. Verifica tu sesión y conexión al backend.';
+          setError(msg);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsDataLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   // Auto-hide toast after 4s
   useEffect(() => {
@@ -159,8 +182,12 @@ export default function CategoriasPage() {
         type: 'success',
         text: 'Categorías por defecto cargadas correctamente.',
       });
-    } catch (err: any) {
-      setError(err?.message || 'Error al restaurar categorías por defecto');
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Error al restaurar categorías por defecto';
+      setError(msg);
     } finally {
       setIsSeeding(false);
     }
@@ -408,7 +435,7 @@ export default function CategoriasPage() {
             {!loading && categories.length > 0 && filteredCategories.length === 0 && (
               <div className="mt-12 rounded-3xl border border-slate-800 bg-slate-900/30 p-8 text-center">
                 <p className="text-sm font-semibold text-slate-300">
-                  No se encontraron categorías para "{search}"
+                  No se encontraron categorías para &ldquo;{search}&rdquo;
                 </p>
                 <button
                   onClick={() => setSearch('')}

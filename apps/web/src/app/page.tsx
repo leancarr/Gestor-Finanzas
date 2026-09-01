@@ -7,11 +7,12 @@ import {
   Shield,
   Sparkles,
   Key,
-  CheckCircle2,
   AlertCircle,
   RefreshCw,
   Layers,
   ArrowRight,
+  DollarSign,
+  Plus,
 } from 'lucide-react';
 
 interface HealthResponse {
@@ -41,8 +42,9 @@ export default function Home() {
       const res = await fetch(`${apiUrl}/health`);
       const data = await res.json();
       setHealth(data);
-    } catch (err: any) {
-      setError(err?.message || 'Error conectando con la API backend');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error conectando con la API backend';
+      setError(msg);
       setHealth(null);
     } finally {
       setLoading(false);
@@ -50,8 +52,32 @@ export default function Home() {
   };
 
   useEffect(() => {
-    checkHealth();
-  }, []);
+    let isMounted = true;
+    fetch(`${apiUrl}/health`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted) {
+          setHealth(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : 'Error conectando con la API backend';
+          setError(msg);
+          setHealth(null);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [apiUrl]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-12 text-slate-100 sm:px-6 lg:px-8">
@@ -74,10 +100,17 @@ export default function Home() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Link
+              href="/gastos"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-semibold hover:bg-emerald-600/30 hover:text-white transition cursor-pointer"
+            >
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+              Gastos
+            </Link>
+            <Link
               href="/categorias"
               className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-slate-200 border border-slate-800 hover:border-slate-700 hover:text-white transition cursor-pointer"
             >
-              <Layers className="h-3.5 w-3.5 text-emerald-400" />
+              <Layers className="h-3.5 w-3.5 text-slate-400" />
               Categorías
             </Link>
             <UserStatus />
@@ -185,8 +218,43 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Expenses Module Banner (Ticket 2.2 - SEI-22) */}
+        <div className="mt-8 rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/60 to-slate-900/60 p-6 backdrop-blur relative overflow-hidden shadow-xl shadow-emerald-950/20">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
+                <DollarSign className="h-4 w-4" />
+                TICKET 2.2: INGRESO DE GASTO BÁSICO (SEI-22)
+              </div>
+              <h2 className="text-xl font-bold text-white">
+                Registro y Control de Gastos en Pesos con RLS
+              </h2>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Formulario ágil con validación Zod y React Hook Form, selección de categorías vinculadas, atajos rápidos de montos en pesos ($ ARS) y protección multi-tenant en PostgreSQL.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/gastos/nuevo"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nuevo Gasto
+              </Link>
+              <Link
+                href="/gastos"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
+              >
+                <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                Ver Mis Gastos
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
         {/* Categories Module Banner (Ticket 2.1 - SEI-21) */}
-        <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur relative overflow-hidden">
+        <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur relative overflow-hidden">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
               <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
@@ -203,9 +271,9 @@ export default function Home() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/categorias"
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-white transition-colors border border-slate-700"
               >
-                <Layers className="h-3.5 w-3.5" />
+                <Layers className="h-3.5 w-3.5 text-emerald-400" />
                 Administrar Categorías
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>

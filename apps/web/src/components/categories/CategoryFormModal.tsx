@@ -129,8 +129,9 @@ export function CategoryFormModal({
         onSuccess(created);
       }
       onClose();
-    } catch (err: any) {
-      setApiError(err?.message || 'Error al guardar la categoría');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar la categoría';
+      setApiError(msg);
     } finally {
       setIsSubmitting(false);
     }

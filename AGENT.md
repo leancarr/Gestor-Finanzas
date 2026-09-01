@@ -121,5 +121,21 @@ pnpm --filter api run prisma:push
     - Cliente API desacoplado (`utils/api/categories.ts`) con envío automático de tokens JWT de Supabase Auth.
     - Navegación integrada en la barra principal del Home.
 
+- **Ticket 2.2 (SEI-22): Ingreso de Gasto Básico** `[COMPLETADO]`
+  - **Backend (`apps/api`):**
+    - `ExpensesModule`, `ExpensesController` y `ExpensesService` con endpoints protegidos (`POST /expenses`, `GET /expenses`, `GET /expenses/:id`, `PATCH /expenses/:id`, `DELETE /expenses/:id`).
+    - Protección obligatoria con `SupabaseAuthGuard` e inyección de contexto RLS (`prisma.withUser(userId)`).
+    - DTOs con validación estricta (`CreateExpenseDto`, `UpdateExpenseDto`, `QueryExpenseDto`).
+    - Verificación de pertenencia de categoría al usuario antes de asociar un gasto.
+    - Soporte numérico simple para moneda local en pesos (`ARS`).
+    - Suite de pruebas unitarias (`expenses.service.spec.ts`, `expenses.controller.spec.ts`): 18 pruebas nuevas (totalizando 45 pruebas unitarias 100% exitosas).
+  - **Frontend (`apps/web`):**
+    - Componente `<ExpenseForm />` construido con `react-hook-form` y `zod`, selector de categorías con vista previa de íconos Lucide y colores, atajos de importes rápidos en pesos y selector de fechas.
+    - Vista `/gastos/nuevo` optimizada para registro ágil de consumos.
+    - Vista `/gastos` con métricas financieras en tiempo real (Total Gastado en ARS, Cantidad de Gastos, Gasto Promedio, Mayor Gasto), filtros combinados por búsqueda y categoría, lista de tarjetas `<ExpenseCard />` y confirmación de borrado `<ExpenseDeleteModal />`.
+    - Cliente API desacoplado (`utils/api/expenses.ts`) con integración de JWT de sesión de Supabase Auth.
+    - Integración de accesos directos y banners en la página principal (`/`).
+
+
 
 

@@ -120,8 +120,9 @@ export default function AuthPage() {
           setSuccessMessage('¡Inicio de sesión exitoso!');
           router.push('/');
         }
-      } catch (err: any) {
-        setErrorMessage(err?.message || 'Ocurrió un error inesperado');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
+        setErrorMessage(msg);
       }
     });
   };
@@ -138,8 +139,9 @@ export default function AuthPage() {
       if (error) {
         setErrorMessage(error.message);
       }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Error al iniciar con proveedor social');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al iniciar con proveedor social';
+      setErrorMessage(msg);
     }
   };
 

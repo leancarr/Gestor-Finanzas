@@ -17,9 +17,10 @@ export function CategoryIcon({
   }
 
   // Look up icon in lucide-react exports
-  const IconComponent = (Icons as Record<string, any>)[name];
+  const iconRecord = Icons as unknown as Record<string, React.ComponentType<Icons.LucideProps>>;
+  const IconComponent = iconRecord[name];
 
-  if (IconComponent && typeof IconComponent === 'object') {
+  if (IconComponent && (typeof IconComponent === 'function' || typeof IconComponent === 'object')) {
     return <IconComponent className={className} size={size} />;
   }
 

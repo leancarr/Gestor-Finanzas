@@ -32,8 +32,9 @@ export function CategoryDeleteModal({
       await deleteCategory(category.id);
       onSuccess(category.id);
       onClose();
-    } catch (err: any) {
-      setError(err?.message || 'Error al eliminar la categoría');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al eliminar la categoría';
+      setError(msg);
     } finally {
       setIsDeleting(false);
     }
@@ -77,7 +78,7 @@ export function CategoryDeleteModal({
         <div className="mt-5 space-y-4">
           <p className="text-xs text-slate-300 leading-relaxed">
             ¿Estás seguro de que deseas eliminar la categoría{' '}
-            <strong className="text-white">"{category.name}"</strong>?
+            <strong className="text-white">&ldquo;{category.name}&rdquo;</strong>?
           </p>
 
           {/* Category Preview Tag */}
