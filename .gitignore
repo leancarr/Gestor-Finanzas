@@ -32,3 +32,6 @@ lerna-debug.log*
 .idea/
 .vscode/
 *.swp
+
+# Antigravity Agents
+.agents/
