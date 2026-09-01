@@ -7,7 +7,9 @@ import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
 export default function SyncManager() {
   const [offlineCount, setOfflineCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(() => 
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   const checkOfflineCount = useCallback(async () => {
     const count = await countOfflineRequests();
@@ -30,7 +32,7 @@ export default function SyncManager() {
         if (res.ok || res.status >= 400) {
           await removeOfflineRequest(req.id);
         }
-      } catch (err) {
+      } catch {
         // Still offline or error
       }
     }
@@ -39,7 +41,6 @@ export default function SyncManager() {
   }, [isSyncing, checkOfflineCount]);
 
   useEffect(() => {
-    setIsOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
     checkOfflineCount();
 
     const handleOnline = () => {

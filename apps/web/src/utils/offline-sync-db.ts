@@ -32,7 +32,7 @@ export async function addOfflineRequest(request: {
   url: string;
   method: string;
   headers?: Record<string, string>;
-  body: any;
+  body: unknown;
 }) {
   const db = await getDB();
   if (!db) return;

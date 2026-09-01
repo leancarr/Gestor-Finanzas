@@ -189,8 +189,8 @@ export async function createExpense(
     }
 
     return res.json();
-  } catch (err: any) {
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'TypeError' && err.message.includes('fetch')) {
       const { addOfflineRequest } = await import('../offline-sync-db');
       await addOfflineRequest({
         url: `${API_URL}/expenses`,
