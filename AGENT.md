@@ -106,4 +106,20 @@ pnpm --filter api run prisma:push
   - Actualización de `AuthService.syncOrCreateUser` para ejecutar las mutaciones bajo el contexto `withUser(authUser.id)`.
   - Suite de pruebas completa: 8 pruebas unitarias y 5 pruebas de integración / E2E (`test/rls.e2e-spec.ts`) validando aislamiento de tenants, bloqueo de cross-tenant inserts y rechazo de accesos no autorizados.
 
+- **Ticket 2.1 (SEI-21): Gestión de Categorías** `[COMPLETADO]`
+  - **Backend (`apps/api`):**
+    - `CategoriesModule`, `CategoriesController` y `CategoriesService` con endpoints protegidos (`GET /categories`, `GET /categories/:id`, `POST /categories`, `PATCH /categories/:id`, `DELETE /categories/:id`, `POST /categories/seed-defaults`).
+    - Protección obligatoria con `SupabaseAuthGuard` e inyección de contexto RLS mediante `prisma.withUser(userId)`.
+    - DTOs con validación estricta (`CreateCategoryDto`, `UpdateCategoryDto`) y activación global de `ValidationPipe`.
+    - Sincronización automática de 12 categorías predeterminadas con íconos y colores adaptadas al contexto financiero personal en `AuthService.syncOrCreateUser`.
+    - Suite de pruebas unitarias (`categories.service.spec.ts`, `categories.controller.spec.ts`): 19 pruebas añadidas (totalizando 27 pruebas unitarias + 5 pruebas E2E 100% exitosas).
+  - **Frontend (`apps/web`):**
+    - Módulo `/categorias` con panel interactivo, métricas de categorías en tiempo real, búsqueda y filtros.
+    - Modal de creación y edición integrado con `react-hook-form` y validación tipada con `zod`.
+    - Selector visual de más de 40 íconos `lucide-react` agrupados por rubros y paleta de colores personalizada con vista previa en vivo.
+    - Modal de confirmación de eliminación segura con control de impacto sobre gastos asociados.
+    - Cliente API desacoplado (`utils/api/categories.ts`) con envío automático de tokens JWT de Supabase Auth.
+    - Navegación integrada en la barra principal del Home.
+
+
 

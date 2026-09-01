@@ -19,6 +19,10 @@ describe('AuthController', () => {
         name: 'Test User',
       }),
     },
+    category: {
+      count: vi.fn().mockResolvedValue(1),
+      createMany: vi.fn().mockResolvedValue({ count: 12 }),
+    },
   };
 
   const mockConfigService = {
