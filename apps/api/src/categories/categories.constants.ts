@@ -5,6 +5,10 @@ export interface DefaultCategory {
 }
 
 export const DEFAULT_CATEGORIES: DefaultCategory[] = [
+  // Categorías de Ingresos
+  { name: 'Salario & Sueldo', icon: 'Banknote', color: '#10B981' }, // Emerald
+  { name: 'Freelance & Ventas', icon: 'Briefcase', color: '#06B6D4' }, // Cyan
+  // Categorías de Gastos
   { name: 'Supermercado & Alimentos', icon: 'ShoppingCart', color: '#10B981' }, // Emerald
   { name: 'Comida & Salidas', icon: 'Utensils', color: '#F59E0B' }, // Amber
   { name: 'Transporte & Combustible', icon: 'Car', color: '#3B82F6' }, // Blue

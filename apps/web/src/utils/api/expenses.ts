@@ -1,5 +1,7 @@
 import { createClient } from '@/utils/supabase/client';
 
+export type TransactionType = 'EXPENSE' | 'INCOME';
+
 export interface ExpenseCategory {
   id: string;
   name: string;
@@ -11,6 +13,7 @@ export interface ExpenseItem {
   id: string;
   amount: number | string;
   currency: string;
+  type: TransactionType;
   description: string;
   date: string;
   categoryId: string | null;
@@ -23,6 +26,7 @@ export interface ExpenseItem {
 export interface CreateExpenseInput {
   amount: number;
   description: string;
+  type?: TransactionType;
   date?: string;
   categoryId?: string | null;
 }
@@ -30,6 +34,7 @@ export interface CreateExpenseInput {
 export interface UpdateExpenseInput {
   amount?: number;
   description?: string;
+  type?: TransactionType;
   date?: string;
   categoryId?: string | null;
 }
@@ -48,12 +53,18 @@ export interface ExpensesSummary {
   month: number;
   year: number;
   totalAmount: number;
+  totalExpenses: number;
+  totalIncome: number;
+  balance: number;
   count: number;
+  expensesCount?: number;
+  incomeCount?: number;
   byCategory: CategorySummaryItem[];
 }
 
 export interface ExpenseFilterQuery {
   categoryId?: string;
+  type?: TransactionType;
   search?: string;
   startDate?: string;
   endDate?: string;
@@ -94,6 +105,9 @@ export async function getExpenses(
 
   if (query?.categoryId) {
     url.searchParams.set('categoryId', query.categoryId);
+  }
+  if (query?.type) {
+    url.searchParams.set('type', query.type);
   }
   if (query?.search && query.search.trim()) {
     url.searchParams.set('search', query.search.trim());

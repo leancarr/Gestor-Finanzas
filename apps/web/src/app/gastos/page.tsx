@@ -34,6 +34,7 @@ export default function GastosPage() {
   const loading = isAuthLoading || (user ? isDataLoading : false);
   const [search, setSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<'ALL' | 'EXPENSE' | 'INCOME'>('ALL');
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{
     type: 'success' | 'error';
@@ -86,7 +87,7 @@ export default function GastosPage() {
       const msg =
         err instanceof Error
           ? err.message
-          : 'No se pudieron cargar los gastos. Verifica tu sesión y la conexión al backend.';
+          : 'No se pudieron cargar las transacciones. Verifica tu sesión y la conexión al backend.';
       setError(msg);
     } finally {
       setIsDataLoading(false);
@@ -109,7 +110,7 @@ export default function GastosPage() {
           const msg =
             err instanceof Error
               ? err.message
-              : 'No se pudieron cargar los gastos. Verifica tu sesión y la conexión al backend.';
+              : 'No se pudieron cargar las transacciones. Verifica tu sesión y la conexión al backend.';
           setError(msg);
         }
       })
@@ -141,11 +142,11 @@ export default function GastosPage() {
     setExpenses((prev) => prev.filter((e) => e.id !== deletedId));
     setToastMessage({
       type: 'success',
-      text: 'Gasto eliminado con éxito.',
+      text: 'Movimiento eliminado con éxito.',
     });
   };
 
-  // Filtered expenses by search and category
+  // Filtered expenses by search, category and type
   const filteredExpenses = useMemo(() => {
     return expenses.filter((exp) => {
       const matchesSearch =
@@ -153,34 +154,42 @@ export default function GastosPage() {
         exp.description.toLowerCase().includes(search.toLowerCase().trim());
       const matchesCategory =
         !selectedCategoryFilter || exp.categoryId === selectedCategoryFilter;
-      return matchesSearch && matchesCategory;
+      const matchesType =
+        selectedTypeFilter === 'ALL' || exp.type === selectedTypeFilter;
+      return matchesSearch && matchesCategory && matchesType;
     });
-  }, [expenses, search, selectedCategoryFilter]);
+  }, [expenses, search, selectedCategoryFilter, selectedTypeFilter]);
 
-  // Statistics calculation
-  const totalAmount = useMemo(() => {
-    return expenses.reduce((acc, exp) => {
-      const num =
-        typeof exp.amount === 'number'
-          ? exp.amount
-          : parseFloat(String(exp.amount)) || 0;
-      return acc + num;
-    }, 0);
+  // Statistics calculations
+  const totalExpenses = useMemo(() => {
+    return expenses
+      .filter((e) => e.type !== 'INCOME')
+      .reduce((acc, exp) => {
+        const num =
+          typeof exp.amount === 'number'
+            ? exp.amount
+            : parseFloat(String(exp.amount)) || 0;
+        return acc + num;
+      }, 0);
   }, [expenses]);
 
-  const averageAmount = useMemo(() => {
-    if (expenses.length === 0) return 0;
-    return totalAmount / expenses.length;
-  }, [expenses, totalAmount]);
-
-  const maxExpense = useMemo(() => {
-    if (expenses.length === 0) return 0;
-    return Math.max(
-      ...expenses.map((e) =>
-        typeof e.amount === 'number' ? e.amount : parseFloat(String(e.amount)) || 0,
-      ),
-    );
+  const totalIncome = useMemo(() => {
+    return expenses
+      .filter((e) => e.type === 'INCOME')
+      .reduce((acc, exp) => {
+        const num =
+          typeof exp.amount === 'number'
+            ? exp.amount
+            : parseFloat(String(exp.amount)) || 0;
+        return acc + num;
+      }, 0);
   }, [expenses]);
+
+  const balance = useMemo(() => {
+    return totalIncome - totalExpenses;
+  }, [totalIncome, totalExpenses]);
+
+  const isPositiveBalance = balance >= 0;
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('es-AR', {
@@ -209,11 +218,11 @@ export default function GastosPage() {
                 <DollarSign className="h-5 w-5" />
               </div>
               <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                Mis Gastos
+                Movimientos
               </h1>
             </div>
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
-              Historial y registro de gastos personales en pesos
+              Historial y registro de ingresos y gastos personales en pesos
             </p>
           </div>
 
@@ -227,7 +236,7 @@ export default function GastosPage() {
             </Link>
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Ticket 2.2: SEI-22
+              Ticket 2.4: Ingresos & Gastos
             </div>
             <UserStatus />
           </div>
@@ -269,10 +278,10 @@ export default function GastosPage() {
                   AUTENTICACIÓN REQUERIDA (RLS)
                 </div>
                 <h2 className="text-lg font-bold text-white">
-                  Inicia sesión para gestionar tus gastos
+                  Inicia sesión para gestionar tus movimientos
                 </h2>
                 <p className="text-xs text-slate-300 max-w-xl">
-                  Cada usuario tiene sus propios gastos protegidos por Row Level Security en PostgreSQL.
+                  Cada usuario tiene sus propios ingresos y gastos protegidos por Row Level Security en PostgreSQL.
                 </p>
               </div>
               <Link
@@ -291,53 +300,69 @@ export default function GastosPage() {
           <>
             {/* Stats Bar */}
             <div className="mt-8 grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Total Card */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
+              {/* Balance Card */}
+              <div
+                className={`rounded-2xl border p-5 backdrop-blur flex items-center gap-4 ${
+                  isPositiveBalance
+                    ? 'border-emerald-500/30 bg-slate-900/60'
+                    : 'border-rose-500/30 bg-slate-900/60'
+                }`}
+              >
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl ring-1 shrink-0 ${
+                    isPositiveBalance
+                      ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+                      : 'bg-rose-500/10 text-rose-400 ring-rose-500/20'
+                  }`}
+                >
                   <DollarSign className="h-6 w-6" />
                 </div>
-                <div>
-                  <span className="text-xs text-slate-400 font-medium">Total Gastado</span>
-                  <p className="text-xl font-bold text-white tracking-tight">
-                    {formatCurrency(totalAmount)}
+                <div className="min-w-0">
+                  <span className="text-xs text-slate-400 font-medium">Balance</span>
+                  <p
+                    className={`text-xl font-bold tracking-tight truncate ${
+                      isPositiveBalance ? 'text-emerald-400' : 'text-rose-400'
+                    }`}
+                  >
+                    {formatCurrency(balance)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Income Card */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shrink-0">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs text-slate-400 font-medium">Total Ingresos</span>
+                  <p className="text-xl font-bold text-white tracking-tight truncate">
+                    {formatCurrency(totalIncome)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Total Expenses Card */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20 shrink-0">
+                  <TrendingDown className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs text-slate-400 font-medium">Total Gastos</span>
+                  <p className="text-xl font-bold text-white tracking-tight truncate">
+                    {formatCurrency(totalExpenses)}
                   </p>
                 </div>
               </div>
 
               {/* Count Card */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20 shrink-0">
                   <Receipt className="h-6 w-6" />
                 </div>
                 <div>
-                  <span className="text-xs text-slate-400 font-medium">Gastos Registrados</span>
+                  <span className="text-xs text-slate-400 font-medium">Movimientos</span>
                   <p className="text-xl font-bold text-white">{expenses.length}</p>
-                </div>
-              </div>
-
-              {/* Average Card */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/20">
-                  <TrendingDown className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 font-medium">Gasto Promedio</span>
-                  <p className="text-xl font-bold text-white">
-                    {formatCurrency(averageAmount)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Max Expense Card */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 font-medium">Mayor Gasto</span>
-                  <p className="text-xl font-bold text-white">
-                    {formatCurrency(maxExpense)}
-                  </p>
                 </div>
               </div>
             </div>
@@ -355,6 +380,26 @@ export default function GastosPage() {
                     onChange={(e) => setSearch(e.target.value)}
                     className="w-full rounded-2xl border border-slate-800 bg-slate-900/60 pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition"
                   />
+                </div>
+
+                {/* Type Filter */}
+                <div className="relative w-full sm:max-w-[150px]">
+                  <select
+                    value={selectedTypeFilter}
+                    onChange={(e) =>
+                      setSelectedTypeFilter(
+                        e.target.value as 'ALL' | 'EXPENSE' | 'INCOME',
+                      )
+                    }
+                    className="w-full appearance-none rounded-2xl border border-slate-800 bg-slate-900/60 pl-3.5 pr-8 py-2.5 text-xs text-white focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition cursor-pointer"
+                  >
+                    <option value="ALL">Todos los tipos</option>
+                    <option value="EXPENSE">Solo Gastos</option>
+                    <option value="INCOME">Solo Ingresos</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 text-xs">
+                    ▼
+                  </div>
                 </div>
 
                 {/* Category Filter */}
@@ -380,14 +425,14 @@ export default function GastosPage() {
                 </div>
               </div>
 
-              {/* Action Button: Nuevo Gasto */}
+              {/* Action Button: Nueva Transacción */}
               <div className="flex items-center gap-3">
                 <Link
                   href="/gastos/nuevo"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
                 >
                   <Plus className="h-4 w-4" />
-                  Nuevo Gasto
+                  Nueva Transacción
                 </Link>
               </div>
             </div>

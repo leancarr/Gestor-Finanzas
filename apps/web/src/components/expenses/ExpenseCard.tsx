@@ -59,9 +59,16 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
 
         {/* Expense Info */}
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
-            {expense.description}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
+              {expense.description}
+            </p>
+            {expense.type === 'INCOME' && (
+              <span className="shrink-0 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                Ingreso
+              </span>
+            )}
+          </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
             {category && (
               <span
@@ -92,8 +99,12 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
 
       {/* Amount & Actions */}
       <div className="flex items-center gap-3 shrink-0">
-        <span className="text-sm sm:text-base font-bold text-white tracking-tight">
-          {formattedAmount}
+        <span
+          className={`text-sm sm:text-base font-bold tracking-tight ${
+            expense.type === 'INCOME' ? 'text-emerald-400' : 'text-white'
+          }`}
+        >
+          {expense.type === 'INCOME' ? '+' : '-'} {formattedAmount}
         </span>
 
         {onDelete && (

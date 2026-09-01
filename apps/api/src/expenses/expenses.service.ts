@@ -3,6 +3,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
@@ -16,7 +17,7 @@ export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Registra un nuevo gasto asociado al usuario autenticado bajo contexto RLS.
+   * Registra una nueva transacción (gasto o ingreso) asociada al usuario autenticado bajo contexto RLS.
    */
   async create(userId: string, createExpenseDto: CreateExpenseDto) {
     return this.prisma.withUser(userId, async (tx) => {
@@ -40,10 +41,13 @@ export class ExpensesService {
         ? new Date(createExpenseDto.date)
         : new Date();
 
+      const transactionType = createExpenseDto.type || TransactionType.EXPENSE;
+
       return tx.expense.create({
         data: {
           amount: createExpenseDto.amount,
           currency: 'ARS',
+          type: transactionType,
           description: createExpenseDto.description.trim(),
           date: expenseDate,
           categoryId: createExpenseDto.categoryId || null,
@@ -57,13 +61,17 @@ export class ExpensesService {
   }
 
   /**
-   * Obtiene la lista de gastos del usuario autenticado con filtros opcionales.
+   * Obtiene la lista de transacciones del usuario autenticado con filtros opcionales.
    */
   async findAll(userId: string, query?: QueryExpenseDto) {
     return this.prisma.withUser(userId, async (tx) => {
       const whereClause: any = {
         userId,
       };
+
+      if (query?.type) {
+        whereClause.type = query.type;
+      }
 
       if (query?.categoryId) {
         whereClause.categoryId = query.categoryId;
@@ -128,7 +136,7 @@ export class ExpensesService {
   }
 
   /**
-   * Actualiza un gasto existente.
+   * Actualiza una transacción existente.
    */
   async update(
     userId: string,
@@ -167,6 +175,9 @@ export class ExpensesService {
         data: {
           ...(updateExpenseDto.amount !== undefined
             ? { amount: updateExpenseDto.amount }
+            : {}),
+          ...(updateExpenseDto.type !== undefined
+            ? { type: updateExpenseDto.type }
             : {}),
           ...(updateExpenseDto.description !== undefined
             ? { description: updateExpenseDto.description.trim() }
@@ -213,7 +224,7 @@ export class ExpensesService {
   }
 
   /**
-   * Obtiene el resumen mensual de gastos y distribución por categorías.
+   * Obtiene el resumen mensual de finanzas: Total Gastos, Total Ingresos, Balance y distribución por categorías.
    */
   async getSummary(userId: string, query?: SummaryExpenseDto) {
     return this.prisma.withUser(userId, async (tx) => {
@@ -241,12 +252,12 @@ export class ExpensesService {
         },
       });
 
-      const totalAmount = expenses.reduce(
-        (sum, exp) => sum + Number(exp.amount),
-        0,
-      );
+      let totalExpenses = 0;
+      let totalIncome = 0;
+      let expensesCount = 0;
+      let incomeCount = 0;
 
-      // Group by category
+      // Group expenses by category
       const categoryMap = new Map<
         string,
         {
@@ -260,32 +271,43 @@ export class ExpensesService {
       >();
 
       for (const exp of expenses) {
-        const catKey = exp.categoryId || 'uncategorized';
         const amount = Number(exp.amount);
+        const isIncome = exp.type === TransactionType.INCOME;
 
-        if (!categoryMap.has(catKey)) {
-          categoryMap.set(catKey, {
-            categoryId: exp.categoryId || null,
-            categoryName: exp.category ? exp.category.name : 'Sin categoría',
-            icon: exp.category ? exp.category.icon : null,
-            color: exp.category ? exp.category.color : '#64748B',
-            total: 0,
-            count: 0,
-          });
+        if (isIncome) {
+          totalIncome += amount;
+          incomeCount += 1;
+        } else {
+          totalExpenses += amount;
+          expensesCount += 1;
+
+          const catKey = exp.categoryId || 'uncategorized';
+          if (!categoryMap.has(catKey)) {
+            categoryMap.set(catKey, {
+              categoryId: exp.categoryId || null,
+              categoryName: exp.category ? exp.category.name : 'Sin categoría',
+              icon: exp.category ? exp.category.icon : null,
+              color: exp.category ? exp.category.color : '#64748B',
+              total: 0,
+              count: 0,
+            });
+          }
+
+          const catData = categoryMap.get(catKey)!;
+          catData.total += amount;
+          catData.count += 1;
         }
-
-        const catData = categoryMap.get(catKey)!;
-        catData.total += amount;
-        catData.count += 1;
       }
+
+      const balance = totalIncome - totalExpenses;
 
       const byCategory = Array.from(categoryMap.values())
         .map((cat) => ({
           ...cat,
           total: Math.round(cat.total * 100) / 100,
           percentage:
-            totalAmount > 0
-              ? Math.round((cat.total / totalAmount) * 10000) / 100
+            totalExpenses > 0
+              ? Math.round((cat.total / totalExpenses) * 10000) / 100
               : 0,
         }))
         .sort((a, b) => b.total - a.total);
@@ -293,8 +315,13 @@ export class ExpensesService {
       return {
         month: targetMonth,
         year: targetYear,
-        totalAmount: Math.round(totalAmount * 100) / 100,
+        totalExpenses: Math.round(totalExpenses * 100) / 100,
+        totalIncome: Math.round(totalIncome * 100) / 100,
+        balance: Math.round(balance * 100) / 100,
+        totalAmount: Math.round(totalExpenses * 100) / 100,
         count: expenses.length,
+        expensesCount,
+        incomeCount,
         byCategory,
       };
     });

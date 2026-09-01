@@ -181,15 +181,21 @@ export function RecentExpensesList({
                   </div>
                 </div>
 
-                {/* Amount */}
-                <div className="text-right shrink-0 ml-3">
-                  <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
-                    {formatCurrency(expense.amount)}
-                  </span>
+                  {/* Amount & Type Indicator */}
+                  <div className="text-right shrink-0 ml-3">
+                    <span
+                      className={`text-xs sm:text-sm font-bold tracking-tight ${
+                        expense.type === 'INCOME'
+                          ? 'text-emerald-400'
+                          : 'text-white'
+                      }`}
+                    >
+                      {expense.type === 'INCOME' ? '+' : '-'} {formatCurrency(expense.amount)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
           <div className="pt-2 text-center">
             <Link

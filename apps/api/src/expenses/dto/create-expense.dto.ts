@@ -7,8 +7,10 @@ import {
   IsUUID,
   MaxLength,
   IsISO8601,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TransactionType } from '@prisma/client';
 
 export class CreateExpenseDto {
   @IsNotEmpty({ message: 'El monto es obligatorio' })
@@ -19,6 +21,10 @@ export class CreateExpenseDto {
   )
   @IsPositive({ message: 'El monto debe ser mayor a 0' })
   amount!: number;
+
+  @IsOptional()
+  @IsEnum(TransactionType, { message: 'El tipo debe ser EXPENSE o INCOME' })
+  type?: TransactionType;
 
   @IsNotEmpty({ message: 'La descripción es obligatoria' })
   @IsString({ message: 'La descripción debe ser una cadena de texto' })

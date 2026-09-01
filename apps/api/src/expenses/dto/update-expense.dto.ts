@@ -6,8 +6,10 @@ import {
   IsUUID,
   MaxLength,
   IsISO8601,
+  IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TransactionType } from '@prisma/client';
 
 export class UpdateExpenseDto {
   @IsOptional()
@@ -18,6 +20,10 @@ export class UpdateExpenseDto {
   )
   @IsPositive({ message: 'El monto debe ser mayor a 0' })
   amount?: number;
+
+  @IsOptional()
+  @IsEnum(TransactionType, { message: 'El tipo debe ser EXPENSE o INCOME' })
+  type?: TransactionType;
 
   @IsOptional()
   @IsString({ message: 'La descripción debe ser una cadena de texto' })

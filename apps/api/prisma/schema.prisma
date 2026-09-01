@@ -39,20 +39,26 @@ model Category {
   @@map("categories")
 }
 
+enum TransactionType {
+  EXPENSE
+  INCOME
+}
+
 model Expense {
-  id           String    @id @default(uuid())
-  amount       Decimal   @db.Decimal(12, 2)
-  currency     String    @default("ARS")
+  id           String          @id @default(uuid())
+  amount       Decimal         @db.Decimal(12, 2)
+  currency     String          @default("ARS")
+  type         TransactionType @default(EXPENSE)
   description  String
-  date         DateTime  @default(now())
-  categoryId   String?   @map("category_id")
-  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  userId       String    @map("user_id")
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exchangeRate Decimal?  @map("exchange_rate") @db.Decimal(12, 4)
-  isTaxable    Boolean   @default(false) @map("is_taxable")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  date         DateTime        @default(now())
+  categoryId   String?         @map("category_id")
+  category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  userId       String          @map("user_id")
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchangeRate Decimal?        @map("exchange_rate") @db.Decimal(12, 4)
+  isTaxable    Boolean         @default(false) @map("is_taxable")
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@map("expenses")
 }

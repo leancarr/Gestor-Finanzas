@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExpensesService } from './expenses.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
+import { TransactionType } from '@prisma/client';
 
 describe('ExpensesService', () => {
   let service: ExpensesService;
@@ -18,6 +19,7 @@ describe('ExpensesService', () => {
     id: 'exp-1',
     amount: 15400.5,
     currency: 'ARS',
+    type: TransactionType.EXPENSE,
     description: 'Compras del mes en Coto',
     date: new Date('2026-09-01T12:00:00.000Z'),
     categoryId: 'cat-1',
@@ -27,6 +29,28 @@ describe('ExpensesService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     category: mockCategory,
+  };
+
+  const mockIncome = {
+    id: 'inc-1',
+    amount: 500000,
+    currency: 'ARS',
+    type: TransactionType.INCOME,
+    description: 'Sueldo Agosto',
+    date: new Date('2026-09-01T10:00:00.000Z'),
+    categoryId: 'cat-inc',
+    userId: 'user-123',
+    exchangeRate: null,
+    isTaxable: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    category: {
+      id: 'cat-inc',
+      name: 'Salario & Sueldo',
+      icon: 'Banknote',
+      color: '#10B981',
+      userId: 'user-123',
+    },
   };
 
   const mockTx = {
@@ -75,6 +99,7 @@ describe('ExpensesService', () => {
 
       const dto = {
         amount: 15400.5,
+        type: TransactionType.EXPENSE,
         description: 'Compras del mes en Coto',
         date: '2026-09-01T12:00:00.000Z',
         categoryId: 'cat-1',
@@ -93,6 +118,7 @@ describe('ExpensesService', () => {
         data: {
           amount: 15400.5,
           currency: 'ARS',
+          type: TransactionType.EXPENSE,
           description: 'Compras del mes en Coto',
           date: new Date('2026-09-01T12:00:00.000Z'),
           categoryId: 'cat-1',
@@ -103,22 +129,49 @@ describe('ExpensesService', () => {
       expect(result).toEqual(mockExpense);
     });
 
-    it('should create an expense without category', async () => {
-      const expenseWithoutCategory = { ...mockExpense, categoryId: null, category: null };
-      mockTx.expense.create.mockResolvedValue(expenseWithoutCategory);
+    it('should create an income transaction successfully', async () => {
+      mockTx.category.findFirst.mockResolvedValue(mockIncome.category);
+      mockTx.expense.create.mockResolvedValue(mockIncome);
+
+      const dto = {
+        amount: 500000,
+        type: TransactionType.INCOME,
+        description: 'Sueldo Agosto',
+        categoryId: 'cat-inc',
+      };
+
+      const result = await service.create('user-123', dto);
+
+      expect(mockTx.expense.create).toHaveBeenCalledWith({
+        data: {
+          amount: 500000,
+          currency: 'ARS',
+          type: TransactionType.INCOME,
+          description: 'Sueldo Agosto',
+          date: expect.any(Date),
+          categoryId: 'cat-inc',
+          userId: 'user-123',
+        },
+        include: { category: true },
+      });
+      expect(result).toEqual(mockIncome);
+    });
+
+    it('should default to EXPENSE type if type is omitted', async () => {
+      mockTx.expense.create.mockResolvedValue(mockExpense);
 
       const dto = {
         amount: 2500,
         description: 'Café al paso',
       };
 
-      const result = await service.create('user-123', dto);
+      await service.create('user-123', dto);
 
-      expect(mockTx.category.findFirst).not.toHaveBeenCalled();
       expect(mockTx.expense.create).toHaveBeenCalledWith({
         data: {
           amount: 2500,
           currency: 'ARS',
+          type: TransactionType.EXPENSE,
           description: 'Café al paso',
           date: expect.any(Date),
           categoryId: null,
@@ -126,7 +179,6 @@ describe('ExpensesService', () => {
         },
         include: { category: true },
       });
-      expect(result).toEqual(expenseWithoutCategory);
     });
 
     it('should throw NotFoundException if category does not belong to user', async () => {
@@ -165,10 +217,11 @@ describe('ExpensesService', () => {
       expect(result).toEqual([mockExpense]);
     });
 
-    it('should apply filters for category, search and dates', async () => {
+    it('should apply filters for type, category, search and dates', async () => {
       mockTx.expense.findMany.mockResolvedValue([mockExpense]);
 
       const query = {
+        type: TransactionType.EXPENSE,
         categoryId: 'cat-1',
         search: 'coto',
         startDate: '2026-09-01T00:00:00.000Z',
@@ -182,6 +235,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
+          type: TransactionType.EXPENSE,
           categoryId: 'cat-1',
           description: {
             contains: 'coto',
@@ -228,11 +282,13 @@ describe('ExpensesService', () => {
       mockTx.expense.update.mockResolvedValue({
         ...mockExpense,
         amount: 18000,
+        type: TransactionType.INCOME,
         description: 'Supermercado Editado',
       });
 
       const result = await service.update('user-123', 'exp-1', {
         amount: 18000,
+        type: TransactionType.INCOME,
         description: 'Supermercado Editado',
       });
 
@@ -240,6 +296,7 @@ describe('ExpensesService', () => {
         where: { id: 'exp-1' },
         data: {
           amount: 18000,
+          type: TransactionType.INCOME,
           description: 'Supermercado Editado',
         },
         include: { category: true },
@@ -282,12 +339,28 @@ describe('ExpensesService', () => {
   });
 
   describe('getSummary', () => {
-    it('should calculate summary and category distribution correctly', async () => {
-      const expensesInMonth = [
+    it('should calculate summary with expenses, income, balance and category distribution', async () => {
+      const transactionsInMonth = [
+        {
+          id: 'inc-1',
+          amount: 50000,
+          currency: 'ARS',
+          type: TransactionType.INCOME,
+          categoryId: 'cat-inc',
+          category: {
+            id: 'cat-inc',
+            name: 'Salario & Sueldo',
+            icon: 'Banknote',
+            color: '#10B981',
+            userId: 'user-123',
+          },
+          date: new Date('2026-09-01T12:00:00.000Z'),
+        },
         {
           id: 'exp-1',
           amount: 10000,
           currency: 'ARS',
+          type: TransactionType.EXPENSE,
           categoryId: 'cat-1',
           category: mockCategory,
           date: new Date('2026-09-05T12:00:00.000Z'),
@@ -296,6 +369,7 @@ describe('ExpensesService', () => {
           id: 'exp-2',
           amount: 5000,
           currency: 'ARS',
+          type: TransactionType.EXPENSE,
           categoryId: 'cat-1',
           category: mockCategory,
           date: new Date('2026-09-10T12:00:00.000Z'),
@@ -304,13 +378,14 @@ describe('ExpensesService', () => {
           id: 'exp-3',
           amount: 5000,
           currency: 'ARS',
+          type: TransactionType.EXPENSE,
           categoryId: null,
           category: null,
           date: new Date('2026-09-15T12:00:00.000Z'),
         },
       ];
 
-      mockTx.expense.findMany.mockResolvedValue(expensesInMonth);
+      mockTx.expense.findMany.mockResolvedValue(transactionsInMonth);
 
       const result = await service.getSummary('user-123', { month: 9, year: 2026 });
 
@@ -329,8 +404,13 @@ describe('ExpensesService', () => {
 
       expect(result.month).toBe(9);
       expect(result.year).toBe(2026);
+      expect(result.totalIncome).toBe(50000);
+      expect(result.totalExpenses).toBe(20000);
+      expect(result.balance).toBe(30000);
       expect(result.totalAmount).toBe(20000);
-      expect(result.count).toBe(3);
+      expect(result.count).toBe(4);
+      expect(result.expensesCount).toBe(3);
+      expect(result.incomeCount).toBe(1);
       expect(result.byCategory).toHaveLength(2);
       expect(result.byCategory[0]).toEqual({
         categoryId: 'cat-1',
@@ -352,13 +432,18 @@ describe('ExpensesService', () => {
       });
     });
 
-    it('should handle zero expenses gracefully', async () => {
+    it('should handle zero transactions gracefully', async () => {
       mockTx.expense.findMany.mockResolvedValue([]);
 
       const result = await service.getSummary('user-123', { month: 9, year: 2026 });
 
+      expect(result.totalExpenses).toBe(0);
+      expect(result.totalIncome).toBe(0);
+      expect(result.balance).toBe(0);
       expect(result.totalAmount).toBe(0);
       expect(result.count).toBe(0);
+      expect(result.expensesCount).toBe(0);
+      expect(result.incomeCount).toBe(0);
       expect(result.byCategory).toEqual([]);
     });
   });

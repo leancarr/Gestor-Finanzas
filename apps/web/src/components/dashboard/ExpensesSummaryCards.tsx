@@ -1,7 +1,14 @@
 'use client';
 
 import React from 'react';
-import { DollarSign, Receipt, TrendingDown, Sparkles } from 'lucide-react';
+import {
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react';
 import { ExpensesSummary } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 
@@ -42,69 +49,104 @@ export function ExpensesSummaryCards({
     );
   }
 
-  const totalAmount = summary.totalAmount;
-  const count = summary.count;
-  const averageAmount = count > 0 ? totalAmount / count : 0;
+  const totalExpenses = summary.totalExpenses ?? summary.totalAmount ?? 0;
+  const totalIncome = summary.totalIncome ?? 0;
+  const balance = summary.balance !== undefined ? summary.balance : totalIncome - totalExpenses;
+  const isPositiveBalance = balance >= 0;
+  const expensesCount = summary.expensesCount ?? summary.count ?? 0;
+  const incomeCount = summary.incomeCount ?? 0;
   const topCategory = summary.byCategory.length > 0 ? summary.byCategory[0] : null;
 
   return (
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-      {/* Total Card */}
-      <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-emerald-950/20 p-5 backdrop-blur shadow-lg shadow-emerald-950/10 hover:border-emerald-500/30 transition-all">
+      {/* 1. Balance Neto Card */}
+      <div
+        className={`relative overflow-hidden rounded-2xl border p-5 backdrop-blur shadow-lg transition-all ${
+          isPositiveBalance
+            ? 'border-emerald-500/30 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-emerald-950/30 shadow-emerald-950/20 hover:border-emerald-500/40'
+            : 'border-rose-500/30 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-rose-950/30 shadow-rose-950/20 hover:border-rose-500/40'
+        }`}
+      >
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shrink-0 shadow-inner">
-            <DollarSign className="h-6 w-6" />
+          <div
+            className={`flex h-12 w-12 items-center justify-center rounded-xl ring-1 shrink-0 shadow-inner ${
+              isPositiveBalance
+                ? 'bg-emerald-500/15 text-emerald-400 ring-emerald-500/30'
+                : 'bg-rose-500/15 text-rose-400 ring-rose-500/30'
+            }`}
+          >
+            {isPositiveBalance ? (
+              <Wallet className="h-6 w-6" />
+            ) : (
+              <TrendingDown className="h-6 w-6" />
+            )}
           </div>
           <div className="min-w-0">
-            <span className="text-xs text-slate-400 font-medium">Total Gastado</span>
-            <p className="text-xl font-extrabold text-white tracking-tight truncate">
-              {formatCurrency(totalAmount)}
+            <span className="text-xs text-slate-400 font-medium">Balance Neto</span>
+            <p
+              className={`text-xl font-black tracking-tight truncate ${
+                isPositiveBalance ? 'text-emerald-400' : 'text-rose-400'
+              }`}
+            >
+              {formatCurrency(balance)}
             </p>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span>Mes actual</span>
+        <div className="mt-3 flex items-center gap-1.5 text-[11px] font-medium">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              isPositiveBalance ? 'bg-emerald-400' : 'bg-rose-400'
+            }`}
+          />
+          <span className={isPositiveBalance ? 'text-emerald-400' : 'text-rose-400'}>
+            {isPositiveBalance ? 'Superávit en el mes' : 'Déficit en el mes'}
+          </span>
         </div>
       </div>
 
-      {/* Transactions Count Card */}
+      {/* 2. Total Ingresos Card */}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur hover:border-slate-700/80 transition-all shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20 shrink-0">
-            <Receipt className="h-6 w-6" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shrink-0">
+            <ArrowUpRight className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs text-slate-400 font-medium">Gastos Registrados</span>
+            <span className="text-xs text-slate-400 font-medium">Total Ingresos</span>
             <p className="text-xl font-extrabold text-white tracking-tight truncate">
-              {count} {count === 1 ? 'gasto' : 'gastos'}
+              {formatCurrency(totalIncome)}
             </p>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
-          <span>En el período seleccionado</span>
+        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+          <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+          <span>
+            {incomeCount} {incomeCount === 1 ? 'ingreso registrado' : 'ingresos registrados'}
+          </span>
         </div>
       </div>
 
-      {/* Average Card */}
+      {/* 3. Total Gastos Card */}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur hover:border-slate-700/80 transition-all shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/20 shrink-0">
-            <TrendingDown className="h-6 w-6" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20 shrink-0">
+            <ArrowDownRight className="h-6 w-6" />
           </div>
           <div className="min-w-0">
-            <span className="text-xs text-slate-400 font-medium">Ticket Promedio</span>
+            <span className="text-xs text-slate-400 font-medium">Total Gastos</span>
             <p className="text-xl font-extrabold text-white tracking-tight truncate">
-              {formatCurrency(averageAmount)}
+              {formatCurrency(totalExpenses)}
             </p>
           </div>
         </div>
-        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
-          <span>Por movimiento</span>
+        <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-400">
+          <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
+          <span>
+            {expensesCount} {expensesCount === 1 ? 'gasto registrado' : 'gastos registrados'}
+          </span>
         </div>
       </div>
 
-      {/* Top Category Card */}
+      {/* 4. Top Category Card */}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur hover:border-slate-700/80 transition-all shadow-sm">
         <div className="flex items-center gap-4">
           <div
@@ -124,7 +166,7 @@ export function ExpensesSummaryCards({
           <div className="min-w-0">
             <span className="text-xs text-slate-400 font-medium">Mayor Gasto</span>
             <p className="text-sm font-bold text-white tracking-tight truncate">
-              {topCategory ? topCategory.categoryName : 'Sin gastos'}
+              {topCategory ? topCategory.categoryName : 'Sin consumos'}
             </p>
             {topCategory && (
               <p className="text-xs font-semibold text-emerald-400 mt-0.5">
@@ -137,7 +179,7 @@ export function ExpensesSummaryCards({
           {topCategory ? (
             <span>Categoría con mayor consumo</span>
           ) : (
-            <span>Registra gastos para ver métricas</span>
+            <span>Registra consumos para ver métricas</span>
           )}
         </div>
       </div>

@@ -56,18 +56,18 @@ export default function NuevoGastoPage() {
                 <DollarSign className="h-5 w-5" />
               </div>
               <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                Nuevo Gasto
+                Nueva Transacción
               </h1>
             </div>
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
-              Registra un gasto en pesos con categoría y fecha de forma rápida
+              Registra tus ingresos o gastos en pesos con categoría y fecha de forma rápida
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Ticket 2.2: SEI-22
+              Ticket 2.4: Ingresos & Gastos
             </div>
             <UserStatus />
           </div>

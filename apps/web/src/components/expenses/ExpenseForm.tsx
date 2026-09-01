@@ -26,6 +26,7 @@ import { CategoryIcon } from '@/components/categories/CategoryIcon';
 
 // Validation schema with Zod
 const expenseFormSchema = z.object({
+  type: z.enum(['EXPENSE', 'INCOME']).default('EXPENSE'),
   amount: z
     .union([z.number(), z.string()])
     .transform((val) => {
@@ -56,6 +57,7 @@ interface ExpenseFormProps {
   redirectOnSuccess?: boolean;
   className?: string;
   defaultCategoryId?: string;
+  defaultType?: 'EXPENSE' | 'INCOME';
 }
 
 const PRESET_AMOUNTS = [1000, 2000, 5000, 10000, 20000, 50000];
@@ -66,6 +68,7 @@ export function ExpenseForm({
   redirectOnSuccess = true,
   className = '',
   defaultCategoryId,
+  defaultType = 'EXPENSE',
 }: ExpenseFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -96,6 +99,7 @@ export function ExpenseForm({
   } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
+      type: defaultType,
       amount: '',
       description: '',
       date: today,
@@ -103,6 +107,8 @@ export function ExpenseForm({
     },
   });
 
+  const currentType = (watch('type') || 'EXPENSE') as 'EXPENSE' | 'INCOME';
+  const isIncome = currentType === 'INCOME';
   const currentAmount = watch('amount');
   const currentDate = watch('date');
   const selectedCategoryId = watch('categoryId');
@@ -168,16 +174,21 @@ export function ExpenseForm({
           ? data.amount
           : parseFloat(data.amount.replace(/\./g, '').replace(',', '.'));
 
+      const transactionType = (data.type || 'EXPENSE') as 'EXPENSE' | 'INCOME';
+
       const expense = await createExpense({
         amount: parsedAmount,
+        type: transactionType,
         description: data.description.trim(),
         date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
         categoryId: data.categoryId && data.categoryId.trim() !== '' ? data.categoryId : null,
       });
 
-      setSuccessMessage(`¡Gasto de $ ${parsedAmount.toLocaleString('es-AR')} guardado con éxito!`);
+      const typeLabel = transactionType === 'INCOME' ? 'Ingreso' : 'Gasto';
+      setSuccessMessage(`¡${typeLabel} de $ ${parsedAmount.toLocaleString('es-AR')} guardado con éxito!`);
       
       reset({
+        type: transactionType,
         amount: '',
         description: '',
         date: today,
@@ -190,14 +201,14 @@ export function ExpenseForm({
 
       if (redirectOnSuccess) {
         setTimeout(() => {
-          router.push('/gastos');
+          router.push(transactionType === 'INCOME' ? '/' : '/gastos');
         }, 800);
       }
     } catch (err: unknown) {
       const msg =
         err instanceof Error
           ? err.message
-          : 'Ocurrió un error al registrar el gasto.';
+          : `Ocurrió un error al registrar la transacción.`;
       setErrorMessage(msg);
     }
   };
@@ -208,18 +219,68 @@ export function ExpenseForm({
       <div className="mb-6 flex items-center justify-between border-b border-slate-800/80 pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ring-1 transition-colors ${
+                isIncome
+                  ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+                  : 'bg-rose-500/10 text-rose-400 ring-rose-500/20'
+              }`}
+            >
               <DollarSign className="h-4 w-4" />
             </span>
-            <h2 className="text-lg font-bold text-white">Ingreso de Gasto</h2>
+            <h2 className="text-lg font-bold text-white">
+              {isIncome ? 'Registrar Ingreso' : 'Registrar Gasto'}
+            </h2>
           </div>
           <p className="mt-1 text-xs text-slate-400">
-            Registra tus consumos diarios en pesos de manera rápida y segura
+            {isIncome
+              ? 'Registra tus entradas de dinero (sueldo, freelance, ventas, etc.)'
+              : 'Registra tus consumos diarios en pesos de manera rápida y segura'}
           </p>
         </div>
-        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400 ring-1 ring-emerald-500/20">
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors ${
+            isIncome
+              ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+              : 'bg-slate-800 text-slate-300 ring-slate-700'
+          }`}
+        >
           Pesos (ARS $)
         </span>
+      </div>
+
+      {/* Prominent Type Switch (Gasto vs Ingreso) */}
+      <div className="mb-6">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+          Tipo de Movimiento
+        </label>
+        <div className="grid grid-cols-2 gap-3 p-1.5 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setValue('type', 'EXPENSE', { shouldValidate: true })}
+            className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              !isIncome
+                ? 'bg-gradient-to-r from-rose-500/20 to-red-500/20 border border-rose-500/40 text-rose-300 shadow-lg shadow-rose-950/40 ring-1 ring-rose-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-rose-400" />
+            <span>Gasto (Egreso)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setValue('type', 'INCOME', { shouldValidate: true })}
+            className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              isIncome
+                ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-300 shadow-lg shadow-emerald-950/40 ring-1 ring-emerald-500/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+            }`}
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span>Ingreso (Entrada)</span>
+          </button>
+        </div>
       </div>
 
       {/* Success Notification */}
@@ -242,11 +303,12 @@ export function ExpenseForm({
         {/* Monto (Amount) Field */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-            Monto <span className="text-emerald-400 font-bold">*</span>
+            Monto {isIncome ? 'del Ingreso' : 'del Gasto'}{' '}
+            <span className="text-emerald-400 font-bold">*</span>
           </label>
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-              <span className="text-lg font-bold text-emerald-400">$</span>
+              <span className={`text-lg font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>$</span>
             </div>
             <input
               type="text"
@@ -256,7 +318,9 @@ export function ExpenseForm({
               className={`w-full rounded-2xl border bg-slate-950/80 pl-11 pr-16 py-3.5 text-xl font-bold text-white placeholder-slate-600 shadow-inner focus:outline-none focus:ring-2 transition ${
                 errors.amount
                   ? 'border-red-500/50 focus:ring-red-500/30'
-                  : 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : isIncome
+                  ? 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : 'border-slate-800 focus:border-rose-500/60 focus:ring-rose-500/20'
               }`}
             />
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
@@ -283,7 +347,9 @@ export function ExpenseForm({
                 onClick={() => handlePresetAmount(preset)}
                 className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition cursor-pointer ${
                   String(currentAmount) === String(preset)
-                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                    ? isIncome
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
+                      : 'border-rose-500 bg-rose-500/20 text-rose-300'
                     : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-white'
                 }`}
               >
@@ -304,12 +370,18 @@ export function ExpenseForm({
             </div>
             <input
               type="text"
-              placeholder="Ej: Supermercado Coto, Nafta YPF, Farmacia..."
+              placeholder={
+                isIncome
+                  ? 'Ej: Sueldo mensual, Cobro de cliente freelance, Venta...'
+                  : 'Ej: Supermercado Coto, Nafta YPF, Farmacia...'
+              }
               {...register('description')}
               className={`w-full rounded-2xl border bg-slate-950/80 pl-10 pr-4 py-3 text-xs text-white placeholder-slate-500 shadow-inner focus:outline-none focus:ring-2 transition ${
                 errors.description
                   ? 'border-red-500/50 focus:ring-red-500/30'
-                  : 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : isIncome
+                  ? 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : 'border-slate-800 focus:border-rose-500/60 focus:ring-rose-500/20'
               }`}
             />
           </div>
@@ -346,7 +418,11 @@ export function ExpenseForm({
             <select
               {...register('categoryId')}
               disabled={isLoadingCategories}
-              className="w-full appearance-none rounded-2xl border border-slate-800 bg-slate-950/80 pl-10 pr-10 py-3 text-xs text-white placeholder-slate-500 shadow-inner focus:border-emerald-500/60 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition cursor-pointer disabled:opacity-50"
+              className={`w-full appearance-none rounded-2xl border border-slate-800 bg-slate-950/80 pl-10 pr-10 py-3 text-xs text-white placeholder-slate-500 shadow-inner focus:outline-none focus:ring-2 transition cursor-pointer disabled:opacity-50 ${
+                isIncome
+                  ? 'focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : 'focus:border-rose-500/60 focus:ring-rose-500/20'
+              }`}
             >
               <option value="">Seleccionar una categoría (opcional)</option>
               {categories.map((cat) => (
@@ -363,7 +439,7 @@ export function ExpenseForm({
           {/* Quick Category Chips */}
           {categories.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-              {categories.slice(0, 8).map((cat) => {
+              {categories.slice(0, 10).map((cat) => {
                 const isSelected = selectedCategoryId === cat.id;
                 return (
                   <button
@@ -376,7 +452,9 @@ export function ExpenseForm({
                     }
                     className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs transition cursor-pointer ${
                       isSelected
-                        ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold shadow-sm'
+                        ? isIncome
+                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-semibold shadow-sm'
+                          : 'border-rose-500 bg-rose-500/20 text-rose-300 font-semibold shadow-sm'
                         : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                     }`}
                   >
@@ -397,7 +475,8 @@ export function ExpenseForm({
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Fecha del Gasto <span className="text-emerald-400 font-bold">*</span>
+              Fecha {isIncome ? 'del Ingreso' : 'del Gasto'}{' '}
+              <span className="text-emerald-400 font-bold">*</span>
             </label>
             <div className="flex gap-2">
               <button
@@ -405,7 +484,9 @@ export function ExpenseForm({
                 onClick={() => setValue('date', today, { shouldValidate: true })}
                 className={`text-[11px] px-2 py-0.5 rounded-md border transition cursor-pointer ${
                   currentDate === today
-                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-medium'
+                    ? isIncome
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-medium'
+                      : 'border-rose-500 bg-rose-500/20 text-rose-300 font-medium'
                     : 'border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
@@ -416,7 +497,9 @@ export function ExpenseForm({
                 onClick={() => setValue('date', yesterday, { shouldValidate: true })}
                 className={`text-[11px] px-2 py-0.5 rounded-md border transition cursor-pointer ${
                   currentDate === yesterday
-                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-medium'
+                    ? isIncome
+                      ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-medium'
+                      : 'border-rose-500 bg-rose-500/20 text-rose-300 font-medium'
                     : 'border-slate-800 text-slate-400 hover:text-white'
                 }`}
               >
@@ -434,7 +517,9 @@ export function ExpenseForm({
               className={`w-full rounded-2xl border bg-slate-950/80 pl-10 pr-4 py-3 text-xs text-white shadow-inner focus:outline-none focus:ring-2 transition cursor-pointer ${
                 errors.date
                   ? 'border-red-500/50 focus:ring-red-500/30'
-                  : 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : isIncome
+                  ? 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
+                  : 'border-slate-800 focus:border-rose-500/60 focus:ring-rose-500/20'
               }`}
             />
           </div>
@@ -459,17 +544,21 @@ export function ExpenseForm({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-6 py-3 text-xs font-semibold text-white shadow-lg shadow-emerald-950/50 transition-all hover:shadow-emerald-900/50 active:scale-95 disabled:opacity-50 cursor-pointer"
+            className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-xs font-semibold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer ${
+              isIncome
+                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-950/50 hover:shadow-emerald-900/50'
+                : 'bg-rose-600 hover:bg-rose-500 shadow-rose-950/50 hover:shadow-rose-900/50'
+            }`}
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Guardando Gasto...
+                {isIncome ? 'Guardando Ingreso...' : 'Guardando Gasto...'}
               </>
             ) : (
               <>
                 <Plus className="h-4 w-4" />
-                Registrar Gasto
+                {isIncome ? 'Registrar Ingreso' : 'Registrar Gasto'}
               </>
             )}
           </button>
