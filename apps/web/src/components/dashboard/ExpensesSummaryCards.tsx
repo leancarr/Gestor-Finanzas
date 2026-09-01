@@ -105,7 +105,7 @@ export function ExpensesSummaryCards({
       </div>
 
       {/* 2. Total Ingresos Card */}
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur hover:border-slate-700/80 transition-all shadow-sm">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md hover:bg-white/10 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shrink-0">
             <ArrowUpRight className="h-6 w-6" />
@@ -126,7 +126,7 @@ export function ExpensesSummaryCards({
       </div>
 
       {/* 3. Total Gastos Card */}
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur hover:border-slate-700/80 transition-all shadow-sm">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md hover:bg-white/10 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20 shrink-0">
             <ArrowDownRight className="h-6 w-6" />
@@ -147,7 +147,7 @@ export function ExpensesSummaryCards({
       </div>
 
       {/* 4. Top Category Card */}
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur hover:border-slate-700/80 transition-all shadow-sm">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md hover:bg-white/10 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="flex items-center gap-4">
           <div
             className="flex h-12 w-12 items-center justify-center rounded-xl ring-1 ring-inset shrink-0"

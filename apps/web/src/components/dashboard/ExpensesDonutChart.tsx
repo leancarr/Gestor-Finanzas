@@ -60,7 +60,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
     }).format(data.value);
 
     return (
-      <div className="rounded-2xl border border-slate-700/80 bg-slate-950/95 p-3.5 shadow-2xl backdrop-blur text-xs">
+      <div className="rounded-2xl border border-white/10 bg-black/60 p-3.5 shadow-2xl backdrop-blur-xl text-xs">
         <div className="flex items-center gap-2 mb-1.5">
           <span
             className="h-2.5 w-2.5 rounded-full"
@@ -101,7 +101,7 @@ export function ExpensesDonutChart({
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur shadow-sm">
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="h-5 w-48 rounded bg-slate-800 animate-pulse" />
           <div className="h-5 w-24 rounded bg-slate-800 animate-pulse" />
@@ -127,7 +127,7 @@ export function ExpensesDonutChart({
   const hasData = chartData.length > 0 && totalAmount > 0;
 
   return (
-    <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur shadow-sm flex flex-col justify-between">
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2.5">
@@ -226,8 +226,8 @@ export function ExpensesDonutChart({
                 onMouseLeave={() => setActiveIndex(null)}
                 className={`group flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer ${
                   activeIndex === index
-                    ? 'border-slate-600 bg-slate-800/80 shadow-md'
-                    : 'border-slate-800/60 bg-slate-900/40 hover:border-slate-700/80 hover:bg-slate-900/80'
+                    ? 'border-white/20 bg-white/10 shadow-md'
+                    : 'border-white/5 bg-transparent hover:border-white/10 hover:bg-white/5'
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">

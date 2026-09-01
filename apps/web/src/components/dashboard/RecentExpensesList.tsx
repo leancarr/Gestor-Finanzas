@@ -53,7 +53,7 @@ export function RecentExpensesList({
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur shadow-sm">
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div className="h-5 w-40 rounded bg-slate-800 animate-pulse" />
           <div className="h-4 w-20 rounded bg-slate-800 animate-pulse" />
@@ -80,7 +80,7 @@ export function RecentExpensesList({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur shadow-sm flex flex-col justify-between">
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2.5">
@@ -137,7 +137,7 @@ export function RecentExpensesList({
             return (
               <div
                 key={expense.id}
-                className="group flex items-center justify-between p-3 rounded-2xl border border-slate-800/60 bg-slate-900/40 hover:border-slate-700/80 hover:bg-slate-900/80 transition-all shadow-sm"
+                className="group flex items-center justify-between p-3 rounded-2xl border border-white/5 bg-transparent hover:border-white/10 hover:bg-white/5 transition-all shadow-sm"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {/* Category Icon */}
