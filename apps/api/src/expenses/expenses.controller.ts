@@ -19,6 +19,7 @@ import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.interface.js';
+import { AiParseDto } from './dto/ai-parse.dto.js';
 
 @Controller('expenses')
 @UseGuards(SupabaseAuthGuard)
@@ -35,6 +36,18 @@ export class ExpensesController {
     @Body() createExpenseDto: CreateExpenseDto,
   ) {
     return this.expensesService.create(user.id, createExpenseDto);
+  }
+
+  /**
+   * Procesa texto con IA para extraer un gasto usando Structured Outputs.
+   */
+  @Post('ai-parse')
+  @HttpCode(HttpStatus.OK)
+  aiParse(
+    @CurrentUser() user: AuthUser,
+    @Body() aiParseDto: AiParseDto,
+  ) {
+    return this.expensesService.parseWithAI(user.id, aiParseDto.text);
   }
 
   /**

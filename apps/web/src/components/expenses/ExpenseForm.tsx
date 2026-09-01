@@ -58,6 +58,9 @@ interface ExpenseFormProps {
   className?: string;
   defaultCategoryId?: string;
   defaultType?: 'EXPENSE' | 'INCOME';
+  defaultAmount?: number;
+  defaultDescription?: string;
+  defaultDate?: string;
 }
 
 const PRESET_AMOUNTS = [1000, 2000, 5000, 10000, 20000, 50000];
@@ -69,6 +72,9 @@ export function ExpenseForm({
   className = '',
   defaultCategoryId,
   defaultType = 'EXPENSE',
+  defaultAmount,
+  defaultDescription,
+  defaultDate,
 }: ExpenseFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -100,9 +106,9 @@ export function ExpenseForm({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       type: defaultType,
-      amount: '',
-      description: '',
-      date: today,
+      amount: defaultAmount ? String(defaultAmount) : '',
+      description: defaultDescription || '',
+      date: defaultDate || today,
       categoryId: defaultCategoryId || '',
     },
   });

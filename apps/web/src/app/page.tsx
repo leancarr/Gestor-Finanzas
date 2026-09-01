@@ -12,6 +12,7 @@ import {
   ExpensesSummary,
   ExpenseItem,
 } from '@/utils/api/expenses';
+import { MagicInput } from '@/components/dashboard/MagicInput';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -442,6 +443,9 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
+
+            {/* AI Magic Input Bar */}
+            <MagicInput onSuccess={handleRefresh} />
 
             {/* Error Notification */}
             {error && (

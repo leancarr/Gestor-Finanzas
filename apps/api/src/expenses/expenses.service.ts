@@ -9,6 +9,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 import { QueryExpenseDto } from './dto/query-expense.dto.js';
 import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
+import { GoogleGenAI, Type } from '@google/genai';
 
 @Injectable()
 export class ExpensesService {
@@ -59,6 +60,8 @@ export class ExpensesService {
       });
     });
   }
+
+
 
   /**
    * Obtiene la lista de transacciones del usuario autenticado con filtros opcionales.
@@ -343,5 +346,114 @@ export class ExpensesService {
         },
       });
     });
+  }
+
+  /**
+   * Parse a natural language string into structured expense data using Gemini.
+   */
+  async parseWithAI(userId: string, text: string) {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    // Fetch categories
+    const categories = await this.prisma.category.findMany({
+      where: { userId },
+      select: { id: true, name: true },
+    });
+    
+    const categoriesContext = categories.length > 0 
+      ? categories.map(c => `- ${c.name} (ID: ${c.id})`).join('\n')
+      : 'El usuario no tiene categorías creadas todavía.';
+
+    const systemInstruction = `
+Eres un asistente financiero que analiza entradas de texto y extrae información sobre gastos o ingresos.
+Devuelve un objeto JSON que coincida exactamente con el esquema requerido.
+Usa la siguiente lista de categorías del usuario para asignar categoryId si aplica, o null si no aplica:
+${categoriesContext}
+
+Si el usuario no especifica año o mes en fechas relativas ("ayer", "hace 2 dias"), asume que hoy es ${new Date().toISOString()}.
+No uses IDs inventados para categoryId, solo usa los provistos en la lista.
+Si es un gasto usa tipo 'EXPENSE', si es un ingreso usa 'INCOME'.
+El amount siempre debe ser positivo.
+`;
+
+    const schema = {
+      type: Type.OBJECT,
+      properties: {
+        amount: {
+          type: Type.NUMBER,
+          description: 'El monto de la transacción. Siempre positivo.'
+        },
+        description: {
+          type: Type.STRING,
+          description: 'La descripción corta de la transacción.'
+        },
+        categoryId: {
+          type: Type.STRING,
+          description: 'El ID de la categoría correspondiente, si se encontró una coincidencia en el prompt del sistema. De lo contrario, null o string vacío.',
+          nullable: true,
+        },
+        date: {
+          type: Type.STRING,
+          description: 'La fecha de la transacción en formato ISO 8601.'
+        },
+        type: {
+          type: Type.STRING,
+          enum: ['INCOME', 'EXPENSE'],
+          description: 'El tipo de transacción.'
+        }
+      },
+      required: ['amount', 'description', 'date', 'type']
+    };
+
+    // dynamically get the best models
+    const modelNames: string[] = [];
+    try {
+      const modelsIterable = await ai.models.list();
+      for await (const m of modelsIterable as any) {
+        if (m.name && m.name.includes("gemini-") && m.name.includes("flash") && !m.name.includes("preview") && !m.name.includes("-lite") && !m.name.includes("-image") && !m.name.includes("-tts") && !m.name.includes("-transcribe") && !m.name.includes("-live")) {
+          modelNames.push(m.name.replace('models/', ''));
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Error fetching models: ${(err as Error).message}`);
+    }
+    
+    // fallback static models if api fails
+    const fallbackModels = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash'];
+    const candidates = modelNames.length > 0 ? modelNames.sort().reverse() : fallbackModels;
+
+    let lastError = null;
+    
+    for (const modelId of candidates) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelId,
+          contents: text,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: schema,
+            temperature: 0.1,
+          },
+        });
+        
+        if (response.text) {
+          const parsed = JSON.parse(response.text);
+          return {
+            amount: Number(parsed.amount),
+            description: parsed.description,
+            categoryId: parsed.categoryId && parsed.categoryId.trim() !== '' ? parsed.categoryId : undefined,
+            date: parsed.date,
+            type: parsed.type,
+          };
+        }
+      } catch (e: any) {
+        lastError = e;
+        this.logger.warn(`El modelo ${modelId} falló para ai-parse: ${e.message}`);
+        // If it's a 429 quota error or similar, we try the next one in the loop
+      }
+    }
+    
+    throw new Error(`Fallaron todos los modelos al procesar con IA. Último error: ${lastError?.message}`);
   }
 }
