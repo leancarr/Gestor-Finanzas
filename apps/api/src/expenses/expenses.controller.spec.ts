@@ -34,12 +34,32 @@ describe('ExpensesController', () => {
     },
   };
 
+  const mockSummary = {
+    month: 9,
+    year: 2026,
+    totalAmount: 15400.5,
+    count: 1,
+    byCategory: [
+      {
+        categoryId: 'cat-1',
+        categoryName: 'Supermercado',
+        icon: 'ShoppingCart',
+        color: '#10B981',
+        total: 15400.5,
+        count: 1,
+        percentage: 100,
+      },
+    ],
+  };
+
   const mockExpensesService = {
     findAll: vi.fn().mockResolvedValue([mockExpense]),
     findOne: vi.fn().mockResolvedValue(mockExpense),
     create: vi.fn().mockResolvedValue(mockExpense),
     update: vi.fn().mockResolvedValue(mockExpense),
     remove: vi.fn().mockResolvedValue({ message: 'Gasto eliminado con éxito', id: 'exp-1' }),
+    getSummary: vi.fn().mockResolvedValue(mockSummary),
+    getRecent: vi.fn().mockResolvedValue([mockExpense]),
   };
 
   beforeEach(async () => {
@@ -99,6 +119,21 @@ describe('ExpensesController', () => {
 
     expect(mockExpensesService.update).toHaveBeenCalledWith('user-123', 'exp-1', dto);
     expect(result).toEqual(mockExpense);
+  });
+
+  it('should get summary for authenticated user', async () => {
+    const query = { month: 9, year: 2026 };
+    const result = await controller.getSummary(mockUser, query);
+
+    expect(mockExpensesService.getSummary).toHaveBeenCalledWith('user-123', query);
+    expect(result).toEqual(mockSummary);
+  });
+
+  it('should get recent expenses for authenticated user with default or custom limit', async () => {
+    const result = await controller.getRecent(mockUser, '5');
+
+    expect(mockExpensesService.getRecent).toHaveBeenCalledWith('user-123', 5);
+    expect(result).toEqual([mockExpense]);
   });
 
   it('should remove an expense', async () => {

@@ -1,19 +1,48 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { UserStatus } from '@/components/auth/UserStatus';
+import { ExpensesSummaryCards } from '@/components/dashboard/ExpensesSummaryCards';
+import { ExpensesDonutChart } from '@/components/dashboard/ExpensesDonutChart';
+import { RecentExpensesList } from '@/components/dashboard/RecentExpensesList';
 import {
-  Shield,
-  Sparkles,
-  Key,
-  AlertCircle,
-  RefreshCw,
-  Layers,
-  ArrowRight,
+  getExpensesSummary,
+  getRecentExpenses,
+  ExpensesSummary,
+  ExpenseItem,
+} from '@/utils/api/expenses';
+import { createClient } from '@/utils/supabase/client';
+import type { User } from '@supabase/supabase-js';
+import {
   DollarSign,
   Plus,
+  Layers,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Shield,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
+  TrendingUp,
+  ArrowRight,
 } from 'lucide-react';
+
+const MONTH_NAMES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+];
 
 interface HealthResponse {
   status: string;
@@ -25,327 +54,463 @@ interface HealthResponse {
   };
 }
 
-export default function Home() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+export default function HomePage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Month navigation state
+  const currentDate = useMemo(() => new Date(), []);
+  const [selectedMonth, setSelectedMonth] = useState<number>(
+    currentDate.getMonth() + 1,
+  );
+  const [selectedYear, setSelectedYear] = useState<number>(
+    currentDate.getFullYear(),
+  );
+
+  // Dashboard data state
+  const [summary, setSummary] = useState<ExpensesSummary | null>(null);
+  const [recentExpenses, setRecentExpenses] = useState<ExpenseItem[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+
+  // Health check state
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
   const isSupabaseConfigured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
 
-  const checkHealth = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${apiUrl}/health`);
-      const data = await res.json();
-      setHealth(data);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error conectando con la API backend';
-      setError(msg);
-      setHealth(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const supabase = useMemo(() => createClient(), []);
 
+  // Listen to auth user state
   useEffect(() => {
+    supabase.auth
+      .getUser()
+      .then(({ data: { user } }) => {
+        setUser(user);
+        setIsAuthLoading(false);
+      })
+      .catch(() => {
+        setUser(null);
+        setIsAuthLoading(false);
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setIsAuthLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  // Load dashboard data on mount and whenever user, date or reloadKey changes
+  useEffect(() => {
+    if (!user) return;
     let isMounted = true;
-    fetch(`${apiUrl}/health`)
-      .then((res) => res.json())
-      .then((data) => {
+
+    Promise.all([
+      getExpensesSummary({
+        month: selectedMonth,
+        year: selectedYear,
+      }),
+      getRecentExpenses(5),
+    ])
+      .then(([summaryData, recentData]) => {
         if (isMounted) {
-          setHealth(data);
+          setSummary(summaryData);
+          setRecentExpenses(recentData);
           setError(null);
+          setIsDataLoading(false);
         }
       })
       .catch((err: unknown) => {
         if (isMounted) {
-          const msg = err instanceof Error ? err.message : 'Error conectando con la API backend';
+          const msg =
+            err instanceof Error
+              ? err.message
+              : 'Error al sincronizar los datos del dashboard.';
           setError(msg);
-          setHealth(null);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
+          setIsDataLoading(false);
         }
       });
 
     return () => {
       isMounted = false;
     };
-  }, [apiUrl]);
+  }, [user, selectedMonth, selectedYear, reloadKey]);
+
+  const handleRefresh = () => {
+    setIsDataLoading(true);
+    setReloadKey((prev) => prev + 1);
+  };
+
+  // Month navigation handlers
+  const handlePrevMonth = () => {
+    setIsDataLoading(true);
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear((prev) => prev - 1);
+    } else {
+      setSelectedMonth((prev) => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    setIsDataLoading(true);
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear((prev) => prev + 1);
+    } else {
+      setSelectedMonth((prev) => prev + 1);
+    }
+  };
+
+  const handleCurrentMonth = () => {
+    setIsDataLoading(true);
+    setSelectedMonth(currentDate.getMonth() + 1);
+    setSelectedYear(currentDate.getFullYear());
+  };
+
+  const isCurrentMonthSelected =
+    selectedMonth === currentDate.getMonth() + 1 &&
+    selectedYear === currentDate.getFullYear();
+
+  // Health check fetcher
+  const checkHealth = async () => {
+    setHealthLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/health`);
+      const data = await res.json();
+      setHealth(data);
+    } catch {
+      setHealth(null);
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  const displayName =
+    user?.user_metadata?.name ||
+    user?.user_metadata?.full_name ||
+    user?.email?.split('@')[0] ||
+    'Usuario';
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-12 text-slate-100 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-5xl">
-        {/* Header with Navigation and User Auth Status */}
-        <div className="flex flex-col items-center justify-between gap-4 border-b border-slate-800 pb-8 sm:flex-row">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-xl font-bold text-emerald-400 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-950/40">
-                💰
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                Gestor Guita
-              </h1>
+    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl space-y-8">
+        {/* Navigation & Header */}
+        <header className="flex flex-col items-center justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/10 text-2xl font-bold text-emerald-400 ring-1 ring-emerald-500/20 shadow-lg shadow-emerald-950/40">
+              💰
             </div>
-            <p className="mt-1 text-sm text-slate-400">
-              Sistema de tracking financiero personal multi-moneda con IA
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                  Gestor Guita
+                </h1>
+                <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                  Dashboard
+                </span>
+              </div>
+              <p className="text-xs text-slate-400">
+                Sistema de tracking financiero personal multi-moneda con IA
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/gastos"
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-semibold hover:bg-emerald-600/30 hover:text-white transition cursor-pointer"
-            >
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-              Gastos
-            </Link>
-            <Link
-              href="/categorias"
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-slate-200 border border-slate-800 hover:border-slate-700 hover:text-white transition cursor-pointer"
-            >
-              <Layers className="h-3.5 w-3.5 text-slate-400" />
-              Categorías
-            </Link>
+            {user && (
+              <>
+                <Link
+                  href="/gastos/nuevo"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo Gasto
+                </Link>
+                <Link
+                  href="/gastos"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
+                >
+                  <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+                  Gastos
+                </Link>
+                <Link
+                  href="/categorias"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
+                >
+                  <Layers className="h-3.5 w-3.5 text-slate-400" />
+                  Categorías
+                </Link>
+              </>
+            )}
             <UserStatus />
           </div>
-        </div>
+        </header>
 
-        {/* Status Grid */}
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Frontend Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-400">Frontend App</span>
-              <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                Online
-              </span>
-            </div>
-            <p className="mt-4 text-lg font-semibold text-white">Next.js 16 (App Router)</p>
-            <p className="mt-1 text-xs text-slate-400">
-              React 19 • TailwindCSS • @supabase/ssr
-            </p>
-            <div className="mt-4 border-t border-slate-800/80 pt-3 text-xs text-slate-500">
-              Ubicación: <code className="text-slate-300">apps/web</code>
-            </div>
-          </div>
-
-          {/* Supabase Auth Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-400">Autenticación</span>
-              <span
-                className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                  isSupabaseConfigured
-                    ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
-                    : 'bg-blue-500/10 text-blue-400 ring-blue-500/20'
-                }`}
-              >
-                {isSupabaseConfigured ? 'Conectado' : 'Configurado'}
-              </span>
-            </div>
-            <p className="mt-4 text-lg font-semibold text-white">Supabase Auth</p>
-            <p className="mt-1 text-xs text-slate-400">
-              SSR Cookies • Middleware • JWT RLS
-            </p>
-            <div className="mt-4 border-t border-slate-800/80 pt-3 text-xs text-emerald-400">
-              <Link href="/auth" className="hover:underline inline-flex items-center gap-1">
-                <Key className="h-3 w-3" />
-                Ir a /auth &rarr;
-              </Link>
-            </div>
-          </div>
-
-          {/* Backend Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-400">Backend API</span>
-              <span
-                className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                  health?.status === 'ok'
-                    ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
-                    : 'bg-amber-500/10 text-amber-400 ring-amber-500/20'
-                }`}
-              >
-                {loading ? 'Consultando...' : health?.status === 'ok' ? 'Activo' : 'Inactivo'}
-              </span>
-            </div>
-            <p className="mt-4 text-lg font-semibold text-white">NestJS v12</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Passport JWT • Prisma • CORS
-            </p>
-            <div className="mt-4 border-t border-slate-800/80 pt-3 text-xs text-slate-500">
-              Puerto: <code className="text-slate-300">4001</code>
-            </div>
-          </div>
-
-          {/* Database Card */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-slate-400">Base de Datos</span>
-              <span
-                className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                  health?.database.status === 'connected'
-                    ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
-                    : 'bg-red-500/10 text-red-400 ring-red-500/20'
-                }`}
-              >
-                {loading
-                  ? 'Verificando...'
-                  : health?.database.status === 'connected'
-                  ? 'Conectada'
-                  : 'Desconectada'}
-              </span>
-            </div>
-            <p className="mt-4 text-lg font-semibold text-white">PostgreSQL 16</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Docker Compose • Prisma Client
-            </p>
-            <div className="mt-4 border-t border-slate-800/80 pt-3 text-xs text-slate-500">
-              Latencia:{' '}
-              <span className="font-mono text-emerald-400">
-                {health?.database.latencyMs !== undefined && health.database.latencyMs >= 0
-                  ? `${health.database.latencyMs} ms`
-                  : 'N/A'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Expenses Module Banner (Ticket 2.2 - SEI-22) */}
-        <div className="mt-8 rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/60 to-slate-900/60 p-6 backdrop-blur relative overflow-hidden shadow-xl shadow-emerald-950/20">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
-                <DollarSign className="h-4 w-4" />
-                TICKET 2.2: INGRESO DE GASTO BÁSICO (SEI-22)
+        {/* ========================================================================= */}
+        {/* UNAUTHENTICATED HERO VIEW                                                */}
+        {/* ========================================================================= */}
+        {!isAuthLoading && !user && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Hero Welcome Banner */}
+            <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-slate-900/80 to-slate-950 p-8 sm:p-12 shadow-2xl backdrop-blur">
+              <div className="max-w-2xl space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-400">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Gestión Inteligente de Finanzas Personales
+                </div>
+                <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+                  Toma el control total de tu guita en pesos y dólares
+                </h2>
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  Registra gastos de forma ágil, visualiza gráficos interactivos de distribución por categoría y resguarda toda tu información con seguridad multi-inquilino de nivel bancario (Row Level Security).
+                </p>
+                <div className="pt-2 flex flex-wrap gap-4">
+                  <Link
+                    href="/auth"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-emerald-950/50 transition transform hover:-translate-y-0.5 cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Comenzar Ahora — Iniciar Sesión
+                  </Link>
+                </div>
               </div>
-              <h2 className="text-xl font-bold text-white">
-                Registro y Control de Gastos en Pesos con RLS
-              </h2>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Formulario ágil con validación Zod y React Hook Form, selección de categorías vinculadas, atajos rápidos de montos en pesos ($ ARS) y protección multi-tenant en PostgreSQL.
-              </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/gastos/nuevo"
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nuevo Gasto
-              </Link>
-              <Link
-                href="/gastos"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:text-white transition-colors"
-              >
-                <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-                Ver Mis Gastos
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
 
-        {/* Categories Module Banner (Ticket 2.1 - SEI-21) */}
-        <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur relative overflow-hidden">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
-                <Layers className="h-4 w-4" />
-                TICKET 2.1: GESTIÓN DE CATEGORÍAS (SEI-21)
+            {/* Feature Highlights Grid */}
+            <div className="grid gap-6 sm:grid-cols-3">
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
+                  <TrendingUp className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  Dashboard en Tiempo Real
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Gráficos interactivos de donut y resúmenes analíticos mensuales automáticos calculados al instante.
+                </p>
               </div>
-              <h2 className="text-xl font-bold text-white">
-                Catálogo de Categorías Personalizadas con RLS
-              </h2>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                CRUD completo con validación Zod y React Hook Form, selección de íconos Lucide, paleta de colores y aislamiento estricto multi-inquilino en PostgreSQL.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/categorias"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-white transition-colors border border-slate-700"
-              >
-                <Layers className="h-3.5 w-3.5 text-emerald-400" />
-                Administrar Categorías
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-        </div>
 
-        {/* Auth Module Banner */}
-        <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur relative overflow-hidden">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
-                <Shield className="h-4 w-4" />
-                MÓDULO DE AUTENTICACIÓN LISTO
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20">
+                  <Layers className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  Categorías Personalizadas
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Crea y clasifica tus gastos con paletas de color vibrantes e íconos intuitivos adaptados a tu estilo de vida.
+                </p>
               </div>
-              <h2 className="text-xl font-bold text-white">
-                Autenticación y Perfil de Usuario con Supabase + NestJS Guard
-              </h2>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Implementación con <code className="text-slate-300">@supabase/ssr</code> en Next.js (App Router, Cookies y Middleware) y validación de tokens JWT en NestJS vía Passport Strategy para resguardar endpoints bajo el modelo de seguridad RLS.
-              </p>
+
+              <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-400 ring-1 ring-purple-500/20">
+                  <Shield className="h-6 w-6" />
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  Privacidad & Aislamiento RLS
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Tus registros financieros quedan 100% aislados a nivel motor PostgreSQL con Supabase Auth.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/auth"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-white transition-colors border border-slate-700"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Abrir Portal de Autenticación
-              </Link>
+
+            {/* System Status Inspector */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">
+                    Live System & Health Check
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Estado de la infraestructura conectada
+                  </p>
+                </div>
+                <button
+                  onClick={checkHealth}
+                  disabled={healthLoading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw
+                    className={`h-3 w-3 ${healthLoading ? 'animate-spin' : ''}`}
+                  />
+                  {healthLoading ? 'Verificando...' : 'Comprobar Estado'}
+                </button>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div className="rounded-xl bg-slate-950/60 p-3 border border-slate-800/80">
+                  <span className="text-slate-500">Frontend</span>
+                  <p className="font-semibold text-emerald-400">Next.js 16</p>
+                </div>
+                <div className="rounded-xl bg-slate-950/60 p-3 border border-slate-800/80">
+                  <span className="text-slate-500">Backend API</span>
+                  <p className="font-semibold text-emerald-400">NestJS v12</p>
+                </div>
+                <div className="rounded-xl bg-slate-950/60 p-3 border border-slate-800/80">
+                  <span className="text-slate-500">Base de Datos</span>
+                  <p className="font-semibold text-emerald-400">PostgreSQL (RLS)</p>
+                </div>
+                <div className="rounded-xl bg-slate-950/60 p-3 border border-slate-800/80">
+                  <span className="text-slate-500">Auth Service</span>
+                  <p className="font-semibold text-emerald-400">
+                    {isSupabaseConfigured ? 'Supabase SSR' : 'Configurado'}
+                  </p>
+                </div>
+              </div>
+
+              {health && (
+                <pre className="mt-4 overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs font-mono text-emerald-300 border border-slate-800">
+                  {JSON.stringify(health, null, 2)}
+                </pre>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Health Check Inspector */}
-        <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-base font-semibold text-white">
-                Live Health Check & DB Verification
-              </h2>
-              <p className="text-xs text-slate-400">
-                Respuesta en tiempo real del endpoint /health de NestJS conectado a PostgreSQL
-              </p>
+        {/* ========================================================================= */}
+        {/* AUTHENTICATED DASHBOARD VIEW                                             */}
+        {/* ========================================================================= */}
+        {user && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Top Period Navigator & User Greeting */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur">
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  Hola, <span className="text-emerald-400">{displayName}</span> 👋
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Resumen de actividad financiera en{' '}
+                  <span className="font-semibold text-slate-200">
+                    {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+                  </span>
+                </p>
+              </div>
+
+              {/* Month Selector Controls */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex items-center rounded-2xl border border-slate-800 bg-slate-950/80 p-1 shadow-inner">
+                  <button
+                    onClick={handlePrevMonth}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+                    title="Mes anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <div className="px-3 text-xs font-bold text-white min-w-[130px] text-center">
+                    {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
+                  </div>
+                  <button
+                    onClick={handleNextMonth}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer"
+                    title="Mes siguiente"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {!isCurrentMonthSelected && (
+                  <button
+                    onClick={handleCurrentMonth}
+                    className="flex items-center gap-1 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer"
+                    title="Ir al mes actual"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Hoy
+                  </button>
+                )}
+
+                <button
+                  onClick={handleRefresh}
+                  disabled={isDataLoading}
+                  className="flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer disabled:opacity-50"
+                  title="Recargar datos"
+                >
+                  <RefreshCw
+                    className={`h-4 w-4 ${isDataLoading ? 'animate-spin text-emerald-400' : ''}`}
+                  />
+                </button>
+              </div>
             </div>
-            <button
-              onClick={checkHealth}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50 cursor-pointer"
-            >
-              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? 'Comprobando...' : 'Reintentar Ping'}
-            </button>
-          </div>
 
-          <div className="mt-4">
+            {/* Error Notification */}
             {error && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-300">
-                <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                <span>
-                  ⚠️ {error} — Asegúrate de que PostgreSQL (`pnpm db:up`) y el backend en el puerto 4001 estén corriendo.
-                </span>
+              <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-300">
+                <AlertCircle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">{error}</p>
+                  <button
+                    onClick={handleRefresh}
+                    className="mt-1 text-xs text-emerald-400 hover:underline cursor-pointer"
+                  >
+                    Reintentar conexión &rarr;
+                  </button>
+                </div>
               </div>
             )}
 
-            {health && (
-              <pre className="overflow-x-auto rounded-lg bg-slate-950 p-4 text-xs font-mono text-emerald-300 border border-slate-800">
-                {JSON.stringify(health, null, 2)}
-              </pre>
-            )}
+            {/* Metrics Summary Cards */}
+            <ExpensesSummaryCards summary={summary} loading={isDataLoading} />
+
+            {/* Main Visuals Grid: Chart + Recent Transactions */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Donut Chart (7 cols on large screens) */}
+              <div className="lg:col-span-7">
+                <ExpensesDonutChart
+                  categories={summary?.byCategory || []}
+                  totalAmount={summary?.totalAmount || 0}
+                  loading={isDataLoading}
+                />
+              </div>
+
+              {/* Recent 5 Expenses (5 cols on large screens) */}
+              <div className="lg:col-span-5">
+                <RecentExpensesList
+                  expenses={recentExpenses}
+                  loading={isDataLoading}
+                />
+              </div>
+            </div>
+
+            {/* Quick Actions Footer Banner */}
+            <div className="rounded-3xl border border-slate-800/80 bg-gradient-to-r from-slate-900/60 via-slate-900/40 to-slate-900/60 p-6 backdrop-blur flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+              <div className="space-y-1 text-center sm:text-left">
+                <h3 className="text-sm font-bold text-white">
+                  ¿Registraste un nuevo movimiento hoy?
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Mantén al día tu balance financiero registrando cada compra o servicio en segundos.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/gastos/nuevo"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo Gasto
+                </Link>
+                <Link
+                  href="/gastos"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
+                >
+                  Ver Historial Completo
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </main>
   );

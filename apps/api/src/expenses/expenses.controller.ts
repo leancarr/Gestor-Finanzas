@@ -15,6 +15,7 @@ import { ExpensesService } from './expenses.service.js';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 import { QueryExpenseDto } from './dto/query-expense.dto.js';
+import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.interface.js';
@@ -34,6 +35,29 @@ export class ExpensesController {
     @Body() createExpenseDto: CreateExpenseDto,
   ) {
     return this.expensesService.create(user.id, createExpenseDto);
+  }
+
+  /**
+   * Obtiene el resumen mensual y por categorías de los gastos del usuario autenticado.
+   */
+  @Get('summary')
+  getSummary(
+    @CurrentUser() user: AuthUser,
+    @Query() query: SummaryExpenseDto,
+  ) {
+    return this.expensesService.getSummary(user.id, query);
+  }
+
+  /**
+   * Obtiene los gastos más recientes del usuario autenticado (por defecto 5).
+   */
+  @Get('recent')
+  getRecent(
+    @CurrentUser() user: AuthUser,
+    @Query('limit') limit?: string,
+  ) {
+    const take = limit ? Math.min(Math.max(Number(limit), 1), 50) : 5;
+    return this.expensesService.getRecent(user.id, take);
   }
 
   /**

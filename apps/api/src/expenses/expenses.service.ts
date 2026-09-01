@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 import { QueryExpenseDto } from './dto/query-expense.dto.js';
+import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
 
 @Injectable()
 export class ExpensesService {
@@ -208,6 +209,112 @@ export class ExpensesService {
         message: 'Gasto eliminado con éxito',
         id,
       };
+    });
+  }
+
+  /**
+   * Obtiene el resumen mensual de gastos y distribución por categorías.
+   */
+  async getSummary(userId: string, query?: SummaryExpenseDto) {
+    return this.prisma.withUser(userId, async (tx) => {
+      const now = new Date();
+      const targetYear = query?.year ? Number(query.year) : now.getUTCFullYear();
+      const targetMonth = query?.month ? Number(query.month) : now.getUTCMonth() + 1; // 1-12
+
+      // Start & end dates in UTC
+      const startDate = new Date(Date.UTC(targetYear, targetMonth - 1, 1, 0, 0, 0, 0));
+      const endDate = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59, 999));
+
+      const expenses = await tx.expense.findMany({
+        where: {
+          userId,
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        include: {
+          category: true,
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      });
+
+      const totalAmount = expenses.reduce(
+        (sum, exp) => sum + Number(exp.amount),
+        0,
+      );
+
+      // Group by category
+      const categoryMap = new Map<
+        string,
+        {
+          categoryId: string | null;
+          categoryName: string;
+          icon: string | null;
+          color: string | null;
+          total: number;
+          count: number;
+        }
+      >();
+
+      for (const exp of expenses) {
+        const catKey = exp.categoryId || 'uncategorized';
+        const amount = Number(exp.amount);
+
+        if (!categoryMap.has(catKey)) {
+          categoryMap.set(catKey, {
+            categoryId: exp.categoryId || null,
+            categoryName: exp.category ? exp.category.name : 'Sin categoría',
+            icon: exp.category ? exp.category.icon : null,
+            color: exp.category ? exp.category.color : '#64748B',
+            total: 0,
+            count: 0,
+          });
+        }
+
+        const catData = categoryMap.get(catKey)!;
+        catData.total += amount;
+        catData.count += 1;
+      }
+
+      const byCategory = Array.from(categoryMap.values())
+        .map((cat) => ({
+          ...cat,
+          total: Math.round(cat.total * 100) / 100,
+          percentage:
+            totalAmount > 0
+              ? Math.round((cat.total / totalAmount) * 10000) / 100
+              : 0,
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      return {
+        month: targetMonth,
+        year: targetYear,
+        totalAmount: Math.round(totalAmount * 100) / 100,
+        count: expenses.length,
+        byCategory,
+      };
+    });
+  }
+
+  /**
+   * Obtiene los gastos más recientes del usuario.
+   */
+  async getRecent(userId: string, limit = 5) {
+    return this.prisma.withUser(userId, async (tx) => {
+      return tx.expense.findMany({
+        where: {
+          userId,
+        },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: limit,
+        include: {
+          category: true,
+        },
+      });
     });
   }
 }

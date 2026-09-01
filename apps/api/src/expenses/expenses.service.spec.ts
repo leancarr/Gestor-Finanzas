@@ -280,4 +280,116 @@ describe('ExpensesService', () => {
       );
     });
   });
+
+  describe('getSummary', () => {
+    it('should calculate summary and category distribution correctly', async () => {
+      const expensesInMonth = [
+        {
+          id: 'exp-1',
+          amount: 10000,
+          currency: 'ARS',
+          categoryId: 'cat-1',
+          category: mockCategory,
+          date: new Date('2026-09-05T12:00:00.000Z'),
+        },
+        {
+          id: 'exp-2',
+          amount: 5000,
+          currency: 'ARS',
+          categoryId: 'cat-1',
+          category: mockCategory,
+          date: new Date('2026-09-10T12:00:00.000Z'),
+        },
+        {
+          id: 'exp-3',
+          amount: 5000,
+          currency: 'ARS',
+          categoryId: null,
+          category: null,
+          date: new Date('2026-09-15T12:00:00.000Z'),
+        },
+      ];
+
+      mockTx.expense.findMany.mockResolvedValue(expensesInMonth);
+
+      const result = await service.getSummary('user-123', { month: 9, year: 2026 });
+
+      expect(mockPrismaService.withUser).toHaveBeenCalledWith('user-123', expect.any(Function));
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-123',
+          date: {
+            gte: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
+            lte: new Date(Date.UTC(2026, 9, 0, 23, 59, 59, 999)),
+          },
+        },
+        include: { category: true },
+        orderBy: { date: 'desc' },
+      });
+
+      expect(result.month).toBe(9);
+      expect(result.year).toBe(2026);
+      expect(result.totalAmount).toBe(20000);
+      expect(result.count).toBe(3);
+      expect(result.byCategory).toHaveLength(2);
+      expect(result.byCategory[0]).toEqual({
+        categoryId: 'cat-1',
+        categoryName: 'Supermercado',
+        icon: 'ShoppingCart',
+        color: '#10B981',
+        total: 15000,
+        count: 2,
+        percentage: 75,
+      });
+      expect(result.byCategory[1]).toEqual({
+        categoryId: null,
+        categoryName: 'Sin categoría',
+        icon: null,
+        color: '#64748B',
+        total: 5000,
+        count: 1,
+        percentage: 25,
+      });
+    });
+
+    it('should handle zero expenses gracefully', async () => {
+      mockTx.expense.findMany.mockResolvedValue([]);
+
+      const result = await service.getSummary('user-123', { month: 9, year: 2026 });
+
+      expect(result.totalAmount).toBe(0);
+      expect(result.count).toBe(0);
+      expect(result.byCategory).toEqual([]);
+    });
+  });
+
+  describe('getRecent', () => {
+    it('should return recent expenses with default limit of 5', async () => {
+      mockTx.expense.findMany.mockResolvedValue([mockExpense]);
+
+      const result = await service.getRecent('user-123');
+
+      expect(mockPrismaService.withUser).toHaveBeenCalledWith('user-123', expect.any(Function));
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-123' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: 5,
+        include: { category: true },
+      });
+      expect(result).toEqual([mockExpense]);
+    });
+
+    it('should respect custom limit', async () => {
+      mockTx.expense.findMany.mockResolvedValue([mockExpense]);
+
+      await service.getRecent('user-123', 10);
+
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-123' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: 10,
+        include: { category: true },
+      });
+    });
+  });
 });
