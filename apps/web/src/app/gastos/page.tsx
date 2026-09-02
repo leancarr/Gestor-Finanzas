@@ -20,6 +20,7 @@ import {
 import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpenseCard } from '@/components/expenses/ExpenseCard';
 import { ExpenseDeleteModal } from '@/components/expenses/ExpenseDeleteModal';
+import ExportMenu from '@/components/dashboard/ExportMenu';
 import { getExpenses, ExpenseItem } from '@/utils/api/expenses';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
 import { createClient } from '@/utils/supabase/client';
@@ -427,6 +428,7 @@ export default function GastosPage() {
 
               {/* Action Button: Nueva Transacción */}
               <div className="flex items-center gap-3">
+                <ExportMenu data={filteredExpenses} />
                 <Link
                   href="/gastos/nuevo"
                   className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"

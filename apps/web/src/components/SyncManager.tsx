@@ -41,6 +41,7 @@ export default function SyncManager() {
   }, [isSyncing, checkOfflineCount]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     checkOfflineCount();
 
     const handleOnline = () => {
