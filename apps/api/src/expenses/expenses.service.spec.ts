@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExpensesService } from './expenses.service.js';
+import {
+  ExpensesService,
+  calculateDateRanges,
+  calculatePercentageChange,
+  toISODateString,
+} from './expenses.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
@@ -480,6 +485,366 @@ describe('ExpensesService', () => {
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         take: 10,
         include: { category: true },
+      });
+    });
+  });
+
+  describe('calculatePercentageChange', () => {
+    it('should return 0 when both values are 0', () => {
+      expect(calculatePercentageChange(0, 0)).toBe(0);
+    });
+
+    it('should return 100 when previous is 0 and current is positive', () => {
+      expect(calculatePercentageChange(150, 0)).toBe(100);
+    });
+
+    it('should return -100 when previous is 0 and current is negative', () => {
+      expect(calculatePercentageChange(-50, 0)).toBe(-100);
+    });
+
+    it('should calculate positive percentage increase correctly', () => {
+      expect(calculatePercentageChange(150, 100)).toBe(50);
+    });
+
+    it('should calculate negative percentage decrease correctly', () => {
+      expect(calculatePercentageChange(60, 100)).toBe(-40);
+    });
+
+    it('should handle negative previous balance turning positive safely', () => {
+      expect(calculatePercentageChange(50, -100)).toBe(150);
+    });
+
+    it('should handle negative previous balance improving while still negative', () => {
+      expect(calculatePercentageChange(-40, -100)).toBe(60);
+    });
+
+    it('should handle negative previous balance worsening', () => {
+      expect(calculatePercentageChange(-150, -100)).toBe(-50);
+    });
+  });
+
+  describe('calculateDateRanges', () => {
+    const fixedNow = new Date('2026-09-18T15:30:00.000Z');
+
+    it('should calculate 7d range correctly (7 days inclusive)', () => {
+      const { currentStart, currentEnd, prevStart, prevEnd } = calculateDateRanges('7d', fixedNow);
+
+      expect(toISODateString(currentStart)).toBe('2026-09-12');
+      expect(toISODateString(currentEnd)).toBe('2026-09-18');
+      expect(toISODateString(prevStart)).toBe('2026-09-05');
+      expect(toISODateString(prevEnd)).toBe('2026-09-11');
+    });
+
+    it('should calculate 30d range correctly (30 days inclusive)', () => {
+      const { currentStart, currentEnd, prevStart, prevEnd } = calculateDateRanges('30d', fixedNow);
+
+      expect(toISODateString(currentStart)).toBe('2026-08-20');
+      expect(toISODateString(currentEnd)).toBe('2026-09-18');
+      expect(toISODateString(prevStart)).toBe('2026-07-21');
+      expect(toISODateString(prevEnd)).toBe('2026-08-19');
+    });
+
+    it('should calculate month range correctly for current calendar month and previous', () => {
+      const { currentStart, currentEnd, prevStart, prevEnd } = calculateDateRanges('month', fixedNow);
+
+      expect(toISODateString(currentStart)).toBe('2026-09-01');
+      expect(toISODateString(currentEnd)).toBe('2026-09-30');
+      expect(toISODateString(prevStart)).toBe('2026-08-01');
+      expect(toISODateString(prevEnd)).toBe('2026-08-31');
+    });
+
+    it('should handle January calendar month rollover to previous year', () => {
+      const janDate = new Date('2026-01-15T12:00:00.000Z');
+      const { currentStart, currentEnd, prevStart, prevEnd } = calculateDateRanges('month', janDate);
+
+      expect(toISODateString(currentStart)).toBe('2026-01-01');
+      expect(toISODateString(currentEnd)).toBe('2026-01-31');
+      expect(toISODateString(prevStart)).toBe('2025-12-01');
+      expect(toISODateString(prevEnd)).toBe('2025-12-31');
+    });
+  });
+
+  describe('getAnalytics', () => {
+    const fixedNow = new Date('2026-09-18T12:00:00.000Z');
+
+    it('should isolate by userId under RLS context', async () => {
+      mockTx.expense.findMany.mockResolvedValue([]);
+
+      await service.getAnalytics('user-rls-test', { range: '7d', currency: 'ARS' }, fixedNow);
+
+      expect(mockPrismaService.withUser).toHaveBeenCalledWith('user-rls-test', expect.any(Function));
+    });
+
+    it('should calculate KPIs, timeline and categories for 7d range', async () => {
+      const currentExpenses = [
+        {
+          id: 'exp-1',
+          amount: 1000,
+          currency: 'ARS',
+          type: TransactionType.EXPENSE,
+          date: new Date('2026-09-15T10:00:00.000Z'),
+          categoryId: 'cat-1',
+          category: mockCategory,
+        },
+        {
+          id: 'exp-2',
+          amount: 500,
+          currency: 'ARS',
+          type: TransactionType.EXPENSE,
+          date: new Date('2026-09-15T14:00:00.000Z'),
+          categoryId: 'cat-2',
+          category: {
+            id: 'cat-2',
+            name: 'Transporte',
+            icon: 'Bus',
+            color: '#3B82F6',
+          },
+        },
+        {
+          id: 'exp-3',
+          amount: 600,
+          currency: 'ARS',
+          type: TransactionType.EXPENSE,
+          date: new Date('2026-09-18T09:00:00.000Z'),
+          categoryId: null,
+          category: null,
+        },
+        {
+          id: 'inc-1',
+          amount: 5000,
+          currency: 'ARS',
+          type: TransactionType.INCOME,
+          date: new Date('2026-09-14T08:00:00.000Z'),
+          categoryId: null,
+          category: null,
+        },
+      ];
+
+      const prevExpenses = [
+        {
+          id: 'prev-1',
+          amount: 1500,
+          currency: 'ARS',
+          type: TransactionType.EXPENSE,
+        },
+        {
+          id: 'prev-2',
+          amount: 3000,
+          currency: 'ARS',
+          type: TransactionType.INCOME,
+        },
+      ];
+
+      mockTx.expense.findMany
+        .mockResolvedValueOnce(currentExpenses)
+        .mockResolvedValueOnce(prevExpenses);
+
+      const result = await service.getAnalytics(
+        'user-123',
+        { range: '7d', currency: 'ARS' },
+        fixedNow,
+      );
+
+      // Verify queries
+      expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(1, {
+        where: {
+          userId: 'user-123',
+          currency: 'ARS',
+          date: {
+            gte: new Date(Date.UTC(2026, 8, 12, 0, 0, 0, 0)),
+            lte: new Date(Date.UTC(2026, 8, 18, 23, 59, 59, 999)),
+          },
+        },
+        include: { category: true },
+        orderBy: { date: 'asc' },
+      });
+
+      expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(2, {
+        where: {
+          userId: 'user-123',
+          currency: 'ARS',
+          date: {
+            gte: new Date(Date.UTC(2026, 8, 5, 0, 0, 0, 0)),
+            lte: new Date(Date.UTC(2026, 8, 11, 23, 59, 59, 999)),
+          },
+        },
+      });
+
+      // Verify response structure
+      expect(result.range).toBe('7d');
+      expect(result.currency).toBe('ARS');
+      expect(result.startDate).toBe('2026-09-12');
+      expect(result.endDate).toBe('2026-09-18');
+
+      // KPIs
+      expect(result.kpis.totalExpenses).toBe(2100);
+      expect(result.kpis.totalIncome).toBe(5000);
+      expect(result.kpis.netBalance).toBe(2900);
+      // 2100 / 7 = 300
+      expect(result.kpis.averageExpensePerDay).toBe(300);
+      expect(result.kpis.transactionCount).toBe(4);
+
+      // Previous period KPIs
+      expect(result.kpis.prevTotalExpenses).toBe(1500);
+      expect(result.kpis.prevTotalIncome).toBe(3000);
+      expect(result.kpis.prevNetBalance).toBe(1500);
+
+      // Variations:
+      // expenses: (2100 - 1500) / 1500 * 100 = 40%
+      expect(result.kpis.expensesChangePct).toBe(40);
+      // income: (5000 - 3000) / 3000 * 100 = 66.67%
+      expect(result.kpis.incomeChangePct).toBe(66.67);
+      // balance: (2900 - 1500) / 1500 * 100 = 93.33%
+      expect(result.kpis.balanceChangePct).toBe(93.33);
+
+      // Timeline must have exactly 7 continuous days
+      expect(result.timeline).toHaveLength(7);
+      expect(result.timeline.map((t) => t.date)).toEqual([
+        '2026-09-12',
+        '2026-09-13',
+        '2026-09-14',
+        '2026-09-15',
+        '2026-09-16',
+        '2026-09-17',
+        '2026-09-18',
+      ]);
+
+      // Day with income (2026-09-14)
+      const day14 = result.timeline.find((t) => t.date === '2026-09-14');
+      expect(day14).toEqual({
+        date: '2026-09-14',
+        expenses: 0,
+        income: 5000,
+        balance: 5000,
+        count: 1,
+      });
+
+      // Day with 2 expenses (2026-09-15)
+      const day15 = result.timeline.find((t) => t.date === '2026-09-15');
+      expect(day15).toEqual({
+        date: '2026-09-15',
+        expenses: 1500,
+        income: 0,
+        balance: -1500,
+        count: 2,
+      });
+
+      // Day with uncategorized expense (2026-09-18)
+      const day18 = result.timeline.find((t) => t.date === '2026-09-18');
+      expect(day18).toEqual({
+        date: '2026-09-18',
+        expenses: 600,
+        income: 0,
+        balance: -600,
+        count: 1,
+      });
+
+      // Day with no activity (2026-09-12)
+      const day12 = result.timeline.find((t) => t.date === '2026-09-12');
+      expect(day12).toEqual({
+        date: '2026-09-12',
+        expenses: 0,
+        income: 0,
+        balance: 0,
+        count: 0,
+      });
+
+      // Category distribution ranking (expenses only, sorted descending)
+      expect(result.categoryDistribution).toHaveLength(3);
+      // cat-1: 1000 / 2100 = 47.62%
+      expect(result.categoryDistribution[0]).toEqual({
+        categoryId: 'cat-1',
+        categoryName: 'Supermercado',
+        color: '#10B981',
+        icon: 'ShoppingCart',
+        total: 1000,
+        percentage: 47.62,
+      });
+      // uncategorized: 600 / 2100 = 28.57%
+      expect(result.categoryDistribution[1]).toEqual({
+        categoryId: null,
+        categoryName: 'Sin categoría',
+        color: '#64748B',
+        icon: null,
+        total: 600,
+        percentage: 28.57,
+      });
+      // cat-2: 500 / 2100 = 23.81%
+      expect(result.categoryDistribution[2]).toEqual({
+        categoryId: 'cat-2',
+        categoryName: 'Transporte',
+        color: '#3B82F6',
+        icon: 'Bus',
+        total: 500,
+        percentage: 23.81,
+      });
+    });
+
+    it('should handle zero transactions gracefully without NaN or Infinity', async () => {
+      mockTx.expense.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getAnalytics(
+        'user-123',
+        { range: '30d' },
+        fixedNow,
+      );
+
+      expect(result.range).toBe('30d');
+      expect(result.kpis.totalExpenses).toBe(0);
+      expect(result.kpis.totalIncome).toBe(0);
+      expect(result.kpis.netBalance).toBe(0);
+      expect(result.kpis.averageExpensePerDay).toBe(0);
+      expect(result.kpis.transactionCount).toBe(0);
+      expect(result.kpis.prevTotalExpenses).toBe(0);
+      expect(result.kpis.prevTotalIncome).toBe(0);
+      expect(result.kpis.prevNetBalance).toBe(0);
+      expect(result.kpis.expensesChangePct).toBe(0);
+      expect(result.kpis.incomeChangePct).toBe(0);
+      expect(result.kpis.balanceChangePct).toBe(0);
+      expect(result.timeline).toHaveLength(30);
+      expect(result.categoryDistribution).toEqual([]);
+    });
+
+    it('should handle custom currency and currency ALL', async () => {
+      mockTx.expense.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await service.getAnalytics(
+        'user-123',
+        { range: 'month', currency: 'USD' },
+        fixedNow,
+      );
+
+      expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        where: expect.objectContaining({
+          currency: 'USD',
+        }),
+      }));
+
+      // Test ALL currency
+      mockTx.expense.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await service.getAnalytics(
+        'user-123',
+        { range: 'month', currency: 'ALL' },
+        fixedNow,
+      );
+
+      expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(3, {
+        where: {
+          userId: 'user-123',
+          date: {
+            gte: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
+            lte: new Date(Date.UTC(2026, 8, 30, 23, 59, 59, 999)),
+          },
+        },
+        include: { category: true },
+        orderBy: { date: 'asc' },
       });
     });
   });

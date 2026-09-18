@@ -52,6 +52,39 @@ describe('ExpensesController', () => {
     ],
   };
 
+  const mockAnalytics = {
+    range: '30d',
+    currency: 'ARS',
+    startDate: '2026-08-20',
+    endDate: '2026-09-18',
+    kpis: {
+      totalExpenses: 15400.5,
+      totalIncome: 50000,
+      netBalance: 34599.5,
+      averageExpensePerDay: 513.35,
+      transactionCount: 2,
+      prevTotalExpenses: 10000,
+      prevTotalIncome: 40000,
+      prevNetBalance: 30000,
+      expensesChangePct: 54.01,
+      incomeChangePct: 25,
+      balanceChangePct: 15.33,
+    },
+    timeline: [
+      { date: '2026-09-01', expenses: 15400.5, income: 50000, balance: 34599.5, count: 2 },
+    ],
+    categoryDistribution: [
+      {
+        categoryId: 'cat-1',
+        categoryName: 'Supermercado',
+        icon: 'ShoppingCart',
+        color: '#10B981',
+        total: 15400.5,
+        percentage: 100,
+      },
+    ],
+  };
+
   const mockExpensesService = {
     findAll: vi.fn().mockResolvedValue([mockExpense]),
     findOne: vi.fn().mockResolvedValue(mockExpense),
@@ -60,6 +93,7 @@ describe('ExpensesController', () => {
     remove: vi.fn().mockResolvedValue({ message: 'Gasto eliminado con éxito', id: 'exp-1' }),
     getSummary: vi.fn().mockResolvedValue(mockSummary),
     getRecent: vi.fn().mockResolvedValue([mockExpense]),
+    getAnalytics: vi.fn().mockResolvedValue(mockAnalytics),
   };
 
   beforeEach(async () => {
@@ -127,6 +161,14 @@ describe('ExpensesController', () => {
 
     expect(mockExpensesService.getSummary).toHaveBeenCalledWith('user-123', query);
     expect(result).toEqual(mockSummary);
+  });
+
+  it('should get analytics for authenticated user', async () => {
+    const query = { range: '30d' as const, currency: 'ARS' };
+    const result = await controller.getAnalytics(mockUser, query);
+
+    expect(mockExpensesService.getAnalytics).toHaveBeenCalledWith('user-123', query);
+    expect(result).toEqual(mockAnalytics);
   });
 
   it('should get recent expenses for authenticated user with default or custom limit', async () => {

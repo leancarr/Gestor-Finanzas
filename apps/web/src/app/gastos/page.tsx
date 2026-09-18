@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FolderOpen,
+  BarChart3,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpenseCard } from '@/components/expenses/ExpenseCard';
@@ -241,6 +242,13 @@ export default function GastosPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/analiticas"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
+              Analíticas
+            </Link>
             <Link
               href="/categorias"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"

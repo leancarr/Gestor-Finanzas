@@ -15,6 +15,8 @@ import {
   AlertCircle,
   Tag,
   PieChart,
+  BarChart3,
+  DollarSign,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { CategoryCard } from '@/components/categories/CategoryCard';
@@ -231,6 +233,20 @@ export default function CategoriasPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/gastos"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+              Gastos
+            </Link>
+            <Link
+              href="/analiticas"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
+              Analíticas
+            </Link>
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
               Ticket 2.1: SEI-21

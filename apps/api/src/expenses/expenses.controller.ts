@@ -16,6 +16,7 @@ import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 import { QueryExpenseDto } from './dto/query-expense.dto.js';
 import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
+import { QueryAnalyticsDto } from './dto/query-analytics.dto.js';
 import { SupabaseAuthGuard } from '../auth/guards/supabase-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthUser } from '../auth/auth.interface.js';
@@ -59,6 +60,17 @@ export class ExpensesController {
     @Query() query: SummaryExpenseDto,
   ) {
     return this.expensesService.getSummary(user.id, query);
+  }
+
+  /**
+   * Obtiene métricas analíticas avanzadas: KPIs con comparativa previa, timeline y distribución por categorías.
+   */
+  @Get('analytics')
+  getAnalytics(
+    @CurrentUser() user: AuthUser,
+    @Query() query: QueryAnalyticsDto,
+  ) {
+    return this.expensesService.getAnalytics(user.id, query);
   }
 
   /**

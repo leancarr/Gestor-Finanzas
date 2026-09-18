@@ -176,3 +176,11 @@ pnpm --filter api run prisma:push
 
 - **Ticket SEI-32: Exportación de Datos (PDF/CSV)** `[COMPLETADO]`
   - Componente `<ExportMenu />` para descarga de balances y movimientos en PDF o CSV.
+
+- **Ticket SEI-30: Tableros Analíticos (Backend)** `[COMPLETADO]`
+  - Endpoint `GET /expenses/analytics` con validación DTO `QueryAnalyticsDto` (`range`: `'7d' | '30d' | 'month'`, `currency`).
+  - Lógica analítica bajo contexto RLS (`prisma.withUser(userId)`).
+  - Cálculo de serie continua `timeline` agrupada por día con balance diario.
+  - KPIs actuales (`totalExpenses`, `totalIncome`, `netBalance`, `averageExpensePerDay`, `transactionCount`), KPIs del período equivalente previo y variaciones porcentuales blindadas contra división por cero.
+  - Ranking de distribución por categoría con cálculo porcentual y orden descendente.
+  - Suite de pruebas unitarias completa con 120/120 tests aprobados en `apps/api`.
