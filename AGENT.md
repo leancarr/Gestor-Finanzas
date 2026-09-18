@@ -136,6 +136,43 @@ pnpm --filter api run prisma:push
     - Cliente API desacoplado (`utils/api/expenses.ts`) con integración de JWT de sesión de Supabase Auth.
     - Integración de accesos directos y banners en la página principal (`/`).
 
+- **Ticket 2.3 (SEI-23): Historial y Gestión de Gastos** `[COMPLETADO]`
+  - Feed cronológico de gastos con filtros avanzados por fecha y categoría.
+  - Edición y eliminación con control de permisos RLS.
+  - Gráficos analíticos integrados con Recharts.
 
+- **Ticket 2.4 (SEI-24): Motor Impositivo (Backend)** `[COMPLETADO]`
+  - Módulo `apps/api/src/taxes/` con servicio `TaxesService` y controlador `TaxesController`.
+  - Matriz de cálculo impositivo para Argentina (IVA 21%, Impuesto PAÍS / Percepciones 30%, operaciones exentas / crypto 0%).
+  - DTO `CalculateTaxDto` y endpoints protegidos `POST /taxes/calculate` y `GET /taxes/rates`.
+  - Precisión matemática y redondeo financiero con `Number.EPSILON`.
+  - 29 pruebas unitarias dedicadas (100% exitosas).
 
+- **Ticket 3.3 / SEI-33: Multimoneda y Crypto (Conversión Automática)** `[COMPLETADO]`
+  - Módulo `apps/api/src/rates/` con servicio `RatesService` y controlador `RatesController`.
+  - Integración en tiempo real con DolarApi (Oficial, Blue, MEP, Tarjeta, EUR) y CryptoYa (USDT/ARS).
+  - Caché en memoria con TTL de 5 minutos y fallback estático de alta resiliencia.
+  - Endpoints `GET /rates` y `POST /rates/convert` para conversiones precisas cruzadas.
+  - 22 pruebas unitarias dedicadas (100% exitosas).
 
+- **Ticket 2.5 (SEI-25): UI de Impuestos y Multi-moneda** `[COMPLETADO]`
+  - Componente `<CurrencySelector />` con diseño glassmorphism y selección de ARS, USD, EUR, USDT con badges y cotización en vivo.
+  - Componente `<TaxBreakdownPreview />` con desglose pormenorizado de alícuotas (Servicios Digitales 59%, IVA 21%, Tarjeta 60%, IVA Reducido 10.5%).
+  - Integración en `<ExpenseForm />` y `<ExpenseCard />` con badges y conversión a pesos.
+  - Filtro por moneda en `/gastos`.
+
+- **Ticket 3.1 & 3.2 (SEI-26, SEI-27): Magic Input con Gemini AI** `[COMPLETADO]`
+  - Endpoint `POST /expenses/ai-parse` con Vercel AI SDK / Google GenAI.
+  - Componente `<MagicInput />` en la pantalla principal para registrar gastos mediante lenguaje natural con previsualización en modal interactivo.
+
+- **Ticket 4.1 & 4.2 (SEI-28, SEI-29): Offline First & Sincronización Automática** `[COMPLETADO]`
+  - PWA con service worker (`next-pwa`).
+  - Encolado de peticiones en IndexedDB cuando se pierde conexión a red.
+  - `<SyncManager />` para sincronización automática en background al recuperar conectividad y badges de estado.
+
+- **Ticket SEI-31: Refactorización UI Glassmorphism y Hardening de Seguridad** `[COMPLETADO]`
+  - Protección con `helmet`, CORS configurable y `@nestjs/throttler` (rate limiting 100 req/min).
+  - Paleta premium modo oscuro (`#050505`) con acentos esmeralda (`#10b981`), bordes sutiles y desenfoques `backdrop-blur-md`.
+
+- **Ticket SEI-32: Exportación de Datos (PDF/CSV)** `[COMPLETADO]`
+  - Componente `<ExportMenu />` para descarga de balances y movimientos en PDF o CSV.
