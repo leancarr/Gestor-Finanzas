@@ -197,3 +197,36 @@ pnpm --filter api run prisma:push
     - Registro de `UsersModule` en `apps/api/src/app.module.ts`.
     - 12 pruebas unitarias dedicadas en `users.service.spec.ts` y `users.controller.spec.ts` (100% pasando). Total suite: 132/132 pruebas exitosas.
 
+- **Ticket SEI-36: Gastos Recurrentes y Suscripciones Automáticas (Backend y Frontend)** `[COMPLETADO]`
+  - **Backend (`apps/api/src/recurring`):**
+    - DTOs `CreateRecurringDto` y `UpdateRecurringDto` con validaciones estrictas.
+    - `RecurringService`: Aislamiento transaccional RLS (`prisma.withUser(userId)`), cálculo de fechas `calculateNextDueDate`, generación de `Expense` manual (`process`) o en lote para débitos vencidos (`processDue`).
+    - `RecurringController`: Endpoints protegidos por `SupabaseAuthGuard` (`GET /recurring`, `GET /recurring/:id`, `POST /recurring`, `PATCH /recurring/:id`, `DELETE /recurring/:id`, `POST /recurring/:id/process`, `POST /recurring/process-due`).
+    - Registro de `RecurringModule` en `apps/api/src/app.module.ts`.
+    - 32 pruebas unitarias dedicadas en `recurring.service.spec.ts` y `recurring.controller.spec.ts` (100% pasando). Suite completa: 164/164 pruebas exitosas en 16 test suites.
+  - **Frontend (`apps/web`):**
+    - Cliente API `utils/api/recurring.ts` integrado con Supabase Auth JWT.
+    - Componente `<RecurringCard />` con badge de cuenta regresiva de vencimiento, frecuencia, toggle rápido de débito automático y botón "Registrar ahora".
+    - Modal interactivo `<RecurringFormModal />` con presets de servicios populares (Spotify, Netflix, YouTube, ChatGPT, etc.) y selector de monedas/categorías.
+    - Modal de confirmación `<RecurringDeleteModal />`.
+    - Vista `/suscripciones` con métricas KPI (Total Mensual Comprometido, Suscripciones Activas, Próximo Vencimiento, En Débito Automático), botón de cobro en lote de débitos vencidos, filtros por estado y catálogo responsivo.
+    - Componente `<UpcomingDuesWidget />` en el Dashboard principal que alerta si hay vencimientos en los próximos 5 días con botón rápido de cobro.
+    - Enlaces de navegación a `/suscripciones` incorporados en el header de todas las pantallas (`/`, `/gastos`, `/categorias`, `/analiticas`, `/perfil`).
+    - Verificaciones de TypeScript (`tsc --noEmit`) y ESLint 100% exitosas sin errores.
+
+- **Ticket SEI-35: Presupuestos y Metas por Categoría (Backend y Frontend)** `[COMPLETADO]`
+  - **Backend (`apps/api/src/budgets`):**
+    - DTOs `CreateBudgetDto` (`categoryId`, `amount`, `month`, `year`, `currency`), `UpdateBudgetDto`, `QueryBudgetDto` con validaciones de `class-validator` y transformaciones de `class-transformer`.
+    - `BudgetsService`: Aislamiento transaccional RLS (`prisma.withUser(userId)`), cálculo cruzado de gastos acumulados del período para cada categoría sin problemas de N+1 queries, cálculo centralizado de estado (`OK` < 80%, `WARNING` 80-100%, `EXCEEDED` > 100%), porcentaje de consumo y saldo disponible/excedente.
+    - `BudgetsController`: Endpoints protegidos por `SupabaseAuthGuard` (`GET /budgets?month=...&year=...`, `GET /budgets/:id`, `POST /budgets`, `PATCH /budgets/:id`, `DELETE /budgets/:id`).
+    - Registro de `BudgetsModule` en `apps/api/src/app.module.ts`.
+    - 25 pruebas unitarias dedicadas en `budgets.service.spec.ts` y `budgets.controller.spec.ts` (100% pasando). Suite completa del backend: 189/189 pruebas unitarias exitosas en 17 suites.
+  - **Frontend (`apps/web`):**
+    - Cliente API `utils/api/budgets.ts` integrado con Supabase Auth JWT.
+    - Componente `<BudgetCard />` con barra visual de consumo dinámico y código cromático (verde <80%, ámbar 80-100%, rojo pulsante >100%), % gastado, badge de alerta/estado, y montos formateados.
+    - Componente modal interactivo `<BudgetModal />` para fijar y editar topes mensuales con atajos rápidos de incremento (+$10k, +$50k, +$100k, +$250k) y selector multi-moneda.
+    - Vista `/presupuestos` con navegador interactivo de mes/año, resumen total presupuestado vs gastado (4 KPIs: Total Presupuestado, Gastado Real, Disponible/Exceso, Nivel de Consumo Global), empty states y modal de borrado seguro.
+    - Enlace a `/presupuestos` incorporado en la barra de navegación de todas las pantallas (`/`, `/gastos`, `/categorias`, `/suscripciones`, `/analiticas`, `/perfil`).
+    - Verificaciones de calidad: 100% éxito en ESLint (0 errores) y `tsc --noEmit` (0 errores).
+
+

@@ -21,6 +21,8 @@ import {
   BarChart3,
   DollarSign,
   Layers,
+  Repeat,
+  Target,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { AvatarUpload } from '@/components/profile/AvatarUpload';
@@ -243,11 +245,25 @@ export default function PerfilPage() {
               Gastos
             </Link>
             <Link
+              href="/suscripciones"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
+              Suscripciones
+            </Link>
+            <Link
               href="/categorias"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
               <Layers className="h-3.5 w-3.5 text-slate-400" />
               Categorías
+            </Link>
+            <Link
+              href="/presupuestos"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <Target className="h-3.5 w-3.5 text-emerald-400" />
+              Presupuestos
             </Link>
             <Link
               href="/analiticas"
