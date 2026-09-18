@@ -25,6 +25,7 @@ import { getExpenses, ExpenseItem } from '@/utils/api/expenses';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
+import { SupportedCurrency, FALLBACK_RATES } from '@/utils/api/rates';
 
 export default function GastosPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -36,6 +37,7 @@ export default function GastosPage() {
   const [search, setSearch] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<'ALL' | 'EXPENSE' | 'INCOME'>('ALL');
+  const [selectedCurrencyFilter, setSelectedCurrencyFilter] = useState<string>('ALL');
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{
     type: 'success' | 'error';
@@ -147,7 +149,7 @@ export default function GastosPage() {
     });
   };
 
-  // Filtered expenses by search, category and type
+  // Filtered expenses by search, category, type and currency
   const filteredExpenses = useMemo(() => {
     return expenses.filter((exp) => {
       const matchesSearch =
@@ -157,11 +159,14 @@ export default function GastosPage() {
         !selectedCategoryFilter || exp.categoryId === selectedCategoryFilter;
       const matchesType =
         selectedTypeFilter === 'ALL' || exp.type === selectedTypeFilter;
-      return matchesSearch && matchesCategory && matchesType;
+      const matchesCurrency =
+        selectedCurrencyFilter === 'ALL' ||
+        (exp.currency || 'ARS').toUpperCase() === selectedCurrencyFilter;
+      return matchesSearch && matchesCategory && matchesType && matchesCurrency;
     });
-  }, [expenses, search, selectedCategoryFilter, selectedTypeFilter]);
+  }, [expenses, search, selectedCategoryFilter, selectedTypeFilter, selectedCurrencyFilter]);
 
-  // Statistics calculations
+  // Statistics calculations (consolidated in ARS)
   const totalExpenses = useMemo(() => {
     return expenses
       .filter((e) => e.type !== 'INCOME')
@@ -170,7 +175,11 @@ export default function GastosPage() {
           typeof exp.amount === 'number'
             ? exp.amount
             : parseFloat(String(exp.amount)) || 0;
-        return acc + num;
+        const curr = (exp.currency || 'ARS').toUpperCase() as SupportedCurrency;
+        const rate = curr !== 'ARS'
+          ? (Number(exp.exchangeRate) || FALLBACK_RATES[curr] || 1)
+          : 1;
+        return acc + (num * rate);
       }, 0);
   }, [expenses]);
 
@@ -182,7 +191,11 @@ export default function GastosPage() {
           typeof exp.amount === 'number'
             ? exp.amount
             : parseFloat(String(exp.amount)) || 0;
-        return acc + num;
+        const curr = (exp.currency || 'ARS').toUpperCase() as SupportedCurrency;
+        const rate = curr !== 'ARS'
+          ? (Number(exp.exchangeRate) || FALLBACK_RATES[curr] || 1)
+          : 1;
+        return acc + (num * rate);
       }, 0);
   }, [expenses]);
 
@@ -223,7 +236,7 @@ export default function GastosPage() {
               </h1>
             </div>
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
-              Historial y registro de ingresos y gastos personales en pesos
+              Historial y registro de ingresos y gastos multi-moneda (ARS, USD, EUR, USDT) con motor impositivo
             </p>
           </div>
 
@@ -237,7 +250,7 @@ export default function GastosPage() {
             </Link>
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Ticket 2.4: Ingresos & Gastos
+              SEI-25: Multi-moneda & Impuestos
             </div>
             <UserStatus />
           </div>
@@ -419,6 +432,24 @@ export default function GastosPage() {
                         {cat.name}
                       </option>
                     ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 text-xs">
+                    ▼
+                  </div>
+                </div>
+
+                {/* Currency Filter */}
+                <div className="relative w-full sm:max-w-[140px]">
+                  <select
+                    value={selectedCurrencyFilter}
+                    onChange={(e) => setSelectedCurrencyFilter(e.target.value)}
+                    className="w-full appearance-none rounded-2xl border border-slate-800 bg-slate-900/60 pl-3.5 pr-8 py-2.5 text-xs text-white focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition cursor-pointer"
+                  >
+                    <option value="ALL">Todas las divisas</option>
+                    <option value="ARS">🇦🇷 ARS ($)</option>
+                    <option value="USD">🇺🇸 USD (US$)</option>
+                    <option value="EUR">🇪🇺 EUR (€)</option>
+                    <option value="USDT">🌐 USDT (₮)</option>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 text-xs">
                     ▼

@@ -1,14 +1,46 @@
 'use client';
 
 import React from 'react';
-import { Calendar, Trash2, Tag } from 'lucide-react';
+import { Calendar, Trash2, Tag, Receipt } from 'lucide-react';
 import { ExpenseItem } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import {
+  formatCurrency,
+  SupportedCurrency,
+  CURRENCY_LIST,
+  FALLBACK_RATES,
+} from '@/utils/api/rates';
 
 interface ExpenseCardProps {
   expense: ExpenseItem;
   onDelete?: (expense: ExpenseItem) => void;
 }
+
+const CURRENCY_BADGE_STYLES: Record<
+  SupportedCurrency,
+  { bg: string; text: string; border: string }
+> = {
+  ARS: {
+    bg: 'bg-sky-500/10',
+    text: 'text-sky-400',
+    border: 'border-sky-500/20',
+  },
+  USD: {
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-400',
+    border: 'border-emerald-500/20',
+  },
+  EUR: {
+    bg: 'bg-indigo-500/10',
+    text: 'text-indigo-400',
+    border: 'border-indigo-500/20',
+  },
+  USDT: {
+    bg: 'bg-teal-500/10',
+    text: 'text-teal-400',
+    border: 'border-teal-500/20',
+  },
+};
 
 export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
   const numericAmount =
@@ -16,14 +48,20 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
       ? expense.amount
       : parseFloat(String(expense.amount));
 
+  const currencyCode = (expense.currency || 'ARS').toUpperCase() as SupportedCurrency;
+  const currencyInfo = CURRENCY_LIST[currencyCode] || CURRENCY_LIST.ARS;
+  const badgeStyle = CURRENCY_BADGE_STYLES[currencyCode] || CURRENCY_BADGE_STYLES.ARS;
+
   const formattedAmount = isNaN(numericAmount)
     ? '$ 0,00'
-    : new Intl.NumberFormat('es-AR', {
-        style: 'currency',
-        currency: 'ARS',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(numericAmount);
+    : formatCurrency(numericAmount, currencyCode);
+
+  // Approximate ARS conversion for foreign currencies
+  const isForeign = currencyCode !== 'ARS';
+  const exchangeRate = expense.exchangeRate
+    ? Number(expense.exchangeRate)
+    : FALLBACK_RATES[currencyCode] || 1;
+  const estimatedArs = isForeign && !isNaN(numericAmount) ? numericAmount * exchangeRate : null;
 
   // Format date nicely
   const expenseDate = new Date(expense.date);
@@ -59,16 +97,40 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
 
         {/* Expense Info */}
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <p className="truncate text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
               {expense.description}
             </p>
+
+            {/* Transaction Type Badge */}
             {expense.type === 'INCOME' && (
               <span className="shrink-0 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
                 Ingreso
               </span>
             )}
+
+            {/* Currency Badge */}
+            <span
+              className={`shrink-0 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
+              title={`Transacción en ${currencyInfo.name}`}
+            >
+              <span>{currencyInfo.flag}</span>
+              <span>{currencyCode}</span>
+            </span>
+
+            {/* Taxable Badge */}
+            {expense.isTaxable && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300"
+                title="Cálculo de impuestos incluido"
+              >
+                <Receipt className="h-2.5 w-2.5" />
+                <span>Impuestos</span>
+              </span>
+            )}
           </div>
+
+          {/* Subtitle Details: Category, Date, Exchange Rate */}
           <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
             {category && (
               <span
@@ -93,19 +155,36 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
               <Calendar className="h-3 w-3 text-slate-500" />
               {formattedDate}
             </span>
+
+            {/* Foreign Currency Conversion Note */}
+            {isForeign && estimatedArs !== null && (
+              <>
+                <span className="text-slate-600 hidden sm:inline">•</span>
+                <span className="text-[10px] text-slate-400 hidden sm:inline font-medium">
+                  TC: ${exchangeRate.toLocaleString('es-AR')}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       {/* Amount & Actions */}
       <div className="flex items-center gap-3 shrink-0">
-        <span
-          className={`text-sm sm:text-base font-bold tracking-tight ${
-            expense.type === 'INCOME' ? 'text-emerald-400' : 'text-white'
-          }`}
-        >
-          {expense.type === 'INCOME' ? '+' : '-'} {formattedAmount}
-        </span>
+        <div className="text-right">
+          <span
+            className={`text-sm sm:text-base font-bold tracking-tight block ${
+              expense.type === 'INCOME' ? 'text-emerald-400' : 'text-white'
+            }`}
+          >
+            {expense.type === 'INCOME' ? '+' : '-'} {formattedAmount}
+          </span>
+          {isForeign && estimatedArs !== null && (
+            <span className="text-[10px] text-slate-400 block font-normal">
+              ≈ {formatCurrency(estimatedArs, 'ARS')}
+            </span>
+          )}
+        </div>
 
         {onDelete && (
           <button
