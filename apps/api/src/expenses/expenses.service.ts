@@ -47,7 +47,9 @@ export class ExpensesService {
       return tx.expense.create({
         data: {
           amount: createExpenseDto.amount,
-          currency: 'ARS',
+          currency: createExpenseDto.currency ? createExpenseDto.currency.toUpperCase() : 'ARS',
+          exchangeRate: createExpenseDto.exchangeRate ?? null,
+          isTaxable: createExpenseDto.isTaxable ?? false,
           type: transactionType,
           description: createExpenseDto.description.trim(),
           date: expenseDate,
@@ -190,6 +192,15 @@ export class ExpensesService {
             : {}),
           ...(updateExpenseDto.categoryId !== undefined
             ? { categoryId: updateExpenseDto.categoryId || null }
+            : {}),
+          ...(updateExpenseDto.currency !== undefined
+            ? { currency: updateExpenseDto.currency.toUpperCase() }
+            : {}),
+          ...(updateExpenseDto.exchangeRate !== undefined
+            ? { exchangeRate: updateExpenseDto.exchangeRate }
+            : {}),
+          ...(updateExpenseDto.isTaxable !== undefined
+            ? { isTaxable: updateExpenseDto.isTaxable }
             : {}),
         },
         include: {

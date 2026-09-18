@@ -118,6 +118,8 @@ describe('ExpensesService', () => {
         data: {
           amount: 15400.5,
           currency: 'ARS',
+          exchangeRate: null,
+          isTaxable: false,
           type: TransactionType.EXPENSE,
           description: 'Compras del mes en Coto',
           date: new Date('2026-09-01T12:00:00.000Z'),
@@ -146,6 +148,8 @@ describe('ExpensesService', () => {
         data: {
           amount: 500000,
           currency: 'ARS',
+          exchangeRate: null,
+          isTaxable: false,
           type: TransactionType.INCOME,
           description: 'Sueldo Agosto',
           date: expect.any(Date),
@@ -171,6 +175,8 @@ describe('ExpensesService', () => {
         data: {
           amount: 2500,
           currency: 'ARS',
+          exchangeRate: null,
+          isTaxable: false,
           type: TransactionType.EXPENSE,
           description: 'Café al paso',
           date: expect.any(Date),
