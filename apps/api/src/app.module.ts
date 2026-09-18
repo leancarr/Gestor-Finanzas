@@ -11,6 +11,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { ExpensesModule } from './expenses/expenses.module.js';
 import { TaxesModule } from './taxes/taxes.module.js';
 import { RatesModule } from './rates/rates.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { RatesModule } from './rates/rates.module.js';
     ExpensesModule,
     TaxesModule,
     RatesModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [

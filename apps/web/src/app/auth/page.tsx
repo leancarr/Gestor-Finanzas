@@ -60,6 +60,19 @@ export default function AuthPage() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('deleted') === 'true') {
+        setTimeout(() => {
+          setSuccessMessage(
+            'Tu cuenta y todos tus datos personales han sido eliminados de forma definitiva conforme a las políticas GDPR.'
+          );
+        }, 0);
+      }
+    }
+  }, []);
+
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
