@@ -9,6 +9,8 @@ import { HealthModule } from './health/health.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { ExpensesModule } from './expenses/expenses.module.js';
+import { TaxesModule } from './taxes/taxes.module.js';
+import { RatesModule } from './rates/rates.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { ExpensesModule } from './expenses/expenses.module.js';
     AuthModule,
     CategoriesModule,
     ExpensesModule,
+    TaxesModule,
+    RatesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -42,4 +42,17 @@ export class CreateExpenseDto {
   @IsString({ message: 'El ID de la categoría debe ser una cadena de texto' })
   @IsUUID('all', { message: 'El ID de la categoría debe ser un UUID válido' })
   categoryId?: string;
+
+  @IsOptional()
+  @IsString({ message: 'La divisa debe ser una cadena de texto' })
+  currency?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'El tipo de cambio debe ser un número válido' })
+  @IsPositive({ message: 'El tipo de cambio debe ser mayor a 0' })
+  exchangeRate?: number;
+
+  @IsOptional()
+  isTaxable?: boolean;
 }

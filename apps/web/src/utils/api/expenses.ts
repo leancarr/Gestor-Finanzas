@@ -21,6 +21,8 @@ export interface ExpenseItem {
   createdAt: string;
   updatedAt: string;
   category?: ExpenseCategory | null;
+  exchangeRate?: number | string | null;
+  isTaxable?: boolean;
 }
 
 export interface CreateExpenseInput {
@@ -29,6 +31,9 @@ export interface CreateExpenseInput {
   type?: TransactionType;
   date?: string;
   categoryId?: string | null;
+  currency?: string;
+  exchangeRate?: number | null;
+  isTaxable?: boolean;
 }
 
 export interface UpdateExpenseInput {
@@ -37,6 +42,9 @@ export interface UpdateExpenseInput {
   type?: TransactionType;
   date?: string;
   categoryId?: string | null;
+  currency?: string;
+  exchangeRate?: number | null;
+  isTaxable?: boolean;
 }
 
 export interface CategorySummaryItem {
@@ -173,7 +181,16 @@ export async function createExpense(
       headers: headers as Record<string, string>,
       body: data,
     });
-    return { ...data, id: 'temp-' + Date.now(), currency: 'ARS', userId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as ExpenseItem;
+    return {
+      ...data,
+      id: 'temp-' + Date.now(),
+      currency: data.currency || 'ARS',
+      exchangeRate: data.exchangeRate || null,
+      isTaxable: data.isTaxable || false,
+      userId: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    } as ExpenseItem;
   }
 
   try {
@@ -198,7 +215,16 @@ export async function createExpense(
         headers: headers as Record<string, string>,
         body: data,
       });
-      return { ...data, id: 'temp-' + Date.now(), currency: 'ARS', userId: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as ExpenseItem;
+      return {
+        ...data,
+        id: 'temp-' + Date.now(),
+        currency: data.currency || 'ARS',
+        exchangeRate: data.exchangeRate || null,
+        isTaxable: data.isTaxable || false,
+        userId: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      } as ExpenseItem;
     }
     throw err;
   }

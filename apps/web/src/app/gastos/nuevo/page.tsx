@@ -60,14 +60,14 @@ export default function NuevoGastoPage() {
               </h1>
             </div>
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
-              Registra tus ingresos o gastos en pesos con categoría y fecha de forma rápida
+              Registra tus ingresos o gastos multi-moneda (ARS, USD, EUR, USDT) con cálculo de impuestos
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Ticket 2.4: Ingresos & Gastos
+              SEI-25: Multi-moneda & Impuestos
             </div>
             <UserStatus />
           </div>

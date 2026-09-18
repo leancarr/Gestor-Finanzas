@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Sparkles,
   Plus,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createExpense, ExpenseItem } from '@/utils/api/expenses';
@@ -23,10 +25,23 @@ import {
   CategoryItem,
 } from '@/utils/api/categories';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import { CurrencySelector } from '@/components/currencies/CurrencySelector';
+import { TaxBreakdownPreview } from '@/components/expenses/TaxBreakdownPreview';
+import {
+  SupportedCurrency,
+  CURRENCY_LIST,
+  FALLBACK_RATES,
+  getRates,
+  formatCurrency,
+  getCurrencySymbol,
+  calculateTaxes,
+  TaxSchemeType,
+} from '@/utils/api/rates';
 
 // Validation schema with Zod
 const expenseFormSchema = z.object({
   type: z.enum(['EXPENSE', 'INCOME']).default('EXPENSE'),
+  currency: z.enum(['ARS', 'USD', 'EUR', 'USDT']).default('ARS'),
   amount: z
     .union([z.number(), z.string()])
     .transform((val) => {
@@ -47,6 +62,7 @@ const expenseFormSchema = z.object({
     .max(255, 'La descripción no puede tener más de 255 caracteres'),
   date: z.string().min(1, 'La fecha es obligatoria'),
   categoryId: z.string().optional().nullable(),
+  isTaxable: z.boolean().default(false),
 });
 
 export type ExpenseFormData = z.input<typeof expenseFormSchema>;
@@ -58,12 +74,12 @@ interface ExpenseFormProps {
   className?: string;
   defaultCategoryId?: string;
   defaultType?: 'EXPENSE' | 'INCOME';
+  defaultCurrency?: SupportedCurrency;
   defaultAmount?: number;
   defaultDescription?: string;
   defaultDate?: string;
+  defaultIsTaxable?: boolean;
 }
-
-const PRESET_AMOUNTS = [1000, 2000, 5000, 10000, 20000, 50000];
 
 export function ExpenseForm({
   onSuccess,
@@ -72,9 +88,11 @@ export function ExpenseForm({
   className = '',
   defaultCategoryId,
   defaultType = 'EXPENSE',
+  defaultCurrency = 'ARS',
   defaultAmount,
   defaultDescription,
   defaultDate,
+  defaultIsTaxable = false,
 }: ExpenseFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -82,6 +100,13 @@ export function ExpenseForm({
   const [isSeedingCategories, setIsSeedingCategories] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Live exchange rates with local fallback
+  const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
+
+  // Tax calculation state
+  const [taxScheme, setTaxScheme] = useState<TaxSchemeType | null>(null);
+  const [applyTaxesToTotal, setApplyTaxesToTotal] = useState<boolean>(true);
 
   // Today's date in YYYY-MM-DD
   const today = useMemo(() => {
@@ -106,18 +131,35 @@ export function ExpenseForm({
     resolver: zodResolver(expenseFormSchema),
     defaultValues: {
       type: defaultType,
+      currency: defaultCurrency,
       amount: defaultAmount ? String(defaultAmount) : '',
       description: defaultDescription || '',
       date: defaultDate || today,
       categoryId: defaultCategoryId || '',
+      isTaxable: defaultIsTaxable,
     },
   });
 
   const currentType = (watch('type') || 'EXPENSE') as 'EXPENSE' | 'INCOME';
   const isIncome = currentType === 'INCOME';
+  const selectedCurrency = (watch('currency') || 'ARS') as SupportedCurrency;
+  const isTaxable = Boolean(watch('isTaxable'));
   const currentAmount = watch('amount');
   const currentDate = watch('date');
   const selectedCategoryId = watch('categoryId');
+
+  // Load exchange rates
+  useEffect(() => {
+    let isMounted = true;
+    getRates().then((res) => {
+      if (isMounted && res?.rates) {
+        setRates(res.rates);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Load user's categories
   useEffect(() => {
@@ -170,20 +212,68 @@ export function ExpenseForm({
     setValue('amount', value.toString(), { shouldValidate: true });
   };
 
+  // Preset amounts adapted to currency
+  const presetAmounts = useMemo(() => {
+    if (selectedCurrency === 'ARS') {
+      return [1000, 2000, 5000, 10000, 20000, 50000];
+    }
+    return [5, 10, 25, 50, 100, 200];
+  }, [selectedCurrency]);
+
+  // Numerical amount value for live calculations
+  const parsedNumericAmount = useMemo(() => {
+    if (typeof currentAmount === 'number') return currentAmount;
+    if (!currentAmount) return 0;
+    const parsed = parseFloat(String(currentAmount).replace(/\./g, '').replace(',', '.'));
+    return isNaN(parsed) ? 0 : parsed;
+  }, [currentAmount]);
+
+  // Active tax scheme and memoized calculation
+  const activeTaxScheme =
+    taxScheme ?? (selectedCurrency === 'ARS' ? 'IVA_21' : 'DIGITAL_SERVICES');
+
+  const taxCalculation = useMemo(() => {
+    return calculateTaxes(parsedNumericAmount, selectedCurrency, activeTaxScheme, rates);
+  }, [parsedNumericAmount, selectedCurrency, activeTaxScheme, rates]);
+
+  // Approximate ARS conversion for input preview
+  const estimatedArsForAmount = useMemo(() => {
+    if (selectedCurrency === 'ARS' || !parsedNumericAmount) return null;
+    const rate = rates[selectedCurrency] ?? FALLBACK_RATES[selectedCurrency] ?? 1;
+    return parsedNumericAmount * rate;
+  }, [selectedCurrency, parsedNumericAmount, rates]);
+
+  const currencyDetails = CURRENCY_LIST[selectedCurrency] || CURRENCY_LIST.ARS;
+
   const onSubmit = async (data: ExpenseFormData) => {
     setErrorMessage(null);
     setSuccessMessage(null);
 
     try {
-      const parsedAmount =
+      const baseAmount =
         typeof data.amount === 'number'
           ? data.amount
           : parseFloat(data.amount.replace(/\./g, '').replace(',', '.'));
 
       const transactionType = (data.type || 'EXPENSE') as 'EXPENSE' | 'INCOME';
 
+      // Determine final amount: if taxes are active and user chose to include them in the total
+      const shouldIncludeTaxesInAmount =
+        !isIncome && isTaxable && applyTaxesToTotal && taxCalculation;
+      const finalAmount = shouldIncludeTaxesInAmount
+        ? taxCalculation.totalAmount
+        : baseAmount;
+
+      const exchangeRate =
+        selectedCurrency !== 'ARS'
+          ? (rates[selectedCurrency] ?? FALLBACK_RATES[selectedCurrency] ?? 1)
+          : 1;
+
       const expense = await createExpense({
-        amount: parsedAmount,
+        amount: finalAmount,
+        currency: selectedCurrency,
+        exchangeRate: exchangeRate,
+        isTaxable: isTaxable && !isIncome,
         type: transactionType,
         description: data.description.trim(),
         date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
@@ -191,14 +281,22 @@ export function ExpenseForm({
       });
 
       const typeLabel = transactionType === 'INCOME' ? 'Ingreso' : 'Gasto';
-      setSuccessMessage(`¡${typeLabel} de $ ${parsedAmount.toLocaleString('es-AR')} guardado con éxito!`);
-      
+      const formattedFinal = formatCurrency(finalAmount, selectedCurrency);
+      const formattedArs =
+        selectedCurrency !== 'ARS'
+          ? ` (≈ ${formatCurrency(finalAmount * exchangeRate, 'ARS')})`
+          : '';
+
+      setSuccessMessage(`¡${typeLabel} de ${formattedFinal}${formattedArs} guardado con éxito!`);
+
       reset({
         type: transactionType,
+        currency: selectedCurrency,
         amount: '',
         description: '',
         date: today,
         categoryId: '',
+        isTaxable: false,
       });
 
       if (onSuccess) {
@@ -222,7 +320,7 @@ export function ExpenseForm({
   return (
     <div className={`rounded-3xl border border-slate-800 bg-slate-900/70 p-6 sm:p-8 backdrop-blur shadow-2xl ${className}`}>
       {/* Header Info */}
-      <div className="mb-6 flex items-center justify-between border-b border-slate-800/80 pb-5">
+      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <span
@@ -240,19 +338,24 @@ export function ExpenseForm({
           </div>
           <p className="mt-1 text-xs text-slate-400">
             {isIncome
-              ? 'Registra tus entradas de dinero (sueldo, freelance, ventas, etc.)'
-              : 'Registra tus consumos diarios en pesos de manera rápida y segura'}
+              ? 'Registra tus entradas de dinero (sueldo, freelance, transferencias)'
+              : 'Registra tus consumos multi-moneda con cálculo automático de impuestos'}
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors ${
-            isIncome
-              ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
-              : 'bg-slate-800 text-slate-300 ring-slate-700'
-          }`}
-        >
-          Pesos (ARS $)
-        </span>
+
+        {/* Dynamic Currency Status Badge */}
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors ${
+              isIncome
+                ? 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20'
+                : 'bg-slate-800 text-slate-300 ring-slate-700'
+            }`}
+          >
+            <span>{currencyDetails.flag}</span>
+            <span>{currencyDetails.name} ({selectedCurrency})</span>
+          </span>
+        </div>
       </div>
 
       {/* Prominent Type Switch (Gasto vs Ingreso) */}
@@ -289,6 +392,16 @@ export function ExpenseForm({
         </div>
       </div>
 
+      {/* Currency Selector */}
+      <div className="mb-6">
+        <CurrencySelector
+          value={selectedCurrency}
+          onChange={(curr) => setValue('currency', curr, { shouldValidate: true })}
+          rates={rates}
+          label="Moneda de la Transacción"
+        />
+      </div>
+
       {/* Success Notification */}
       {successMessage && (
         <div className="mb-6 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-300 animate-in fade-in slide-in-from-top-2">
@@ -308,20 +421,30 @@ export function ExpenseForm({
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Monto (Amount) Field */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-            Monto {isIncome ? 'del Ingreso' : 'del Gasto'}{' '}
-            <span className="text-emerald-400 font-bold">*</span>
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Monto {isIncome ? 'del Ingreso' : 'del Gasto'} ({selectedCurrency}){' '}
+              <span className="text-emerald-400 font-bold">*</span>
+            </label>
+            {estimatedArsForAmount !== null && (
+              <span className="text-[11px] font-semibold text-emerald-400">
+                ≈ {formatCurrency(estimatedArsForAmount, 'ARS')}
+              </span>
+            )}
+          </div>
+
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-              <span className={`text-lg font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>$</span>
+              <span className={`text-base font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {getCurrencySymbol(selectedCurrency)}
+              </span>
             </div>
             <input
               type="text"
               inputMode="decimal"
               placeholder="0.00"
               {...register('amount')}
-              className={`w-full rounded-2xl border bg-slate-950/80 pl-11 pr-16 py-3.5 text-xl font-bold text-white placeholder-slate-600 shadow-inner focus:outline-none focus:ring-2 transition ${
+              className={`w-full rounded-2xl border bg-slate-950/80 pl-14 pr-16 py-3.5 text-xl font-bold text-white placeholder-slate-600 shadow-inner focus:outline-none focus:ring-2 transition ${
                 errors.amount
                   ? 'border-red-500/50 focus:ring-red-500/30'
                   : isIncome
@@ -330,8 +453,8 @@ export function ExpenseForm({
               }`}
             />
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
-                ARS
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 bg-slate-900 px-2 py-1 rounded-md border border-slate-800">
+                {selectedCurrency}
               </span>
             </div>
           </div>
@@ -346,7 +469,7 @@ export function ExpenseForm({
             <span className="text-[10px] uppercase font-bold text-slate-500 mr-1">
               Atajos:
             </span>
-            {PRESET_AMOUNTS.map((preset) => (
+            {presetAmounts.map((preset) => (
               <button
                 key={preset}
                 type="button"
@@ -359,11 +482,50 @@ export function ExpenseForm({
                     : 'border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700 hover:text-white'
                 }`}
               >
-                ${preset.toLocaleString('es-AR')}
+                {getCurrencySymbol(selectedCurrency)} {preset.toLocaleString('es-AR')}
               </button>
             ))}
           </div>
         </div>
+
+        {/* Tax Breakdown Preview & Calculation (Only for Expenses) */}
+        {!isIncome && (
+          <div className="space-y-2">
+            <TaxBreakdownPreview
+              amount={parsedNumericAmount}
+              currency={selectedCurrency}
+              isTaxable={isTaxable}
+              onToggleTaxable={(enabled) => setValue('isTaxable', enabled)}
+              rates={rates}
+              scheme={activeTaxScheme}
+              onSchemeChange={(newScheme) => setTaxScheme(newScheme)}
+            />
+
+            {/* Option to include taxes into the recorded amount */}
+            {isTaxable && taxCalculation && (
+              <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-950/40 border border-slate-800/80 text-xs text-slate-300">
+                <button
+                  type="button"
+                  onClick={() => setApplyTaxesToTotal(!applyTaxesToTotal)}
+                  className="text-emerald-400 hover:text-emerald-300 transition cursor-pointer shrink-0"
+                >
+                  {applyTaxesToTotal ? (
+                    <CheckSquare className="h-4 w-4" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                </button>
+                <span className="cursor-pointer" onClick={() => setApplyTaxesToTotal(!applyTaxesToTotal)}>
+                  Guardar transacción con el monto total incluyendo impuestos (
+                  <strong className="text-emerald-300">
+                    {formatCurrency(taxCalculation.totalAmount, selectedCurrency)}
+                  </strong>
+                  )
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Descripción (Description) Field */}
         <div>
@@ -379,6 +541,8 @@ export function ExpenseForm({
               placeholder={
                 isIncome
                   ? 'Ej: Sueldo mensual, Cobro de cliente freelance, Venta...'
+                  : selectedCurrency !== 'ARS'
+                  ? 'Ej: Suscripción AWS, Licencia OpenAI, Compra Steam...'
                   : 'Ej: Supermercado Coto, Nafta YPF, Farmacia...'
               }
               {...register('description')}
@@ -564,7 +728,9 @@ export function ExpenseForm({
             ) : (
               <>
                 <Plus className="h-4 w-4" />
-                {isIncome ? 'Registrar Ingreso' : 'Registrar Gasto'}
+                {isIncome
+                  ? `Registrar Ingreso (${selectedCurrency})`
+                  : `Registrar Gasto (${selectedCurrency})`}
               </>
             )}
           </button>
