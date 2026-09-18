@@ -184,3 +184,16 @@ pnpm --filter api run prisma:push
   - KPIs actuales (`totalExpenses`, `totalIncome`, `netBalance`, `averageExpensePerDay`, `transactionCount`), KPIs del período equivalente previo y variaciones porcentuales blindadas contra división por cero.
   - Ranking de distribución por categoría con cálculo porcentual y orden descendente.
   - Suite de pruebas unitarias completa con 120/120 tests aprobados en `apps/api`.
+
+- **Ticket SEI-34: Gestión Avanzada de Perfil (Settings & GDPR) (Backend)** `[COMPLETADO]`
+  - Prisma: campo `avatarUrl String? @map("avatar_url")` añadido a `model User`.
+  - Módulo `UsersModule` (`apps/api/src/users/`):
+    - `UpdateProfileDto` con validaciones de `class-validator`.
+    - `UsersService` con aislamiento transaccional RLS (`prisma.withUser(userId)`).
+    - `UsersController` con endpoints protegidos por `SupabaseAuthGuard`:
+      - `GET /users/me`: Perfil con `{ id, email, name, avatarUrl, createdAt }`.
+      - `PATCH /users/profile`: Modificación de nombre y avatarUrl.
+      - `DELETE /users/me`: Borrado permanente GDPR eliminando transaccionalmente gastos, categorías y usuario.
+    - Registro de `UsersModule` en `apps/api/src/app.module.ts`.
+    - 12 pruebas unitarias dedicadas en `users.service.spec.ts` y `users.controller.spec.ts` (100% pasando). Total suite: 132/132 pruebas exitosas.
+
