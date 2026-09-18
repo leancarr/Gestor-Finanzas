@@ -9,7 +9,71 @@ import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 import { QueryExpenseDto } from './dto/query-expense.dto.js';
 import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
+import { QueryAnalyticsDto } from './dto/query-analytics.dto.js';
 import { GoogleGenAI, Type } from '@google/genai';
+
+/**
+ * Formatea un objeto Date en cadena ISO 'YYYY-MM-DD' en tiempo UTC.
+ */
+export function toISODateString(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Calcula la variación porcentual entre dos valores con protección ante división por cero
+ * y tratamiento seguro para saldos negativos.
+ */
+export function calculatePercentageChange(current: number, previous: number): number {
+  if (previous === 0) {
+    if (current === 0) return 0;
+    return current > 0 ? 100 : -100;
+  }
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+  return Math.round(change * 100) / 100;
+}
+
+/**
+ * Calcula los límites de fecha (actual y anterior equivalente) en UTC para '7d', '30d' o 'month'.
+ */
+export function calculateDateRanges(
+  range: '7d' | '30d' | 'month',
+  now: Date = new Date(),
+): {
+  currentStart: Date;
+  currentEnd: Date;
+  prevStart: Date;
+  prevEnd: Date;
+} {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const day = now.getUTCDate();
+
+  if (range === '7d') {
+    const currentEnd = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+    const currentStart = new Date(Date.UTC(year, month, day - 6, 0, 0, 0, 0));
+    const prevEnd = new Date(Date.UTC(year, month, day - 7, 23, 59, 59, 999));
+    const prevStart = new Date(Date.UTC(year, month, day - 13, 0, 0, 0, 0));
+    return { currentStart, currentEnd, prevStart, prevEnd };
+  }
+
+  if (range === 'month') {
+    const currentStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+    const currentEnd = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+    const prevStart = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+    const prevEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+    return { currentStart, currentEnd, prevStart, prevEnd };
+  }
+
+  // Default: '30d'
+  const currentEnd = new Date(Date.UTC(year, month, day, 23, 59, 59, 999));
+  const currentStart = new Date(Date.UTC(year, month, day - 29, 0, 0, 0, 0));
+  const prevEnd = new Date(Date.UTC(year, month, day - 30, 23, 59, 59, 999));
+  const prevStart = new Date(Date.UTC(year, month, day - 59, 0, 0, 0, 0));
+  return { currentStart, currentEnd, prevStart, prevEnd };
+}
 
 @Injectable()
 export class ExpensesService {
@@ -337,6 +401,233 @@ export class ExpensesService {
         expensesCount,
         incomeCount,
         byCategory,
+      };
+    });
+  }
+
+  /**
+   * Obtiene métricas analíticas avanzadas: KPIs con comparativa previa, timeline agrupada por día y ranking por categorías.
+   */
+  async getAnalytics(
+    userId: string,
+    query?: QueryAnalyticsDto,
+    referenceDate: Date = new Date(),
+  ) {
+    const range = query?.range || '30d';
+    const targetCurrency = query?.currency ? query.currency.toUpperCase().trim() : 'ARS';
+
+    const { currentStart, currentEnd, prevStart, prevEnd } = calculateDateRanges(
+      range,
+      referenceDate,
+    );
+
+    return this.prisma.withUser(userId, async (tx) => {
+      const currencyFilter =
+        targetCurrency && targetCurrency !== 'ALL'
+          ? { currency: targetCurrency }
+          : {};
+
+      const [currentExpenses, prevExpenses] = await Promise.all([
+        tx.expense.findMany({
+          where: {
+            userId,
+            ...currencyFilter,
+            date: {
+              gte: currentStart,
+              lte: currentEnd,
+            },
+          },
+          include: {
+            category: true,
+          },
+          orderBy: {
+            date: 'asc',
+          },
+        }),
+        tx.expense.findMany({
+          where: {
+            userId,
+            ...currencyFilter,
+            date: {
+              gte: prevStart,
+              lte: prevEnd,
+            },
+          },
+        }),
+      ]);
+
+      // 1. Inicializar timeline continuo para cada día del rango actual
+      const timelineMap = new Map<
+        string,
+        {
+          date: string;
+          expenses: number;
+          income: number;
+          balance: number;
+          count: number;
+        }
+      >();
+
+      const iter = new Date(currentStart);
+      while (iter <= currentEnd) {
+        const dStr = toISODateString(iter);
+        timelineMap.set(dStr, {
+          date: dStr,
+          expenses: 0,
+          income: 0,
+          balance: 0,
+          count: 0,
+        });
+        iter.setUTCDate(iter.getUTCDate() + 1);
+      }
+
+      // 2. Procesar transacciones del período actual
+      let totalExpenses = 0;
+      let totalIncome = 0;
+
+      const categoryMap = new Map<
+        string,
+        {
+          categoryId: string | null;
+          categoryName: string;
+          icon: string | null;
+          color: string | null;
+          total: number;
+        }
+      >();
+
+      for (const exp of currentExpenses) {
+        const amount = Number(exp.amount);
+        const dateKey = toISODateString(new Date(exp.date));
+        const isIncome = exp.type === TransactionType.INCOME;
+
+        let entry = timelineMap.get(dateKey);
+        if (!entry) {
+          entry = {
+            date: dateKey,
+            expenses: 0,
+            income: 0,
+            balance: 0,
+            count: 0,
+          };
+          timelineMap.set(dateKey, entry);
+        }
+
+        entry.count += 1;
+
+        if (isIncome) {
+          totalIncome += amount;
+          entry.income += amount;
+        } else {
+          totalExpenses += amount;
+          entry.expenses += amount;
+
+          const catKey = exp.categoryId || 'uncategorized';
+          if (!categoryMap.has(catKey)) {
+            categoryMap.set(catKey, {
+              categoryId: exp.categoryId || null,
+              categoryName: exp.category ? exp.category.name : 'Sin categoría',
+              icon: exp.category ? exp.category.icon : null,
+              color: exp.category ? exp.category.color : '#64748B',
+              total: 0,
+            });
+          }
+          categoryMap.get(catKey)!.total += amount;
+        }
+      }
+
+      // 3. Formatear timeline ordenada cronológicamente
+      const timeline = Array.from(timelineMap.values())
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((p) => {
+          const exp = Math.round(p.expenses * 100) / 100;
+          const inc = Math.round(p.income * 100) / 100;
+          const bal = Math.round((inc - exp) * 100) / 100;
+          return {
+            date: p.date,
+            expenses: exp,
+            income: inc,
+            balance: bal,
+            count: p.count,
+          };
+        });
+
+      // 4. Ranking de categorías por gasto (orden descendente)
+      const categoryDistribution = Array.from(categoryMap.values())
+        .map((cat) => ({
+          categoryId: cat.categoryId,
+          categoryName: cat.categoryName,
+          color: cat.color,
+          icon: cat.icon,
+          total: Math.round(cat.total * 100) / 100,
+          percentage:
+            totalExpenses > 0
+              ? Math.round((cat.total / totalExpenses) * 10000) / 100
+              : 0,
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      // 5. Procesar transacciones del período anterior
+      let prevTotalExpenses = 0;
+      let prevTotalIncome = 0;
+
+      for (const exp of prevExpenses) {
+        const amount = Number(exp.amount);
+        if (exp.type === TransactionType.INCOME) {
+          prevTotalIncome += amount;
+        } else {
+          prevTotalExpenses += amount;
+        }
+      }
+
+      // 6. Cálculo de KPIs y variaciones porcentuales seguras
+      const roundedTotalExpenses = Math.round(totalExpenses * 100) / 100;
+      const roundedTotalIncome = Math.round(totalIncome * 100) / 100;
+      const netBalance = Math.round((roundedTotalIncome - roundedTotalExpenses) * 100) / 100;
+
+      const roundedPrevExpenses = Math.round(prevTotalExpenses * 100) / 100;
+      const roundedPrevIncome = Math.round(prevTotalIncome * 100) / 100;
+      const prevNetBalance = Math.round((roundedPrevIncome - roundedPrevExpenses) * 100) / 100;
+
+      const daysCount = timeline.length;
+      const averageExpensePerDay =
+        daysCount > 0 ? Math.round((roundedTotalExpenses / daysCount) * 100) / 100 : 0;
+
+      const transactionCount = currentExpenses.length;
+
+      const expensesChangePct = calculatePercentageChange(
+        roundedTotalExpenses,
+        roundedPrevExpenses,
+      );
+      const incomeChangePct = calculatePercentageChange(
+        roundedTotalIncome,
+        roundedPrevIncome,
+      );
+      const balanceChangePct = calculatePercentageChange(
+        netBalance,
+        prevNetBalance,
+      );
+
+      return {
+        range,
+        currency: targetCurrency,
+        startDate: toISODateString(currentStart),
+        endDate: toISODateString(currentEnd),
+        kpis: {
+          totalExpenses: roundedTotalExpenses,
+          totalIncome: roundedTotalIncome,
+          netBalance,
+          averageExpensePerDay,
+          transactionCount,
+          prevTotalExpenses: roundedPrevExpenses,
+          prevTotalIncome: roundedPrevIncome,
+          prevNetBalance,
+          expensesChangePct,
+          incomeChangePct,
+          balanceChangePct,
+        },
+        timeline,
+        categoryDistribution,
       };
     });
   }
