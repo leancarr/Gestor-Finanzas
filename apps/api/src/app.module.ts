@@ -12,6 +12,8 @@ import { ExpensesModule } from './expenses/expenses.module.js';
 import { TaxesModule } from './taxes/taxes.module.js';
 import { RatesModule } from './rates/rates.module.js';
 import { UsersModule } from './users/users.module.js';
+import { RecurringModule } from './recurring/recurring.module.js';
+import { BudgetsModule } from './budgets/budgets.module.js';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { UsersModule } from './users/users.module.js';
     TaxesModule,
     RatesModule,
     UsersModule,
+    RecurringModule,
+    BudgetsModule,
   ],
   controllers: [AppController],
   providers: [

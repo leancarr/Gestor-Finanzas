@@ -14,28 +14,32 @@ model HealthCheck {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  email     String     @unique
-  name      String?
-  avatarUrl String?    @map("avatar_url")
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String                 @id @default(uuid())
+  email      String                 @unique
+  name       String?
+  avatarUrl  String?                @map("avatar_url")
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
   categories Category[]
   expenses   Expense[]
+  budgets    Budget[]
+  recurring  RecurringTransaction[]
 
   @@map("users")
 }
 
 model Category {
-  id        String    @id @default(uuid())
+  id        String                 @id @default(uuid())
   name      String
   icon      String?
   color     String?
-  userId    String    @map("user_id")
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  userId    String                 @map("user_id")
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
   expenses  Expense[]
+  budgets   Budget[]
+  recurring RecurringTransaction[]
 
   @@map("categories")
 }
@@ -62,4 +66,49 @@ model Expense {
   updatedAt    DateTime        @updatedAt
 
   @@map("expenses")
+}
+
+model Budget {
+  id         String   @id @default(uuid())
+  amount     Decimal  @db.Decimal(12, 2)
+  currency   String   @default("ARS")
+  month      Int
+  year       Int
+  categoryId String   @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, categoryId, month, year])
+  @@map("budgets")
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model RecurringTransaction {
+  id          String              @id @default(uuid())
+  name        String
+  amount      Decimal             @db.Decimal(12, 2)
+  currency    String              @default("ARS")
+  type        TransactionType     @default(EXPENSE)
+  frequency   RecurrenceFrequency @default(MONTHLY)
+  dayOfMonth  Int?                @map("day_of_month")
+  nextDueDate DateTime            @map("next_due_date")
+  autoDebit   Boolean             @default(true) @map("auto_debit")
+  isActive    Boolean             @default(true) @map("is_active")
+  categoryId  String?             @map("category_id")
+  category    Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  userId      String              @map("user_id")
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@map("recurring_transactions")
 }
