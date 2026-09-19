@@ -23,7 +23,8 @@
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "seed:demo": "node prisma/seed-demo.js"
   },
   "dependencies": {
     "@google/genai": "^2.20.0",
