@@ -1,9 +1,10 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service.js';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
 import { Public } from './decorators/public.decorator.js';
 import type { AuthUser } from './auth.interface.js';
+import { DevLoginDto } from './dto/dev-login.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -23,6 +24,15 @@ export class AuthController {
       profile: dbUser,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Endpoint público: Login/Creación de usuario en modo desarrollo / demo (Neon)
+   */
+  @Post('dev-login')
+  @Public()
+  async devLogin(@Body() body: DevLoginDto) {
+    return this.authService.devLogin(body || {});
   }
 
   /**

@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import crypto from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from './auth.interface.js';
+import type { DevLoginDto } from './dto/dev-login.dto.js';
 
 import { DEFAULT_CATEGORIES } from '../categories/categories.constants.js';
 
@@ -95,6 +97,69 @@ export class AuthService {
         hasSupabaseUrl,
         hasAnonKey,
       },
+    };
+  }
+
+  /**
+   * Genera un token JWT firmado para desarrollo / demo y sincroniza el usuario en PostgreSQL/Neon
+   */
+  async devLogin(dto: DevLoginDto) {
+    const email = dto.email?.trim().toLowerCase() || 'demo@gestorguita.com';
+    const name = dto.name?.trim() || (dto.email ? dto.email.split('@')[0] : 'Usuario Demo');
+    const id = dto.id?.trim() || `usr_${crypto.createHash('md5').update(email).digest('hex').slice(0, 16)}`;
+
+    const authUser: AuthUser = {
+      id,
+      email,
+      role: 'authenticated',
+      userMetadata: {
+        name,
+        full_name: name,
+      },
+    };
+
+    // Sincronizar o crear en la base de datos de Neon y sembrar categorías por defecto
+    const profile = await this.syncOrCreateUser(authUser);
+
+    // Firmar JWT HS256 compatible con passport-jwt
+    const jwtSecret =
+      this.configService.get<string>('SUPABASE_JWT_SECRET') ||
+      'dev-supabase-jwt-secret-placeholder-minimum-32-chars';
+
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(
+      JSON.stringify({
+        sub: id,
+        email,
+        role: 'authenticated',
+        user_metadata: {
+          name,
+          full_name: name,
+        },
+        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 30, // 30 días
+      }),
+    ).toString('base64url');
+
+    const signature = crypto
+      .createHmac('sha256', jwtSecret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+
+    const accessToken = `${header}.${payload}.${signature}`;
+
+    this.logger.log(`Usuario autenticado en modo dev: ${email} (${id})`);
+
+    return {
+      accessToken,
+      user: {
+        id,
+        email,
+        user_metadata: {
+          name,
+          full_name: name,
+        },
+      },
+      profile,
     };
   }
 }

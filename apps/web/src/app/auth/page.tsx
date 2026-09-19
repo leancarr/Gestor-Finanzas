@@ -35,7 +35,24 @@ export default function AuthPage() {
   const supabase = createClient();
   const isEnvConfigured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');
+    !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('your-project-id');
+
+  const handleQuickDemoLogin = (customEmail?: string) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    startTransition(async () => {
+      try {
+        const { loginWithDevAccount } = await import('@/utils/supabase/client');
+        await loginWithDevAccount(customEmail || 'demo@gestorguita.com', 'Usuario Demo');
+        setSuccessMessage('¡Sesión demo iniciada! Redirigiendo al dashboard...');
+        router.push('/');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
+        setErrorMessage(msg);
+      }
+    });
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -182,33 +199,24 @@ export default function AuthPage() {
               Gestor Guita
             </h2>
             <p className="text-xs text-slate-400">
-              Autenticación & Perfil con Supabase
+              Autenticación & Acceso al Gestor
             </p>
           </div>
         </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4 sm:px-0">
-        {/* Supabase Configuration Banner if using placeholders */}
+        {/* Neon Dev Auth Banner if using local/mock mode */}
         {!isEnvConfigured && (
-          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-200/90 backdrop-blur">
+          <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-200/90 backdrop-blur">
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <Sparkles className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
               <div>
-                <span className="font-semibold text-amber-300">
-                  Modo Placeholder Detectado:
+                <span className="font-semibold text-emerald-300">
+                  Base de Datos Neon Conectada:
                 </span>
-                <p className="mt-1 text-amber-200/80 leading-relaxed">
-                  Para conectar con tu proyecto real de Supabase, agrega tus credenciales en{' '}
-                  <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded font-mono">
-                    .env
-                  </code>{' '}
-                  o{' '}
-                  <code className="text-amber-300 bg-amber-950/60 px-1 py-0.5 rounded font-mono">
-                    apps/web/.env.local
-                  </code>{' '}
-                  (variables <code className="text-amber-300">NEXT_PUBLIC_SUPABASE_URL</code> y{' '}
-                  <code className="text-amber-300">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>).
+                <p className="mt-1 text-emerald-200/80 leading-relaxed">
+                  Puedes registrarte con cualquier correo o hacer clic directamente en <strong>Usuario Demo</strong>. Las cuentas se sincronizan de forma persistente en tu base de datos de Neon.
                 </p>
               </div>
             </div>
@@ -421,18 +429,32 @@ export default function AuthPage() {
                 </button>
               </form>
 
+              {/* Acceso Rápido Demo Neon */}
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemoLogin()}
+                  disabled={isPending}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-[0.99] px-4 py-2.5 text-sm font-semibold text-emerald-400 shadow-md shadow-emerald-950/30 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>⚡ Entrar con Usuario Demo (Neon)</span>
+                </button>
+              </div>
+
               {/* Social Login Separator */}
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-800" />
+              {isEnvConfigured && (
+                <div className="mt-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-slate-800" />
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-slate-900 px-3 text-slate-500">
+                        O continuar con
+                      </span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-slate-900 px-3 text-slate-500">
-                      O continuar con
-                    </span>
-                  </div>
-                </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <button
@@ -476,11 +498,11 @@ export default function AuthPage() {
                     <span>GitHub</span>
                   </button>
                 </div>
-
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+      </div>
 
         {/* Security & RLS Note */}
         <div className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-500">

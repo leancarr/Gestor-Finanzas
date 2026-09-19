@@ -79,4 +79,18 @@ describe('AuthController', () => {
     expect(response.user.id).toBe('test-user-id');
     expect(response.profile?.name).toBe('Test User');
   });
+
+  it('should authenticate user and return token from devLogin()', async () => {
+    const response = await controller.devLogin({
+      email: 'aura@gmail.com',
+      name: 'Pepe Gonzales',
+    });
+
+    expect(response).toBeDefined();
+    expect(response.accessToken).toBeDefined();
+    expect(typeof response.accessToken).toBe('string');
+    expect(response.user.email).toBe('aura@gmail.com');
+    expect(response.user.user_metadata.name).toBe('Pepe Gonzales');
+    expect(response.profile).toBeDefined();
+  });
 });
