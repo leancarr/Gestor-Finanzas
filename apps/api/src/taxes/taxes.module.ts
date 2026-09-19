@@ -7,6 +7,6 @@ import { AuthModule } from '../auth/auth.module.js';
   imports: [AuthModule],
   controllers: [TaxesController],
   providers: [TaxesService],
-  exports: [TaxesService, TaxesController],
+  exports: [TaxesService],
 })
 export class TaxesModule {}
