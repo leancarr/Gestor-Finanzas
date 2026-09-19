@@ -44,7 +44,8 @@ export interface QueryBudgetsParams {
   year?: number;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+import { DYNAMIC_API_URL } from './config';
+const API_URL = DYNAMIC_API_URL;
 
 /**
  * Obtiene las cabeceras de autorización con el JWT de Supabase si existe una sesión activa.

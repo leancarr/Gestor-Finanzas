@@ -34,6 +34,7 @@ import {
   Target,
   User as UserNavIcon,
 } from 'lucide-react';
+import { getApiUrl } from '@/utils/api/config';
 
 const MONTH_NAMES = [
   'Enero',
@@ -84,7 +85,7 @@ export default function HomePage() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+  const apiUrl = getApiUrl();
   const isSupabaseConfigured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder');

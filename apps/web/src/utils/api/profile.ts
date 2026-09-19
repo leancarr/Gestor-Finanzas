@@ -18,7 +18,8 @@ export interface UpdateProfileInput {
   avatarUrl?: string | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+import { DYNAMIC_API_URL } from './config';
+const API_URL = DYNAMIC_API_URL;
 
 /**
  * Convierte un objeto File a Data URL en base64 para previsualización o fallback de almacenamiento

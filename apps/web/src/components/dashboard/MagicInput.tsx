@@ -29,7 +29,8 @@ export function MagicInput({ onSuccess }: { onSuccess?: () => void }) {
     try {
       // Call backend AI parser
       // Gestor Guita uses proxy or direct URL? Let's assume it hits /expenses/ai-parse in the NestJS backend
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+      const { getApiUrl } = await import('@/utils/api/config');
+      const apiUrl = getApiUrl();
       
       const { createClient } = await import('@/utils/supabase/client');
       const supabase = createClient();

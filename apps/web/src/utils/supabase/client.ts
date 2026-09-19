@@ -45,8 +45,10 @@ export function setDevSession(session: DevAuthSession | null) {
   );
 }
 
+import { getApiUrl } from '../api/config';
+
 export async function loginWithDevAccount(email?: string, name?: string): Promise<DevAuthSession> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+  const apiUrl = getApiUrl();
   const response = await fetch(`${apiUrl}/auth/dev-login`, {
     method: 'POST',
     headers: {

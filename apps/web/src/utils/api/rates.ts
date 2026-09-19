@@ -137,7 +137,8 @@ export const TAX_SCHEME_DEFINITIONS: Record<
   },
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001';
+import { DYNAMIC_API_URL } from './config';
+const API_URL = DYNAMIC_API_URL;
 
 /**
  * Consulta las tasas de cambio desde /rates o devuelve el fallback local.
