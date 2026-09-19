@@ -353,14 +353,107 @@ export async function getAnalytics(
         method: 'GET',
         headers,
         cache: 'no-store',
-        signal: AbortSignal.timeout(3000), // Timeout corto para no bloquear la UI si la API no tiene el endpoint
+        signal: AbortSignal.timeout(15000), // Timeout prudente para DB remota en Neon
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data && data.kpis && Array.isArray(data.timeline)) {
+        const raw = await res.json();
+        if (raw && raw.kpis && Array.isArray(raw.timeline)) {
+          // 1. Normalizar KPIs
+          const kpis: AnalyticsKpis = {
+            totalExpenses: Number(raw.kpis.totalExpenses) || 0,
+            prevTotalExpenses: Number(raw.kpis.prevTotalExpenses) || 0,
+            expensesChangePercent:
+              typeof raw.kpis.expensesChangePercent === 'number'
+                ? raw.kpis.expensesChangePercent
+                : typeof raw.kpis.expensesChangePct === 'number'
+                  ? raw.kpis.expensesChangePct
+                  : 0,
+            totalIncome: Number(raw.kpis.totalIncome) || 0,
+            prevTotalIncome: Number(raw.kpis.prevTotalIncome) || 0,
+            incomeChangePercent:
+              typeof raw.kpis.incomeChangePercent === 'number'
+                ? raw.kpis.incomeChangePercent
+                : typeof raw.kpis.incomeChangePct === 'number'
+                  ? raw.kpis.incomeChangePct
+                  : 0,
+            netBalance: Number(raw.kpis.netBalance) || 0,
+            prevNetBalance: Number(raw.kpis.prevNetBalance) || 0,
+            balanceChangePercent:
+              typeof raw.kpis.balanceChangePercent === 'number'
+                ? raw.kpis.balanceChangePercent
+                : typeof raw.kpis.balanceChangePct === 'number'
+                  ? raw.kpis.balanceChangePct
+                  : 0,
+            balanceHealth:
+              raw.kpis.balanceHealth ||
+              ((Number(raw.kpis.netBalance) || 0) >= 0 ? 'surplus' : 'deficit'),
+            averageDailyExpense:
+              Number(raw.kpis.averageDailyExpense) ||
+              Number(raw.kpis.averageExpensePerDay) ||
+              0,
+            daysCount:
+              Number(raw.kpis.daysCount) ||
+              (range === '7d' ? 7 : range === '30d' ? 30 : new Date().getDate()),
+          };
+
+          // 2. Normalizar Línea Temporal con displayDate garantizado
+          const timeline: AnalyticsTimelinePoint[] = raw.timeline.map(
+            (item: any) => {
+              let displayDate = item.displayDate;
+              if (!displayDate && item.date) {
+                const parts = item.date.split('-');
+                if (parts.length === 3) {
+                  const m = parseInt(parts[1], 10);
+                  const d = parseInt(parts[2], 10);
+                  const monthNames = [
+                    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+                  ];
+                  displayDate = `${d} ${monthNames[(m || 1) - 1]}`;
+                } else {
+                  displayDate = item.date;
+                }
+              }
+              const expenses = Number(item.expenses) || 0;
+              const income = Number(item.income) || 0;
+              const net =
+                typeof item.net === 'number'
+                  ? item.net
+                  : typeof item.balance === 'number'
+                    ? item.balance
+                    : income - expenses;
+
+              return {
+                date: item.date,
+                displayDate: displayDate || item.date,
+                expenses,
+                income,
+                net,
+              };
+            },
+          );
+
+          // 3. Normalizar Categorías (backend devuelve categoryDistribution)
+          const rawCats = raw.byCategory || raw.categoryDistribution || [];
+          const byCategory: AnalyticsCategoryItem[] = rawCats.map((c: any) => ({
+            categoryId: c.categoryId ?? null,
+            categoryName: c.categoryName ?? 'Sin categoría',
+            icon: c.icon ?? null,
+            color: c.color ?? '#64748B',
+            total: Number(c.total) || 0,
+            count: Number(c.count) || 0,
+            percentage: Number(c.percentage) || 0,
+          }));
+
           return {
-            ...data,
+            range: raw.range || range,
+            currency: raw.currency || currency,
+            startDate: raw.startDate || '',
+            endDate: raw.endDate || '',
+            kpis,
+            timeline,
+            byCategory,
             isFallback: false,
           };
         }

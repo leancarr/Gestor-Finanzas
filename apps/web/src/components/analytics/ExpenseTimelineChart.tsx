@@ -41,7 +41,9 @@ function CustomTooltip({ active, payload, currency }: CustomTooltipProps) {
   if (!active || !payload || !payload.length || !payload[0]?.payload) return null;
 
   const point = payload[0].payload;
-  const net = point.income - point.expenses;
+  const income = Number(point.income) || 0;
+  const expenses = Number(point.expenses) || 0;
+  const net = typeof point.net === 'number' ? point.net : income - expenses;
   const isNetPositive = net >= 0;
 
   return (
@@ -49,7 +51,7 @@ function CustomTooltip({ active, payload, currency }: CustomTooltipProps) {
       <div className="flex items-center justify-between border-b border-white/10 pb-2">
         <div className="flex items-center gap-1.5 text-slate-300 font-semibold">
           <Calendar className="h-3.5 w-3.5 text-slate-400" />
-          <span>{point.displayDate}</span>
+          <span>{point.displayDate || point.date}</span>
         </div>
         <span className="text-[10px] text-slate-500">{point.date}</span>
       </div>
@@ -100,6 +102,33 @@ export function ExpenseTimelineChart({
 }: ExpenseTimelineChartProps) {
   const [visibility, setVisibility] = useState<SeriesVisibility>('all');
 
+  const formattedData = React.useMemo(() => {
+    return (data || []).map((p) => {
+      let displayDate = p.displayDate;
+      if (!displayDate && p.date) {
+        const parts = p.date.split('-');
+        if (parts.length === 3) {
+          const m = parseInt(parts[1], 10);
+          const d = parseInt(parts[2], 10);
+          const monthNames = [
+            'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+            'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+          ];
+          displayDate = `${d} ${monthNames[(m || 1) - 1]}`;
+        } else {
+          displayDate = p.date;
+        }
+      }
+      return {
+        ...p,
+        displayDate: displayDate || p.date,
+        income: Number(p.income) || 0,
+        expenses: Number(p.expenses) || 0,
+        net: typeof p.net === 'number' ? p.net : (Number(p.income) || 0) - (Number(p.expenses) || 0),
+      };
+    });
+  }, [data]);
+
   if (loading) {
     return (
       <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
@@ -117,8 +146,8 @@ export function ExpenseTimelineChart({
     );
   }
 
-  const totalChartExpenses = data.reduce((acc, p) => acc + p.expenses, 0);
-  const totalChartIncome = data.reduce((acc, p) => acc + p.income, 0);
+  const totalChartExpenses = formattedData.reduce((acc, p) => acc + p.expenses, 0);
+  const totalChartIncome = formattedData.reduce((acc, p) => acc + p.income, 0);
   const hasData = totalChartExpenses > 0 || totalChartIncome > 0;
 
   // Formato compacto para eje Y
@@ -210,7 +239,7 @@ export function ExpenseTimelineChart({
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={data}
+                data={formattedData}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <defs>
@@ -241,6 +270,8 @@ export function ExpenseTimelineChart({
                   tickLine={false}
                   axisLine={{ stroke: '#334155', opacity: 0.3 }}
                   dy={8}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
                 />
 
                 <YAxis

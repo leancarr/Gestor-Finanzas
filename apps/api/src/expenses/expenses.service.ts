@@ -618,16 +618,23 @@ export class ExpensesService {
           totalIncome: roundedTotalIncome,
           netBalance,
           averageExpensePerDay,
+          averageDailyExpense: averageExpensePerDay,
           transactionCount,
+          daysCount,
           prevTotalExpenses: roundedPrevExpenses,
           prevTotalIncome: roundedPrevIncome,
           prevNetBalance,
           expensesChangePct,
+          expensesChangePercent: expensesChangePct,
           incomeChangePct,
+          incomeChangePercent: incomeChangePct,
           balanceChangePct,
+          balanceChangePercent: balanceChangePct,
+          balanceHealth: (netBalance >= 0 ? 'surplus' : 'deficit') as 'surplus' | 'deficit',
         },
         timeline,
         categoryDistribution,
+        byCategory: categoryDistribution,
       };
     });
   }
