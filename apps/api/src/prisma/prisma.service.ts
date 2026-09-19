@@ -26,16 +26,22 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     userId: string,
     callback: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.$transaction(async (tx) => {
-      // 1. Establece el rol de conexión a 'authenticated' (sujeto a RLS)
-      await tx.$executeRawUnsafe(`SET LOCAL ROLE authenticated;`);
+    return this.$transaction(
+      async (tx) => {
+        // 1. Establece el rol de conexión a 'authenticated' (sujeto a RLS)
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE authenticated;`);
 
-      // 2. Inyecta la identidad del usuario para auth.uid() en Postgres
-      await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
+        // 2. Inyecta la identidad del usuario para auth.uid() en Postgres
+        await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
 
-      // 3. Ejecuta la consulta protegida por RLS
-      return callback(tx);
-    });
+        // 3. Ejecuta la consulta protegida por RLS
+        return callback(tx);
+      },
+      {
+        maxWait: 15000, // 15s para adquirir conexión con DB remota (Neon)
+        timeout: 30000, // 30s de tiempo límite por transacción
+      },
+    );
   }
 
   /**
@@ -50,13 +56,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     userId: string | null | undefined,
     callback: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role};`);
-      if (userId) {
-        await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
-      }
-      return callback(tx);
-    });
+    return this.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role};`);
+        if (userId) {
+          await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
+        }
+        return callback(tx);
+      },
+      {
+        maxWait: 15000,
+        timeout: 30000,
+      },
+    );
   }
 
   /**
