@@ -24,6 +24,8 @@ model User {
   expenses   Expense[]
   budgets    Budget[]
   recurring  RecurringTransaction[]
+  ownedVaults Vault[]               @relation("OwnedVaults")
+  vaultMemberships VaultMember[]
 
   @@map("users")
 }
@@ -40,6 +42,8 @@ model Category {
   expenses  Expense[]
   budgets   Budget[]
   recurring RecurringTransaction[]
+  vaultId   String?                @map("vault_id")
+  vault     Vault?                 @relation(fields: [vaultId], references: [id], onDelete: SetNull)
 
   @@map("categories")
 }
@@ -62,10 +66,47 @@ model Expense {
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   exchangeRate Decimal?        @map("exchange_rate") @db.Decimal(12, 4)
   isTaxable    Boolean         @default(false) @map("is_taxable")
+  vaultId      String?         @map("vault_id")
+  vault        Vault?          @relation(fields: [vaultId], references: [id], onDelete: SetNull)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
   @@map("expenses")
+}
+
+enum VaultRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+model Vault {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  ownerId     String        @map("owner_id")
+  owner       User          @relation("OwnedVaults", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     VaultMember[]
+  expenses    Expense[]
+  categories  Category[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("vaults")
+}
+
+model VaultMember {
+  id       String    @id @default(uuid())
+  vaultId  String    @map("vault_id")
+  vault    Vault     @relation(fields: [vaultId], references: [id], onDelete: Cascade)
+  userId   String    @map("user_id")
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     VaultRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  @@unique([vaultId, userId])
+  @@map("vault_members")
 }
 
 model Budget {

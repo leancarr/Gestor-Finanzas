@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, DollarSign, ShieldCheck, Sparkles } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
+import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { ExpenseForm } from '@/components/expenses/ExpenseForm';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
@@ -65,6 +66,7 @@ export default function NuevoGastoPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <VaultSelector />
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
               SEI-25: Multi-moneda & Impuestos

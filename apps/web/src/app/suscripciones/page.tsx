@@ -19,7 +19,9 @@ import {
   Search,
   Sparkles,
   Target,
+  Users,
 } from 'lucide-react';
+import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { RecurringCard } from '@/components/recurring/RecurringCard';
 import { RecurringFormModal } from '@/components/recurring/RecurringFormModal';
@@ -290,12 +292,20 @@ export default function SuscripcionesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <VaultSelector />
             <Link
               href="/gastos"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
               <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
               Gastos
+            </Link>
+            <Link
+              href="/bovedas"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <Users className="h-3.5 w-3.5 text-emerald-400" />
+              Bóvedas
             </Link>
             <Link
               href="/categorias"

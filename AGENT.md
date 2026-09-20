@@ -227,6 +227,17 @@ pnpm --filter api run prisma:push
     - Componente modal interactivo `<BudgetModal />` para fijar y editar topes mensuales con atajos rápidos de incremento (+$10k, +$50k, +$100k, +$250k) y selector multi-moneda.
     - Vista `/presupuestos` con navegador interactivo de mes/año, resumen total presupuestado vs gastado (4 KPIs: Total Presupuestado, Gastado Real, Disponible/Exceso, Nivel de Consumo Global), empty states y modal de borrado seguro.
     - Enlace a `/presupuestos` incorporado en la barra de navegación de todas las pantallas (`/`, `/gastos`, `/categorias`, `/suscripciones`, `/analiticas`, `/perfil`).
-    - Verificaciones de calidad: 100% éxito en ESLint (0 errores) y `tsc --noEmit` (0 errores).
+- **Ticket SEI-37: Bóvedas Compartidas (Modo Pareja/Familia) (Frontend)** `[COMPLETADO]`
+  - **Frontend (`apps/web`):**
+    - Cliente API `utils/api/vaults.ts` con tipos TypeScript (`VaultRole`, `VaultMember`, `Vault`, `MemberContribution`, `Settlement`, `VaultBalances`), integración de Supabase Auth JWT y fallback offline/mock en `localStorage`.
+    - Store reactivo `stores/useVaultStore.ts` con soporte SSR (`useSyncExternalStore`), sincronización transparente en `localStorage` y métodos `activeVault`, `activeVaultId`, `setActiveVault`, `clearActiveVault`.
+    - Componente selector de workspace `<VaultSelector />` integrado en el header con dropdown glassmorphism, indicador de contexto personal/compartido y badge de estado.
+    - Componente tarjeta `<VaultCard />` con diseño glassmorphism, avatar stacks apilados, roles cromáticos (`OWNER`, `ADMIN`, `MEMBER`, `VIEWER`), contador de transacciones y botones de activación rápida.
+    - Modal `<CreateVaultModal />` con presets inteligentes (Casa & Pareja 🏡, Familia 👨‍👩‍👦, Vacaciones 🌴, Roomies 🏢) y soporte para edición.
+    - Modal `<VaultMembersModal />` para gestión completa de integrantes, invitación por correo con selector de rol y expulsión segura.
+    - Widget visual `<VaultBalancesWidget />` con total acumulado de gastos grupales, cálculo de cuota justa (`fairShare`), barras de progreso proporcionales y flujo interactivo de liquidaciones ("X le debe $Y a Z") con botón "Marcar como Saldado".
+    - Vista completa `/bovedas` con navegación por pestañas ("Mis Bóvedas" y "Saldos y Balances Compartidos"), KPIs grupales y empty state inspirador.
+    - Integración de `<VaultSelector />` y acceso `/bovedas` en la navegación de todas las pantallas (`/`, `/gastos`, `/gastos/nuevo`, `/presupuestos`, `/suscripciones`, `/categorias`, `/analiticas`, `/perfil`).
+    - Verificaciones de calidad: 100% aprobado en TypeScript `tsc --noEmit` (0 errores) y ESLint (0 errores en archivos de bóvedas).
 
 

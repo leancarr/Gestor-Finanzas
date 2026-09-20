@@ -14,6 +14,7 @@ import { RatesModule } from './rates/rates.module.js';
 import { UsersModule } from './users/users.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
 import { BudgetsModule } from './budgets/budgets.module.js';
+import { VaultsModule } from './vaults/vaults.module.js';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { BudgetsModule } from './budgets/budgets.module.js';
     UsersModule,
     RecurringModule,
     BudgetsModule,
+    VaultsModule,
   ],
   controllers: [AppController],
   providers: [
