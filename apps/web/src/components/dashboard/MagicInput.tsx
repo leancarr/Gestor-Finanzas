@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Loader2, X } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, X, ScanLine } from 'lucide-react';
 import { ExpenseForm } from '@/components/expenses/ExpenseForm';
-
+import { ReceiptScannerModal } from '@/components/ai/ReceiptScannerModal';
 
 interface AiParseResponse {
   amount: number;
@@ -16,6 +16,7 @@ interface AiParseResponse {
 export function MagicInput({ onSuccess }: { onSuccess?: () => void }) {
   const [text, setText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [parsedData, setParsedData] = useState<AiParseResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,23 +80,42 @@ export function MagicInput({ onSuccess }: { onSuccess?: () => void }) {
           onChange={(e) => setText(e.target.value)}
           disabled={isLoading}
           placeholder="Ej: Gaste 1000 en comida ayer..."
-          className="w-full rounded-2xl border border-emerald-500/30 bg-slate-900/60 pl-12 pr-14 py-4 text-sm text-white placeholder-slate-400 shadow-xl backdrop-blur focus:border-emerald-500/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
+          className="w-full rounded-2xl border border-emerald-500/30 bg-slate-900/60 pl-12 pr-24 py-4 text-sm text-white placeholder-slate-400 shadow-xl backdrop-blur focus:border-emerald-500/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all disabled:opacity-50"
         />
-        <button
-          type="submit"
-          disabled={isLoading || !text.trim()}
-          className="absolute right-2 p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 cursor-pointer"
-        >
-          {isLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <ArrowRight className="h-5 w-5" />
-          )}
-        </button>
+        <div className="absolute right-2 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setIsScanModalOpen(true)}
+            title="Escanear Ticket con Vision AI"
+            className="p-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-slate-700/60 shadow transition-all cursor-pointer flex items-center gap-1 text-xs"
+          >
+            <ScanLine className="h-4 w-4" />
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading || !text.trim()}
+            className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:active:scale-100 cursor-pointer"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowRight className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </form>
       {error && (
         <p className="text-center text-xs text-red-400 mt-2 mb-4">{error}</p>
       )}
+
+      {/* Receipt Scanner Modal */}
+      <ReceiptScannerModal
+        isOpen={isScanModalOpen}
+        onClose={() => setIsScanModalOpen(false)}
+        onSuccess={() => {
+          if (onSuccess) onSuccess();
+        }}
+      />
 
       {/* Modal with ExpenseForm pre-filled */}
       {parsedData && (

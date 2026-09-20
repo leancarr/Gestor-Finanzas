@@ -20,11 +20,14 @@ import {
   Repeat,
   Target,
   Users,
+  ScanLine,
+  Bot,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpenseCard } from '@/components/expenses/ExpenseCard';
 import { ExpenseDeleteModal } from '@/components/expenses/ExpenseDeleteModal';
+import { ReceiptScannerModal } from '@/components/ai/ReceiptScannerModal';
 import ExportMenu from '@/components/dashboard/ExportMenu';
 import { getExpenses, ExpenseItem } from '@/utils/api/expenses';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
@@ -52,6 +55,7 @@ export default function GastosPage() {
   // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -282,6 +286,13 @@ export default function GastosPage() {
               <Layers className="h-3.5 w-3.5 text-emerald-400" />
               Categorías
             </Link>
+            <Link
+              href="/asistente"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer shadow-sm"
+            >
+              <Bot className="h-3.5 w-3.5 text-emerald-400" />
+              Asistente
+            </Link>
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
               SEI-25: Multi-moneda & Impuestos
@@ -491,8 +502,16 @@ export default function GastosPage() {
                 </div>
               </div>
 
-              {/* Action Button: Nueva Transacción */}
-              <div className="flex items-center gap-3">
+              {/* Action Button: Nueva Transacción y Escanear Ticket */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsScanModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/80 px-3.5 py-2.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 shadow-lg transition cursor-pointer"
+                >
+                  <ScanLine className="h-4 w-4" />
+                  <span>Escanear Ticket</span>
+                </button>
                 <ExportMenu data={filteredExpenses} />
                 <Link
                   href="/gastos/nuevo"
@@ -603,6 +622,19 @@ export default function GastosPage() {
         onClose={() => setIsDeleteModalOpen(false)}
         onSuccess={handleDeleteSuccess}
         expense={expenseToDelete}
+      />
+
+      {/* Receipt Scanner Modal (Vision AI) */}
+      <ReceiptScannerModal
+        isOpen={isScanModalOpen}
+        onClose={() => setIsScanModalOpen(false)}
+        onSuccess={() => {
+          loadData();
+          setToastMessage({
+            type: 'success',
+            text: '¡Comprobante procesado y gasto registrado exitosamente!',
+          });
+        }}
       />
     </main>
   );

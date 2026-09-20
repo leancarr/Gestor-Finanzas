@@ -20,6 +20,7 @@ import {
   Repeat,
   Target,
   Users,
+  Bot,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
@@ -272,6 +273,13 @@ export default function CategoriasPage() {
             >
               <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
               Analíticas
+            </Link>
+            <Link
+              href="/asistente"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer shadow-sm"
+            >
+              <Bot className="h-3.5 w-3.5 text-emerald-400" />
+              Asistente
             </Link>
             <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>

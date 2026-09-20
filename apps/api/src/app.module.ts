@@ -15,6 +15,7 @@ import { UsersModule } from './users/users.module.js';
 import { RecurringModule } from './recurring/recurring.module.js';
 import { BudgetsModule } from './budgets/budgets.module.js';
 import { VaultsModule } from './vaults/vaults.module.js';
+import { AiModule } from './ai/ai.module.js';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { VaultsModule } from './vaults/vaults.module.js';
     RecurringModule,
     BudgetsModule,
     VaultsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [

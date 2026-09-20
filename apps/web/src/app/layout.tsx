@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 };
 
 import SyncManager from "@/components/SyncManager";
+import { FinancialChatbot } from "@/components/ai/FinancialChatbot";
 
 export default function RootLayout({
   children,
@@ -35,6 +36,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
         {children}
+        <FinancialChatbot />
         <SyncManager />
       </body>
     </html>

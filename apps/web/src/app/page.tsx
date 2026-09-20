@@ -34,6 +34,7 @@ import {
   Target,
   User as UserNavIcon,
   Users,
+  Bot,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { getApiUrl } from '@/utils/api/config';
@@ -287,6 +288,13 @@ export default function HomePage() {
                 >
                   <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
                   Analíticas
+                </Link>
+                <Link
+                  href="/asistente"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-2 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+                >
+                  <Bot className="h-3.5 w-3.5 text-emerald-400" />
+                  Asistente
                 </Link>
                 <Link
                   href="/perfil"

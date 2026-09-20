@@ -22,3 +22,22 @@ body {
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
 }
+
+@keyframes laserScan {
+  0% {
+    top: 2%;
+    opacity: 0.9;
+  }
+  50% {
+    top: 96%;
+    opacity: 1;
+  }
+  100% {
+    top: 2%;
+    opacity: 0.9;
+  }
+}
+
+.animate-laser {
+  animation: laserScan 2.2s ease-in-out infinite;
+}

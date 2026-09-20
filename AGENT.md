@@ -246,4 +246,25 @@ pnpm --filter api run prisma:push
     - Integración de `<VaultSelector />` y acceso `/bovedas` en la navegación de todas las pantallas (`/`, `/gastos`, `/gastos/nuevo`, `/presupuestos`, `/suscripciones`, `/categorias`, `/analiticas`, `/perfil`).
     - Verificaciones de calidad: 100% aprobado en TypeScript `tsc --noEmit` (0 errores) y ESLint (0 errores en archivos de bóvedas).
 
+- **Épica 2: IA y Visión (SEI-38 y SEI-39) (Backend y Frontend)** `[COMPLETADO]`
+  - **Backend (`apps/api/src/ai`):**
+    - DTOs con `class-validator` y `class-transformer`: `ParseReceiptDto` (`imageBase64`, `mimeType`) y `ChatMessageDto` (`message`, `history` tipado como `ChatHistoryItemDto`).
+    - `AiService`:
+      - **SEI-38 (`parseReceipt`):** Limpieza de Data URL/Base64, detección inteligente de `mimeType`, extracción de categorías del usuario, esquema estructurado con `@google/genai` (`Type.OBJECT`) para `merchant`, `total`, `currency`, `date`, `categoryId`, `items`, `taxAmount`, prompt especializado en comprobantes fiscales AFIP y comercios locales, y fallback resiliente.
+      - **SEI-39 (`chatFinancialAdvisor`):** Extracción de contexto financiero bajo RLS (`prisma.withUser(userId)`) de gastos recientes (últimos 30 días), balance del mes actual (gastos vs ingresos), estado de presupuestos activos (% de consumo y alertas de sobregasto) y suscripciones/débitos automáticos. Generación de respuesta con agente "GuitaBot" en tono empático y rioplatense sutil, retornando respuesta y `contextSummary` (`totalSpentMonth`, `totalIncomeMonth`, `activeBudgetsCount`).
+    - `AiController`: Endpoints protegidos con `SupabaseAuthGuard` y `@CurrentUser()`:
+      - `POST /ai/receipt`: Análisis de tickets y facturas con Vision AI.
+      - `POST /ai/chat`: Conversación interactiva con el contador de bolsillo (GuitaBot).
+    - Registro de `AiModule` en `apps/api/src/app.module.ts`.
+    - 11 pruebas unitarias dedicadas en `ai.service.spec.ts` y `ai.controller.spec.ts` (100% pasando). Suite completa del backend: 249/249 tests aprobados en 21 test suites. Build de NestJS (`pnpm --filter api build`) y `oxlint` 100% exitosos sin errores ni advertencias.
+  - **Frontend (`apps/web`):**
+    - Cliente API `utils/api/ai.ts` con tipos TypeScript (`ReceiptItem`, `ParsedReceipt`, `ChatMessage`, `ChatResponse`), integración de Supabase Auth JWT y fallback inteligente para Vision AI y Chatbot.
+    - Componente `<ReceiptScannerModal />`: Modal interactivo con Glassmorphism, drag-and-drop de imágenes, captura directa desde cámara web/celular (`getUserMedia`), animación de haz láser (`laserScan` en `globals.css`), formulario con datos extraídos editables, tabla colapsable de ítems detectados y botón "Confirmar y Crear Gasto" integrado con `createExpense`.
+    - Integración de escáner en UI: botón con ícono `ScanLine` ("Escanear Ticket") incorporado en la barra de `<MagicInput />` del Dashboard y en `/gastos` junto a "+ Nueva Transacción".
+    - Componente `<FinancialChatbot />`: Botón flotante FAB en la esquina inferior derecha (`fixed bottom-6 right-6 z-40`) con halo de pulso esmeralda y tooltip "Contador de Bolsillo". Drawer lateral desplegable con avatar, estado "En línea", historial con burbujas diferenciadas, chips de preguntas rápidas, animación de escribiendo y formateador markdown integrado (listas, negritas, cursivas, código).
+    - Vista dedicada `/asistente` (`apps/web/src/app/asistente/page.tsx`): Pantalla completa para sesiones de asesoramiento extendidas, con 4 tarjetas de KPIs contextuales (Gasto acumulado, Margen presupuestario, Tasa de ahorro, Salud financiera) y chat central amplio.
+    - Integración de navegación: `<FinancialChatbot />` montado globalmente en `layout.tsx` y enlaces al "Asistente" con ícono `Bot` en la cabecera de todas las vistas (`/`, `/gastos`, `/bovedas`, `/presupuestos`, `/suscripciones`, `/categorias`, `/analiticas`, `/perfil`).
+    - Verificaciones de calidad: TypeScript `tsc --noEmit` aprobado con 0 errores y ESLint 100% limpio (0 errores, 0 warnings).
+
+
 
