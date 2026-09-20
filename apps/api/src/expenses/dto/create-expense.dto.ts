@@ -8,6 +8,7 @@ import {
   MaxLength,
   IsISO8601,
   IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TransactionType } from '@prisma/client';
@@ -55,4 +56,9 @@ export class CreateExpenseDto {
 
   @IsOptional()
   isTaxable?: boolean;
+
+  @IsOptional()
+  @IsArray({ message: 'Las etiquetas deben ser una lista de textos' })
+  @IsString({ each: true, message: 'Cada etiqueta debe ser una cadena de texto' })
+  tags?: string[];
 }

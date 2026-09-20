@@ -22,9 +22,11 @@ import {
   RefreshCw,
   Bot,
   TrendingUp,
+  Trophy,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
+import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { VaultCard } from '@/components/vaults/VaultCard';
 import { CreateVaultModal } from '@/components/vaults/CreateVaultModal';
 import { VaultMembersModal } from '@/components/vaults/VaultMembersModal';
@@ -252,6 +254,7 @@ export default function BovedasPage() {
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Selector de Contexto Global */}
             <VaultSelector onOpenCreateModal={handleOpenCreate} />
+            <StreakBadge />
 
             <Link
               href="/gastos"
@@ -261,11 +264,18 @@ export default function BovedasPage() {
               Gastos
             </Link>
             <Link
-              href="/suscripciones"
+              href="/inversiones"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
-              Suscripciones
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              Inversiones
+            </Link>
+            <Link
+              href="/retos"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <Trophy className="h-3.5 w-3.5 text-amber-400" />
+              Retos
             </Link>
             <Link
               href="/presupuestos"
@@ -275,11 +285,11 @@ export default function BovedasPage() {
               Presupuestos
             </Link>
             <Link
-              href="/inversiones"
+              href="/suscripciones"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              Inversiones
+              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
+              Suscripciones
             </Link>
             <Link
               href="/categorias"

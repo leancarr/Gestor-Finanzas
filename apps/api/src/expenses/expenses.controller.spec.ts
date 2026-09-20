@@ -94,6 +94,16 @@ describe('ExpensesController', () => {
     getSummary: vi.fn().mockResolvedValue(mockSummary),
     getRecent: vi.fn().mockResolvedValue([mockExpense]),
     getAnalytics: vi.fn().mockResolvedValue(mockAnalytics),
+    getTagsSummary: vi.fn().mockResolvedValue([
+      {
+        tag: '#viaje',
+        totalAmount: 15000,
+        currency: 'ARS',
+        count: 2,
+        firstDate: '2026-07-10T10:00:00.000Z',
+        lastDate: '2026-07-15T15:00:00.000Z',
+      },
+    ]),
   };
 
   beforeEach(async () => {
@@ -176,6 +186,22 @@ describe('ExpensesController', () => {
 
     expect(mockExpensesService.getRecent).toHaveBeenCalledWith('user-123', 5);
     expect(result).toEqual([mockExpense]);
+  });
+
+  it('should get tags summary for authenticated user', async () => {
+    const result = await controller.getTagsSummary(mockUser);
+
+    expect(mockExpensesService.getTagsSummary).toHaveBeenCalledWith('user-123');
+    expect(result).toEqual([
+      {
+        tag: '#viaje',
+        totalAmount: 15000,
+        currency: 'ARS',
+        count: 2,
+        firstDate: '2026-07-10T10:00:00.000Z',
+        lastDate: '2026-07-15T15:00:00.000Z',
+      },
+    ]);
   });
 
   it('should remove an expense', async () => {

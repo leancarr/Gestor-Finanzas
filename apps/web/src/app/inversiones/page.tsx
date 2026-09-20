@@ -22,9 +22,11 @@ import {
   Clock,
   Wallet,
   HelpCircle,
+  Trophy,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
+import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { NetWorthHero } from '@/components/investments/NetWorthHero';
 import { AssetCard } from '@/components/investments/AssetCard';
 import { PortfolioDistributionChart } from '@/components/investments/PortfolioDistributionChart';
@@ -322,6 +324,7 @@ interface PortfolioInsights {
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {/* Selector de Contexto Global */}
             <VaultSelector />
+            <StreakBadge />
 
             <Link
               href="/gastos"
@@ -338,6 +341,20 @@ interface PortfolioInsights {
               Bóvedas
             </Link>
             <Link
+              href="/inversiones"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 shadow-sm"
+            >
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              Inversiones
+            </Link>
+            <Link
+              href="/retos"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <Trophy className="h-3.5 w-3.5 text-amber-400" />
+              Retos
+            </Link>
+            <Link
               href="/presupuestos"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
@@ -350,13 +367,6 @@ interface PortfolioInsights {
             >
               <Repeat className="h-3.5 w-3.5 text-emerald-400" />
               Suscripciones
-            </Link>
-            <Link
-              href="/inversiones"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 shadow-sm"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              Inversiones
             </Link>
             <Link
               href="/categorias"

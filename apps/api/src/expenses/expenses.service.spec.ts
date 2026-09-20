@@ -4,6 +4,7 @@ import {
   calculateDateRanges,
   calculatePercentageChange,
   toISODateString,
+  normalizeTags,
 } from './expenses.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotFoundException } from '@nestjs/common';
@@ -31,6 +32,7 @@ describe('ExpensesService', () => {
     userId: 'user-123',
     exchangeRate: null,
     isTaxable: false,
+    tags: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     category: mockCategory,
@@ -47,6 +49,7 @@ describe('ExpensesService', () => {
     userId: 'user-123',
     exchangeRate: null,
     isTaxable: false,
+    tags: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     category: {
@@ -129,6 +132,7 @@ describe('ExpensesService', () => {
           description: 'Compras del mes en Coto',
           date: new Date('2026-09-01T12:00:00.000Z'),
           categoryId: 'cat-1',
+          tags: [],
           userId: 'user-123',
         },
         include: { category: true },
@@ -159,6 +163,7 @@ describe('ExpensesService', () => {
           description: 'Sueldo Agosto',
           date: expect.any(Date),
           categoryId: 'cat-inc',
+          tags: [],
           userId: 'user-123',
         },
         include: { category: true },
@@ -186,6 +191,7 @@ describe('ExpensesService', () => {
           description: 'Café al paso',
           date: expect.any(Date),
           categoryId: null,
+          tags: [],
           userId: 'user-123',
         },
         include: { category: true },
@@ -848,4 +854,201 @@ describe('ExpensesService', () => {
       });
     });
   });
+
+  describe('normalizeTags (SEI-41)', () => {
+    it('should format tags with # prefix and lowercase', () => {
+      const result = normalizeTags(['Vacaciones', ' #playa ', 'HOTEL']);
+      expect(result).toEqual(['#vacaciones', '#playa', '#hotel']);
+    });
+
+    it('should extract hashtags from description and merge without duplicates', () => {
+      const result = normalizeTags(['#cena'], 'Cena con amigos #Salidas #cena #FinDeSemana');
+      expect(result).toEqual(['#cena', '#salidas', '#findesemana']);
+    });
+
+    it('should ignore empty, whitespace-only or single # tags', () => {
+      const result = normalizeTags(['', '   ', '#', '#valido']);
+      expect(result).toEqual(['#valido']);
+    });
+
+    it('should extract tags from description even if tags array is empty or undefined', () => {
+      const result = normalizeTags(undefined, 'Gasto de viaje #Brasil #Rio');
+      expect(result).toEqual(['#brasil', '#rio']);
+    });
+  });
+
+  describe('Tags support in create and update (SEI-41)', () => {
+    it('should normalize tags and include hashtags from description on create', async () => {
+      mockTx.expense.create.mockResolvedValue(mockExpense);
+
+      const dto = {
+        amount: 3500,
+        description: 'Cena de equipo #after #trabajo',
+        tags: ['after', '#CenaEmpresa'],
+      };
+
+      await service.create('user-123', dto);
+
+      expect(mockTx.expense.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tags: ['#after', '#cenaempresa', '#trabajo'],
+          }),
+        }),
+      );
+    });
+
+    it('should update tags when provided in update dto', async () => {
+      mockTx.expense.findFirst.mockResolvedValue(mockExpense);
+      mockTx.expense.update.mockResolvedValue(mockExpense);
+
+      await service.update('user-123', 'exp-1', {
+        tags: ['#vacaciones', 'Bariloche'],
+      });
+
+      expect(mockTx.expense.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tags: ['#vacaciones', '#bariloche'],
+          }),
+        }),
+      );
+    });
+
+    it('should extract hashtags from new description when updating without tags', async () => {
+      mockTx.expense.findFirst.mockResolvedValue({
+        ...mockExpense,
+        tags: ['#original'],
+      });
+      mockTx.expense.update.mockResolvedValue(mockExpense);
+
+      await service.update('user-123', 'exp-1', {
+        description: 'Nuevo gasto con #evento y #fiesta',
+      });
+
+      expect(mockTx.expense.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tags: ['#original', '#evento', '#fiesta'],
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findAll with tag filter (SEI-41)', () => {
+    it('should filter by tag with has clause normalizing query tag', async () => {
+      mockTx.expense.findMany.mockResolvedValue([mockExpense]);
+
+      await service.findAll('user-123', { tag: 'vacaciones' });
+
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-123',
+            tags: {
+              has: '#vacaciones',
+            },
+          }),
+        }),
+      );
+    });
+
+    it('should filter correctly when query tag already includes #', async () => {
+      mockTx.expense.findMany.mockResolvedValue([mockExpense]);
+
+      await service.findAll('user-123', { tag: '#viajes' });
+
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-123',
+            tags: {
+              has: '#viajes',
+            },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('getTagsSummary (SEI-41)', () => {
+    it('should aggregate tagged expenses grouped by unique tags', async () => {
+      const taggedExpenses = [
+        {
+          id: 'exp-1',
+          amount: 10000,
+          currency: 'ARS',
+          tags: ['#viaje', '#bariloche'],
+          date: new Date('2026-07-10T10:00:00.000Z'),
+        },
+        {
+          id: 'exp-2',
+          amount: 5000,
+          currency: 'ARS',
+          tags: ['#viaje'],
+          date: new Date('2026-07-15T15:00:00.000Z'),
+        },
+        {
+          id: 'exp-3',
+          amount: 2000,
+          currency: 'ARS',
+          tags: ['#bariloche', '#chocolate'],
+          date: new Date('2026-07-12T12:00:00.000Z'),
+        },
+      ];
+
+      mockTx.expense.findMany.mockResolvedValue(taggedExpenses);
+
+      const result = await service.getTagsSummary('user-123');
+
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-123',
+          tags: {
+            isEmpty: false,
+          },
+        },
+        orderBy: {
+          date: 'asc',
+        },
+      });
+
+      expect(result).toEqual([
+        {
+          tag: '#viaje',
+          totalAmount: 15000,
+          currency: 'ARS',
+          count: 2,
+          firstDate: '2026-07-10T10:00:00.000Z',
+          lastDate: '2026-07-15T15:00:00.000Z',
+        },
+        {
+          tag: '#bariloche',
+          totalAmount: 12000,
+          currency: 'ARS',
+          count: 2,
+          firstDate: '2026-07-10T10:00:00.000Z',
+          lastDate: '2026-07-12T12:00:00.000Z',
+        },
+        {
+          tag: '#chocolate',
+          totalAmount: 2000,
+          currency: 'ARS',
+          count: 1,
+          firstDate: '2026-07-12T12:00:00.000Z',
+          lastDate: '2026-07-12T12:00:00.000Z',
+        },
+      ]);
+    });
+
+    it('should return empty array if no expenses have tags', async () => {
+      mockTx.expense.findMany.mockResolvedValue([]);
+
+      const result = await service.getTagsSummary('user-123');
+
+      expect(result).toEqual([]);
+    });
+  });
 });
+

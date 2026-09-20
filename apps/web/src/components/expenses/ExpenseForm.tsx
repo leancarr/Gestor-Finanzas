@@ -27,6 +27,7 @@ import {
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { CurrencySelector } from '@/components/currencies/CurrencySelector';
 import { TaxBreakdownPreview } from '@/components/expenses/TaxBreakdownPreview';
+import { TagInput } from '@/components/tags/TagInput';
 import {
   SupportedCurrency,
   CURRENCY_LIST,
@@ -79,6 +80,7 @@ interface ExpenseFormProps {
   defaultDescription?: string;
   defaultDate?: string;
   defaultIsTaxable?: boolean;
+  defaultTags?: string[];
 }
 
 export function ExpenseForm({
@@ -93,6 +95,7 @@ export function ExpenseForm({
   defaultDescription,
   defaultDate,
   defaultIsTaxable = false,
+  defaultTags = [],
 }: ExpenseFormProps) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -100,6 +103,7 @@ export function ExpenseForm({
   const [isSeedingCategories, setIsSeedingCategories] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [tags, setTags] = useState<string[]>(defaultTags || []);
 
   // Live exchange rates with local fallback
   const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
@@ -269,6 +273,9 @@ export function ExpenseForm({
           ? (rates[selectedCurrency] ?? FALLBACK_RATES[selectedCurrency] ?? 1)
           : 1;
 
+      const extractedHashtags = (data.description.match(/#[a-zA-Z0-9_\u00C0-\u00FF-]+/g) || []).map((t) => t.trim());
+      const allTags = Array.from(new Set([...tags, ...extractedHashtags]));
+
       const expense = await createExpense({
         amount: finalAmount,
         currency: selectedCurrency,
@@ -278,6 +285,7 @@ export function ExpenseForm({
         description: data.description.trim(),
         date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
         categoryId: data.categoryId && data.categoryId.trim() !== '' ? data.categoryId : null,
+        tags: allTags.length > 0 ? allTags : undefined,
       });
 
       const typeLabel = transactionType === 'INCOME' ? 'Ingreso' : 'Gasto';
@@ -298,6 +306,7 @@ export function ExpenseForm({
         categoryId: '',
         isTaxable: false,
       });
+      setTags([]);
 
       if (onSuccess) {
         onSuccess(expense);
@@ -560,6 +569,15 @@ export function ExpenseForm({
               {errors.description.message as string}
             </p>
           )}
+        </div>
+
+        {/* Etiquetas / Eventos (#Hashtags) Field */}
+        <div>
+          <TagInput
+            tags={tags}
+            onChange={setTags}
+            placeholder="Ej: #ViajeBariloche, #CenaFinDeAno..."
+          />
         </div>
 
         {/* Categoría (Category) Selector */}

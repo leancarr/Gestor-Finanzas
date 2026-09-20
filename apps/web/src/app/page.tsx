@@ -35,8 +35,10 @@ import {
   User as UserNavIcon,
   Users,
   Bot,
+  Trophy,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
+import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { getApiUrl } from '@/utils/api/config';
 
 const MONTH_NAMES = [
@@ -240,6 +242,7 @@ export default function HomePage() {
             {user && (
               <>
                 <VaultSelector />
+                <StreakBadge />
                 <Link
                   href="/gastos/nuevo"
                   className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
@@ -262,11 +265,18 @@ export default function HomePage() {
                   Bóvedas
                 </Link>
                 <Link
-                  href="/suscripciones"
+                  href="/inversiones"
                   className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
                 >
-                  <Repeat className="h-3.5 w-3.5 text-emerald-400" />
-                  Suscripciones
+                  <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                  Inversiones
+                </Link>
+                <Link
+                  href="/retos"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
+                >
+                  <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                  Retos
                 </Link>
                 <Link
                   href="/presupuestos"
@@ -276,11 +286,11 @@ export default function HomePage() {
                   Presupuestos
                 </Link>
                 <Link
-                  href="/inversiones"
+                  href="/suscripciones"
                   className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
                 >
-                  <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                  Inversiones
+                  <Repeat className="h-3.5 w-3.5 text-emerald-400" />
+                  Suscripciones
                 </Link>
                 <Link
                   href="/categorias"

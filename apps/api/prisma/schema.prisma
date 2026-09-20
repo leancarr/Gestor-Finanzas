@@ -27,6 +27,9 @@ model User {
   ownedVaults Vault[]               @relation("OwnedVaults")
   vaultMemberships VaultMember[]
   assets     Asset[]
+  challenges Challenge[]
+  savingStreak Int                 @default(0) @map("saving_streak")
+  lastStreakDate DateTime?         @map("last_streak_date")
 
   @@map("users")
 }
@@ -69,6 +72,7 @@ model Expense {
   isTaxable    Boolean         @default(false) @map("is_taxable")
   vaultId      String?         @map("vault_id")
   vault        Vault?          @relation(fields: [vaultId], references: [id], onDelete: SetNull)
+  tags         String[]        @default([])
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
@@ -184,3 +188,31 @@ model Asset {
 
   @@map("assets")
 }
+
+enum ChallengeStatus {
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+model Challenge {
+  id               String          @id @default(uuid())
+  title            String
+  description      String?
+  targetDays       Int
+  currentStreak    Int             @default(0) @map("current_streak")
+  bestStreak       Int             @default(0) @map("best_streak")
+  status           ChallengeStatus @default(ACTIVE)
+  startDate        DateTime        @default(now()) @map("start_date")
+  completedAt      DateTime?       @map("completed_at")
+  badgeIcon        String          @default("Shield") @map("badge_icon")
+  badgeName        String          @default("Mano de hierro") @map("badge_name")
+  targetCategoryId String?         @map("target_category_id")
+  userId           String          @map("user_id")
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@map("challenges")
+}
+

@@ -4,6 +4,7 @@ import React from 'react';
 import { Calendar, Trash2, Tag, Receipt } from 'lucide-react';
 import { ExpenseItem } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import { TagBadge } from '@/components/tags/TagBadge';
 import {
   formatCurrency,
   SupportedCurrency,
@@ -14,6 +15,7 @@ import {
 interface ExpenseCardProps {
   expense: ExpenseItem;
   onDelete?: (expense: ExpenseItem) => void;
+  onTagClick?: (tag: string) => void;
 }
 
 const CURRENCY_BADGE_STYLES: Record<
@@ -42,7 +44,7 @@ const CURRENCY_BADGE_STYLES: Record<
   },
 };
 
-export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
+export function ExpenseCard({ expense, onDelete, onTagClick }: ExpenseCardProps) {
   const numericAmount =
     typeof expense.amount === 'number'
       ? expense.amount
@@ -75,6 +77,10 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
 
   const category = expense.category;
   const categoryColor = category?.color || '#10B981';
+
+  // Extract tags from expense.tags or inline hashtags in description
+  const inlineTags = (expense.description.match(/#[a-zA-Z0-9_\u00C0-\u00FF-]+/g) || []).map((t) => t.trim());
+  const combinedTags = Array.from(new Set([...(expense.tags || []), ...inlineTags]));
 
   return (
     <div className="group relative flex items-center justify-between gap-4 rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4 backdrop-blur hover:border-slate-700/80 hover:bg-slate-900/90 transition-all shadow-sm">
@@ -128,6 +134,16 @@ export function ExpenseCard({ expense, onDelete }: ExpenseCardProps) {
                 <span>Impuestos</span>
               </span>
             )}
+
+            {/* Event Tags Badges */}
+            {combinedTags.map((tagStr) => (
+              <TagBadge
+                key={tagStr}
+                tag={tagStr}
+                size="xs"
+                onClick={onTagClick}
+              />
+            ))}
           </div>
 
           {/* Subtitle Details: Category, Date, Exchange Rate */}

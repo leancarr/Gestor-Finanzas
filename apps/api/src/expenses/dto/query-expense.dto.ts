@@ -16,6 +16,10 @@ export class QueryExpenseDto {
   search?: string;
 
   @IsOptional()
+  @IsString({ message: 'La etiqueta de búsqueda debe ser una cadena de texto' })
+  tag?: string;
+
+  @IsOptional()
   @IsISO8601(
     { strict: false },
     { message: 'La fecha de inicio debe ser una fecha ISO8601 válida' },

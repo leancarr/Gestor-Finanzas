@@ -23,12 +23,17 @@ import {
   ScanLine,
   Bot,
   TrendingUp,
+  Trophy,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpenseCard } from '@/components/expenses/ExpenseCard';
 import { ExpenseDeleteModal } from '@/components/expenses/ExpenseDeleteModal';
 import { ReceiptScannerModal } from '@/components/ai/ReceiptScannerModal';
+import { StreakBadge } from '@/components/gamification/StreakBadge';
+import { EventTagFilter } from '@/components/tags/EventTagFilter';
+import { EventsSummaryModal } from '@/components/tags/EventsSummaryModal';
+import { getTagsSummary, TagSummary } from '@/utils/api/gamification';
 import ExportMenu from '@/components/dashboard/ExportMenu';
 import { getExpenses, ExpenseItem } from '@/utils/api/expenses';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
@@ -53,10 +58,19 @@ export default function GastosPage() {
     text: string;
   } | null>(null);
 
-  // Delete modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+
+  // Tag & Event filters (SEI-41)
+  const [tagsSummary, setTagsSummary] = useState<TagSummary[]>([]);
+  const [selectedTag, setSelectedTag] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('tag');
+    }
+    return null;
+  });
+  const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -90,12 +104,14 @@ export default function GastosPage() {
     setIsDataLoading(true);
     setError(null);
     try {
-      const [expensesData, categoriesData] = await Promise.all([
+      const [expensesData, categoriesData, tagsData] = await Promise.all([
         getExpenses(),
         getCategories().catch(() => []),
+        getTagsSummary().catch(() => []),
       ]);
       setExpenses(expensesData);
       setCategories(categoriesData);
+      setTagsSummary(tagsData);
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -110,11 +126,16 @@ export default function GastosPage() {
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
-    Promise.all([getExpenses(), getCategories().catch(() => [])])
-      .then(([expensesData, categoriesData]) => {
+    Promise.all([
+      getExpenses(),
+      getCategories().catch(() => []),
+      getTagsSummary().catch(() => []),
+    ])
+      .then(([expensesData, categoriesData, tagsData]) => {
         if (isMounted) {
           setExpenses(expensesData);
           setCategories(categoriesData);
+          setTagsSummary(tagsData);
           setError(null);
         }
       })
@@ -172,9 +193,35 @@ export default function GastosPage() {
       const matchesCurrency =
         selectedCurrencyFilter === 'ALL' ||
         (exp.currency || 'ARS').toUpperCase() === selectedCurrencyFilter;
-      return matchesSearch && matchesCategory && matchesType && matchesCurrency;
+
+      let matchesTag = true;
+      if (selectedTag) {
+        const cleanFilter = selectedTag.toLowerCase().replace(/^#/, '');
+        const hasTagInArray =
+          exp.tags &&
+          exp.tags.some((t) => t.toLowerCase().replace(/^#/, '') === cleanFilter);
+        const hasTagInDesc = (exp.description || '')
+          .toLowerCase()
+          .includes(cleanFilter);
+        matchesTag = Boolean(hasTagInArray || hasTagInDesc);
+      }
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesType &&
+        matchesCurrency &&
+        matchesTag
+      );
     });
-  }, [expenses, search, selectedCategoryFilter, selectedTypeFilter, selectedCurrencyFilter]);
+  }, [
+    expenses,
+    search,
+    selectedCategoryFilter,
+    selectedTypeFilter,
+    selectedCurrencyFilter,
+    selectedTag,
+  ]);
 
   // Statistics calculations (consolidated in ARS)
   const totalExpenses = useMemo(() => {
@@ -252,6 +299,14 @@ export default function GastosPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             <VaultSelector />
+            <StreakBadge />
+            <Link
+              href="/retos"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+            >
+              <Trophy className="h-3.5 w-3.5 text-amber-400" />
+              Retos
+            </Link>
             <Link
               href="/bovedas"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
@@ -433,6 +488,18 @@ export default function GastosPage() {
                 </div>
               </div>
             </div>
+
+            {/* Event Tag Filter Bar (SEI-41) */}
+            {tagsSummary.length > 0 && (
+              <div className="mt-6">
+                <EventTagFilter
+                  tagsSummary={tagsSummary}
+                  selectedTag={selectedTag}
+                  onSelectTag={setSelectedTag}
+                  onOpenEventsModal={() => setIsEventsModalOpen(true)}
+                />
+              </div>
+            )}
 
             {/* Actions & Filters */}
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -616,6 +683,7 @@ export default function GastosPage() {
                     key={expense.id}
                     expense={expense}
                     onDelete={handleOpenDeleteModal}
+                    onTagClick={(tag) => setSelectedTag(tag)}
                   />
                 ))}
               </div>
@@ -643,6 +711,16 @@ export default function GastosPage() {
             text: '¡Comprobante procesado y gasto registrado exitosamente!',
           });
         }}
+      />
+
+      {/* Events / Hashtags Summary Modal (SEI-41) */}
+      <EventsSummaryModal
+        isOpen={isEventsModalOpen}
+        onClose={() => setIsEventsModalOpen(false)}
+        selectedTag={selectedTag}
+        onSelectTag={(tag) => setSelectedTag(tag)}
+        tagsSummary={tagsSummary}
+        expenses={expenses}
       />
     </main>
   );

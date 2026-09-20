@@ -75,6 +75,42 @@ export function calculateDateRanges(
   return { currentStart, currentEnd, prevStart, prevEnd };
 }
 
+/**
+ * Normaliza las etiquetas: asegura que inicien con '#', minúsculas y sin espacios.
+ * Además, extrae hashtags presentes en la descripción (regex /#[\w-]+/g) y los incluye sin duplicados.
+ */
+export function normalizeTags(tags?: string[], description?: string): string[] {
+  const tagSet = new Set<string>();
+
+  if (tags && Array.isArray(tags)) {
+    for (const rawTag of tags) {
+      if (!rawTag || typeof rawTag !== 'string') continue;
+      let clean = rawTag.trim().toLowerCase();
+      if (!clean) continue;
+      if (!clean.startsWith('#')) {
+        clean = `#${clean}`;
+      }
+      if (clean.length > 1) {
+        tagSet.add(clean);
+      }
+    }
+  }
+
+  if (description && typeof description === 'string') {
+    const matches = description.match(/#[\w-]+/g);
+    if (matches) {
+      for (const m of matches) {
+        const clean = m.trim().toLowerCase();
+        if (clean.length > 1) {
+          tagSet.add(clean);
+        }
+      }
+    }
+  }
+
+  return Array.from(tagSet);
+}
+
 @Injectable()
 export class ExpensesService {
   private readonly logger = new Logger(ExpensesService.name);
@@ -107,6 +143,10 @@ export class ExpensesService {
         : new Date();
 
       const transactionType = createExpenseDto.type || TransactionType.EXPENSE;
+      const normalizedTags = normalizeTags(
+        createExpenseDto.tags,
+        createExpenseDto.description,
+      );
 
       return tx.expense.create({
         data: {
@@ -118,6 +158,7 @@ export class ExpensesService {
           description: createExpenseDto.description.trim(),
           date: expenseDate,
           categoryId: createExpenseDto.categoryId || null,
+          tags: normalizedTags,
           userId,
         },
         include: {
@@ -150,6 +191,16 @@ export class ExpensesService {
         whereClause.description = {
           contains: query.search.trim(),
           mode: 'insensitive',
+        };
+      }
+
+      if (query?.tag && query.tag.trim().length > 0) {
+        let searchTag = query.tag.trim().toLowerCase();
+        if (!searchTag.startsWith('#')) {
+          searchTag = `#${searchTag}`;
+        }
+        whereClause.tags = {
+          has: searchTag,
         };
       }
 
@@ -239,6 +290,20 @@ export class ExpensesService {
         }
       }
 
+      let tagsToUpdate: string[] | undefined = undefined;
+      if (updateExpenseDto.tags !== undefined) {
+        const desc =
+          updateExpenseDto.description !== undefined
+            ? updateExpenseDto.description
+            : existing.description;
+        tagsToUpdate = normalizeTags(updateExpenseDto.tags, desc);
+      } else if (updateExpenseDto.description !== undefined) {
+        const extracted = normalizeTags([], updateExpenseDto.description);
+        if (extracted.length > 0) {
+          tagsToUpdate = normalizeTags(existing.tags || [], updateExpenseDto.description);
+        }
+      }
+
       return tx.expense.update({
         where: { id },
         data: {
@@ -265,6 +330,9 @@ export class ExpensesService {
             : {}),
           ...(updateExpenseDto.isTaxable !== undefined
             ? { isTaxable: updateExpenseDto.isTaxable }
+            : {}),
+          ...(tagsToUpdate !== undefined
+            ? { tags: tagsToUpdate }
             : {}),
         },
         include: {
@@ -654,6 +722,79 @@ export class ExpensesService {
           category: true,
         },
       });
+    });
+  }
+
+  /**
+   * Agrupa los gastos por cada tag único y calcula:
+   * { tag: string, totalAmount: number, currency: string, count: number, firstDate: string, lastDate: string }
+   */
+  async getTagsSummary(userId: string) {
+    return this.prisma.withUser(userId, async (tx) => {
+      const expenses = await tx.expense.findMany({
+        where: {
+          userId,
+          tags: {
+            isEmpty: false,
+          },
+        },
+        orderBy: {
+          date: 'asc',
+        },
+      });
+
+      const tagMap = new Map<
+        string,
+        {
+          tag: string;
+          totalAmount: number;
+          currency: string;
+          count: number;
+          minDate: Date;
+          maxDate: Date;
+        }
+      >();
+
+      for (const exp of expenses) {
+        if (!exp.tags || exp.tags.length === 0) continue;
+        const amount = Number(exp.amount);
+        const expDate = exp.date instanceof Date ? exp.date : new Date(exp.date);
+        const currency = exp.currency || 'ARS';
+
+        for (const tag of exp.tags) {
+          const existing = tagMap.get(tag);
+          if (!existing) {
+            tagMap.set(tag, {
+              tag,
+              totalAmount: amount,
+              currency,
+              count: 1,
+              minDate: expDate,
+              maxDate: expDate,
+            });
+          } else {
+            existing.totalAmount += amount;
+            existing.count += 1;
+            if (expDate < existing.minDate) {
+              existing.minDate = expDate;
+            }
+            if (expDate > existing.maxDate) {
+              existing.maxDate = expDate;
+            }
+          }
+        }
+      }
+
+      return Array.from(tagMap.values())
+        .map((item) => ({
+          tag: item.tag,
+          totalAmount: Math.round(item.totalAmount * 100) / 100,
+          currency: item.currency,
+          count: item.count,
+          firstDate: item.minDate.toISOString(),
+          lastDate: item.maxDate.toISOString(),
+        }))
+        .sort((a, b) => b.totalAmount - a.totalAmount);
     });
   }
 

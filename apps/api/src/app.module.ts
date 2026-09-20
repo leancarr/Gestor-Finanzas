@@ -17,6 +17,7 @@ import { BudgetsModule } from './budgets/budgets.module.js';
 import { VaultsModule } from './vaults/vaults.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { InvestmentsModule } from './investments/investments.module.js';
+import { GamificationModule } from './gamification/gamification.module.js';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { InvestmentsModule } from './investments/investments.module.js';
     VaultsModule,
     AiModule,
     InvestmentsModule,
+    GamificationModule,
   ],
   controllers: [AppController],
   providers: [

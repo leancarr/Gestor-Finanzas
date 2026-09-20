@@ -23,7 +23,10 @@ export interface ExpenseItem {
   category?: ExpenseCategory | null;
   exchangeRate?: number | string | null;
   isTaxable?: boolean;
+  tags?: string[];
 }
+
+export type Expense = ExpenseItem;
 
 export interface CreateExpenseInput {
   amount: number;
@@ -34,6 +37,7 @@ export interface CreateExpenseInput {
   currency?: string;
   exchangeRate?: number | null;
   isTaxable?: boolean;
+  tags?: string[];
 }
 
 export interface UpdateExpenseInput {
@@ -45,6 +49,7 @@ export interface UpdateExpenseInput {
   currency?: string;
   exchangeRate?: number | null;
   isTaxable?: boolean;
+  tags?: string[];
 }
 
 export interface CategorySummaryItem {
@@ -74,6 +79,7 @@ export interface ExpenseFilterQuery {
   categoryId?: string;
   type?: TransactionType;
   search?: string;
+  tag?: string;
   startDate?: string;
   endDate?: string;
   limit?: number;
@@ -120,6 +126,9 @@ export async function getExpenses(
   }
   if (query?.search && query.search.trim()) {
     url.searchParams.set('search', query.search.trim());
+  }
+  if (query?.tag && query.tag.trim()) {
+    url.searchParams.set('tag', query.tag.trim());
   }
   if (query?.startDate) {
     url.searchParams.set('startDate', query.startDate);

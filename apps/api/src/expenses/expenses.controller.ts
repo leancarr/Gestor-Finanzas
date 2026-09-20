@@ -86,6 +86,14 @@ export class ExpensesController {
   }
 
   /**
+   * Obtiene el resumen de gastos agrupados por etiquetas (#Hashtags).
+   */
+  @Get('tags/summary')
+  getTagsSummary(@CurrentUser() user: AuthUser) {
+    return this.expensesService.getTagsSummary(user.id);
+  }
+
+  /**
    * Obtiene todos los gastos del usuario autenticado con filtros opcionales.
    */
   @Get()

@@ -266,22 +266,29 @@ pnpm --filter api run prisma:push
     - Integración de navegación: `<FinancialChatbot />` montado globalmente en `layout.tsx` y enlaces al "Asistente" con ícono `Bot` en la cabecera de todas las vistas (`/`, `/gastos`, `/bovedas`, `/presupuestos`, `/suscripciones`, `/categorias`, `/analiticas`, `/perfil`).
     - Verificaciones de calidad: TypeScript `tsc --noEmit` aprobado con 0 errores y ESLint 100% limpio (0 errores, 0 warnings).
 
-- **Ticket SEI-40: Modo Inversiones / Portafolio de Patrimonio 📈 (Backend)** `[COMPLETADO]`
-  - **Prisma Schema (`apps/api/prisma/schema.prisma`):**
-    - Enum `AssetType` (`CASH_ARS`, `CASH_USD`, `FIXED_TERM`, `CEDEAR`, `CRYPTO`, `OTHER`).
-    - Model `Asset`: campos `id`, `name`, `type`, `ticker`, `quantity` (Decimal 18,8), `purchasePrice` (Decimal 18,4), `currentPrice` (Decimal 18,4), `currency`, `institution`, `dueDate`, `interestRate` (Decimal 5,2), `notes`, relación con `User` con cascada en borrado y mapeo a tabla `assets`.
-    - Relación `assets Asset[]` agregada en `model User`.
-    - Generación exitosa de cliente Prisma con `pnpm --filter api run prisma:generate`.
-  - **Módulo de Inversiones (`apps/api/src/investments`):**
-    - DTOs `CreateAssetDto`, `UpdateAssetDto`, `QueryAssetDto` con validaciones estrictas (`class-validator` y `class-transformer`).
-    - Tipos de datos `PortfolioSummary`, `AssetDistribution` y `AppliedRates` en `investments.interface.ts`.
-    - `InvestmentsService`:
-      - Aislamiento transaccional RLS (`prisma.withUser(userId)`).
-      - Métodos CRUD completos (`create`, `findAll`, `findOne`, `update`, `remove`).
-      - Motor de valuación multimoneda (`calculateAssetValuation`): soporte para cotizaciones Dólar Blue, Oficial, MEP, USDT y EUR; cálculo 1:1 para efectivo; cálculo de intereses acumulados y proyectados al vencimiento para plazos fijos (`FIXED_TERM`) en base a TNA y días transcurridos/pactados.
-      - `getPortfolioSummary`: cálculo de Net Worth en ARS y USD, Total Invertido, Ganancia/Pérdida (P&L) en monto y porcentaje, distribución porcentual por clase de activo y snapshot de cotizaciones.
-    - `InvestmentsController`: Endpoints REST protegidos por `SupabaseAuthGuard` y `@CurrentUser()` (`POST /investments`, `GET /investments`, `GET /investments/summary`, `GET /investments/:id`, `PATCH /investments/:id`, `DELETE /investments/:id`).
-    - Registro de `InvestmentsModule` en `apps/api/src/app.module.ts`.
-    - 28 pruebas unitarias añadidas en `investments.service.spec.ts` y `investments.controller.spec.ts`.
-    - Suite de backend completa: **277 / 277 tests unitarios aprobados (100% de éxito en 23 suites)**.
-    - Calidad verificada: Linter `oxlint` 0 errores/warnings y `nest build` compilado con éxito.
+- **Ticket SEI-40: Modo Inversiones / Portafolio de Patrimonio 📈 (Backend y Frontend)** `[COMPLETADO]`
+  - **Backend (`apps/api/src/investments`):**
+    - Prisma Schema: Enum `AssetType` y modelo `Asset` con cascade delete y relación con `User`.
+    - DTOs `CreateAssetDto`, `UpdateAssetDto`, `QueryAssetDto`.
+    - `InvestmentsService`: Aislamiento transaccional RLS (`prisma.withUser(userId)`), motor de valuación multimoneda (ARS/USD) en tiempo real con `RatesService`, métricas P&L, cálculo de intereses de plazos fijos por TNA y porcentajes de asignación.
+    - `InvestmentsController`: Endpoints REST (`POST /investments`, `GET /investments`, `GET /investments/summary`, `GET /investments/:id`, `PATCH /investments/:id`, `DELETE /investments/:id`).
+    - 28 pruebas unitarias dedicadas en `investments.service.spec.ts` y `investments.controller.spec.ts`. Suite completa: 277/277 tests aprobados en 23 test suites.
+  - **Frontend (`apps/web`):**
+    - Cliente API `utils/api/investments.ts` con tipos TypeScript y soporte offline.
+    - Componentes `<NetWorthHero />` (conmutador ARS/USD y cotizaciones), `<AssetCard />`, `<PortfolioDistributionChart />` con Recharts, modales con presets y confirmación de borrado seguro.
+    - Vista completa `/inversiones` con selector de filtros por clase de activo y navegación unificada.
+    - Verificaciones de TypeScript `tsc --noEmit` y ESLint con 0 errores.
+
+- **Épica 4: Gamificación y Eventos (SEI-41 & SEI-42) (Backend y Frontend)** `[COMPLETADO]`
+  - **Ticket SEI-41: Sistema de Etiquetas o Hashtags (#Eventos) 🏷️:**
+    - **Backend (`apps/api`):** Campo `tags String[] @default([])` en `model Expense`, normalización automática con prefijo `#`, extracción inteligente de hashtags desde la descripción (`/#[\w-]+/g`), filtrado en `GET /expenses?tag=...` y nuevo endpoint `GET /expenses/tags/summary` para costeo consolidado de viajes/eventos particulares.
+    - **Frontend (`apps/web`):** Componentes `<TagBadge />`, `<TagInput />` en `ExpenseForm`, barra de navegación y filtro por eventos `<EventTagFilter />` en `/gastos`, y modal de balance consolidado `<EventsSummaryModal />`.
+  - **Ticket SEI-42: Gamificación y Rachas (Modo Ahorro Extremo) 🎮:**
+    - **Backend (`apps/api/src/gamification`):** Modelo `Challenge`, enum `ChallengeStatus` (`ACTIVE`, `COMPLETED`, `FAILED`), y campos de racha en `User` (`savingStreak`, `lastStreakDate`). `GamificationService` con check-in diario idempotente, evaluación de rotura de racha contra categorías restringidas, actualización de rachas y desbloqueo de medallas con `completedAt`. Endpoints `GET /gamification/overview`, `POST /gamification/challenges`, `POST /gamification/check-in`, `DELETE /gamification/challenges/:id`.
+    - **Frontend (`apps/web`):** Componentes `<StreakBadge />` con llama animada en navbar (`🔥 7 días`), `<ChallengeCard />` estilo Duolingo con barras de progreso, modal de creación `<CreateChallengeModal />` con plantillas predefinidas ("Mano de hierro", "Ninja del Ahorro"), motor de confeti en Canvas HTML5 nativo `<ConfettiReward />` y vista completa `/retos` (`apps/web/src/app/retos/page.tsx`).
+  - **Métricas de Calidad de la Épica 4:**
+    - Backend Unit Tests: **316 / 316 tests aprobados (100% de éxito en 25 test suites)**.
+    - Compilación Backend: `nest build` exitoso (código 0).
+    - Frontend Typecheck: `tsc --noEmit` aprobado con **0 errores**.
+    - Frontend Lint: ESLint aprobado con **0 errores y 0 warnings**.
+
