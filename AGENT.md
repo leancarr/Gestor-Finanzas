@@ -227,7 +227,13 @@ pnpm --filter api run prisma:push
     - Componente modal interactivo `<BudgetModal />` para fijar y editar topes mensuales con atajos rápidos de incremento (+$10k, +$50k, +$100k, +$250k) y selector multi-moneda.
     - Vista `/presupuestos` con navegador interactivo de mes/año, resumen total presupuestado vs gastado (4 KPIs: Total Presupuestado, Gastado Real, Disponible/Exceso, Nivel de Consumo Global), empty states y modal de borrado seguro.
     - Enlace a `/presupuestos` incorporado en la barra de navegación de todas las pantallas (`/`, `/gastos`, `/categorias`, `/suscripciones`, `/analiticas`, `/perfil`).
-- **Ticket SEI-37: Bóvedas Compartidas (Modo Pareja/Familia) (Frontend)** `[COMPLETADO]`
+- **Ticket SEI-37: Bóvedas Compartidas (Modo Pareja/Familia) (Backend y Frontend)** `[COMPLETADO]`
+  - **Backend (`apps/api/src/vaults`):**
+    - Modelos `Vault`, `VaultMember` y enum `VaultRole` en Prisma schema con cascade deletes y relaciones a `User`, `Expense` y `Category`.
+    - DTOs `CreateVaultDto`, `UpdateVaultDto`, `AddMemberDto`, `UpdateMemberRoleDto` con validaciones de `class-validator`.
+    - `VaultsService` con aislamiento transaccional RLS (`prisma.withUser(userId)`), validaciones de permisos (OWNER/ADMIN), gestión de miembros y algoritmo de liquidación de deudas (`getBalances`).
+    - `VaultsController` con 9 endpoints REST protegidos por `SupabaseAuthGuard` (`POST /vaults`, `GET /vaults`, `GET /vaults/:id`, `PATCH /vaults/:id`, `DELETE /vaults/:id`, `POST /vaults/:id/members`, `DELETE /vaults/:id/members/:memberUserId`, `PATCH /vaults/:id/members/:memberUserId`, `GET /vaults/:id/balances`).
+    - 48 pruebas unitarias dedicadas en `vaults.service.spec.ts` y `vaults.controller.spec.ts` (100% pasando). Suite completa del backend: 238/238 tests aprobados en 19 test suites.
   - **Frontend (`apps/web`):**
     - Cliente API `utils/api/vaults.ts` con tipos TypeScript (`VaultRole`, `VaultMember`, `Vault`, `MemberContribution`, `Settlement`, `VaultBalances`), integración de Supabase Auth JWT y fallback offline/mock en `localStorage`.
     - Store reactivo `stores/useVaultStore.ts` con soporte SSR (`useSyncExternalStore`), sincronización transparente en `localStorage` y métodos `activeVault`, `activeVaultId`, `setActiveVault`, `clearActiveVault`.
