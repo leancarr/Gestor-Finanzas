@@ -16,6 +16,7 @@ import { RecurringModule } from './recurring/recurring.module.js';
 import { BudgetsModule } from './budgets/budgets.module.js';
 import { VaultsModule } from './vaults/vaults.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { InvestmentsModule } from './investments/investments.module.js';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AiModule } from './ai/ai.module.js';
     BudgetsModule,
     VaultsModule,
     AiModule,
+    InvestmentsModule,
   ],
   controllers: [AppController],
   providers: [

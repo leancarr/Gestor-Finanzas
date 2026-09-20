@@ -26,6 +26,7 @@ model User {
   recurring  RecurringTransaction[]
   ownedVaults Vault[]               @relation("OwnedVaults")
   vaultMemberships VaultMember[]
+  assets     Asset[]
 
   @@map("users")
 }
@@ -152,4 +153,34 @@ model RecurringTransaction {
   updatedAt   DateTime            @updatedAt
 
   @@map("recurring_transactions")
+}
+
+enum AssetType {
+  CASH_ARS
+  CASH_USD
+  FIXED_TERM
+  CEDEAR
+  CRYPTO
+  OTHER
+}
+
+model Asset {
+  id            String    @id @default(uuid())
+  name          String
+  type          AssetType
+  ticker        String?
+  quantity      Decimal   @db.Decimal(18, 8)
+  purchasePrice Decimal?  @map("purchase_price") @db.Decimal(18, 4)
+  currentPrice  Decimal?  @map("current_price") @db.Decimal(18, 4)
+  currency      String    @default("ARS")
+  institution   String?
+  dueDate       DateTime? @map("due_date")
+  interestRate  Decimal?  @map("interest_rate") @db.Decimal(5, 2)
+  notes         String?
+  userId        String    @map("user_id")
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("assets")
 }

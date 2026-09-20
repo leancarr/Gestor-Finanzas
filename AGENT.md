@@ -266,5 +266,22 @@ pnpm --filter api run prisma:push
     - Integración de navegación: `<FinancialChatbot />` montado globalmente en `layout.tsx` y enlaces al "Asistente" con ícono `Bot` en la cabecera de todas las vistas (`/`, `/gastos`, `/bovedas`, `/presupuestos`, `/suscripciones`, `/categorias`, `/analiticas`, `/perfil`).
     - Verificaciones de calidad: TypeScript `tsc --noEmit` aprobado con 0 errores y ESLint 100% limpio (0 errores, 0 warnings).
 
-
-
+- **Ticket SEI-40: Modo Inversiones / Portafolio de Patrimonio 📈 (Backend)** `[COMPLETADO]`
+  - **Prisma Schema (`apps/api/prisma/schema.prisma`):**
+    - Enum `AssetType` (`CASH_ARS`, `CASH_USD`, `FIXED_TERM`, `CEDEAR`, `CRYPTO`, `OTHER`).
+    - Model `Asset`: campos `id`, `name`, `type`, `ticker`, `quantity` (Decimal 18,8), `purchasePrice` (Decimal 18,4), `currentPrice` (Decimal 18,4), `currency`, `institution`, `dueDate`, `interestRate` (Decimal 5,2), `notes`, relación con `User` con cascada en borrado y mapeo a tabla `assets`.
+    - Relación `assets Asset[]` agregada en `model User`.
+    - Generación exitosa de cliente Prisma con `pnpm --filter api run prisma:generate`.
+  - **Módulo de Inversiones (`apps/api/src/investments`):**
+    - DTOs `CreateAssetDto`, `UpdateAssetDto`, `QueryAssetDto` con validaciones estrictas (`class-validator` y `class-transformer`).
+    - Tipos de datos `PortfolioSummary`, `AssetDistribution` y `AppliedRates` en `investments.interface.ts`.
+    - `InvestmentsService`:
+      - Aislamiento transaccional RLS (`prisma.withUser(userId)`).
+      - Métodos CRUD completos (`create`, `findAll`, `findOne`, `update`, `remove`).
+      - Motor de valuación multimoneda (`calculateAssetValuation`): soporte para cotizaciones Dólar Blue, Oficial, MEP, USDT y EUR; cálculo 1:1 para efectivo; cálculo de intereses acumulados y proyectados al vencimiento para plazos fijos (`FIXED_TERM`) en base a TNA y días transcurridos/pactados.
+      - `getPortfolioSummary`: cálculo de Net Worth en ARS y USD, Total Invertido, Ganancia/Pérdida (P&L) en monto y porcentaje, distribución porcentual por clase de activo y snapshot de cotizaciones.
+    - `InvestmentsController`: Endpoints REST protegidos por `SupabaseAuthGuard` y `@CurrentUser()` (`POST /investments`, `GET /investments`, `GET /investments/summary`, `GET /investments/:id`, `PATCH /investments/:id`, `DELETE /investments/:id`).
+    - Registro de `InvestmentsModule` en `apps/api/src/app.module.ts`.
+    - 28 pruebas unitarias añadidas en `investments.service.spec.ts` y `investments.controller.spec.ts`.
+    - Suite de backend completa: **277 / 277 tests unitarios aprobados (100% de éxito en 23 suites)**.
+    - Calidad verificada: Linter `oxlint` 0 errores/warnings y `nest build` compilado con éxito.
