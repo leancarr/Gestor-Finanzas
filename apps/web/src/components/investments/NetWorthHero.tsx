@@ -230,18 +230,33 @@ export function NetWorthHero({
         <div className="flex flex-wrap items-center gap-2 sm:gap-4 font-mono text-[11px]">
           <div className="flex items-center gap-1.5 rounded-lg bg-slate-900/60 border border-white/5 px-2.5 py-1">
             <span className="text-slate-400">Dólar Blue:</span>
-            <span className="font-bold text-white">${rates?.usdBlue || 1210}</span>
+            <span className="font-bold text-white">${formatRateValue(rates?.usdBlue, 1210)}</span>
           </div>
           <div className="flex items-center gap-1.5 rounded-lg bg-slate-900/60 border border-white/5 px-2.5 py-1">
             <span className="text-slate-400">Dólar MEP:</span>
-            <span className="font-bold text-white">${rates?.usdMep || rates?.usdArs || 1180}</span>
+            <span className="font-bold text-white">${formatRateValue(rates?.usdMep || rates?.usdArs, 1180)}</span>
           </div>
           <div className="flex items-center gap-1.5 rounded-lg bg-slate-900/60 border border-white/5 px-2.5 py-1">
             <span className="text-slate-400">Cripto USDT:</span>
-            <span className="font-bold text-emerald-400">${rates?.cryptoUsdt || 1195}</span>
+            <span className="font-bold text-emerald-400">${formatRateValue(rates?.cryptoUsdt, 1195)}</span>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function formatRateValue(val: unknown, fallback: number): number {
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  if (val && typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    if (typeof obj.sell === 'number' && !isNaN(obj.sell)) return obj.sell;
+    if (typeof obj.average === 'number' && !isNaN(obj.average)) return obj.average;
+    if (typeof obj.buy === 'number' && !isNaN(obj.buy)) return obj.buy;
+  }
+  if (typeof val === 'string') {
+    const parsed = parseFloat(val);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return fallback;
 }

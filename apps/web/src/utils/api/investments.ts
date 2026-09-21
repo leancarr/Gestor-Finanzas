@@ -226,16 +226,20 @@ function saveLocalAssets(assets: Asset[]) {
 export async function calculateLocalPortfolioSummary(assets: Asset[]): Promise<PortfolioSummary> {
   let usdRate = FALLBACK_RATES.USD || 1180;
   let mepRate = usdRate;
-  let blueRate = usdRate * 1.02;
+  let blueRate = Math.round(usdRate * 1.025);
   let cryptoRate = FALLBACK_RATES.USDT || 1195;
 
   try {
     const liveRates = await getRates('ARS');
-    if (liveRates?.rates?.USD) {
-      usdRate = liveRates.rates.USD;
-      mepRate = usdRate;
-      blueRate = Math.round(usdRate * 1.025);
-      cryptoRate = liveRates.rates.USDT || usdRate;
+    if (liveRates?.rates) {
+      if (typeof liveRates.rates.USD === 'number' && !isNaN(liveRates.rates.USD)) {
+        usdRate = liveRates.rates.USD;
+        mepRate = usdRate;
+        blueRate = Math.round(usdRate * 1.025);
+      }
+      if (typeof liveRates.rates.USDT === 'number' && !isNaN(liveRates.rates.USDT)) {
+        cryptoRate = liveRates.rates.USDT;
+      }
     }
   } catch {
     // Usa los fallback rates

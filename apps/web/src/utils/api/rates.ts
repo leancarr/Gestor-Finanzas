@@ -140,6 +140,17 @@ export const TAX_SCHEME_DEFINITIONS: Record<
 import { DYNAMIC_API_URL } from './config';
 const API_URL = DYNAMIC_API_URL;
 
+function extractRateNumber(item: unknown, fallback: number): number {
+  if (typeof item === 'number' && !isNaN(item)) return item;
+  if (item && typeof item === 'object') {
+    const obj = item as Record<string, unknown>;
+    if (typeof obj.sell === 'number' && !isNaN(obj.sell)) return obj.sell;
+    if (typeof obj.average === 'number' && !isNaN(obj.average)) return obj.average;
+    if (typeof obj.buy === 'number' && !isNaN(obj.buy)) return obj.buy;
+  }
+  return fallback;
+}
+
 /**
  * Consulta las tasas de cambio desde /rates o devuelve el fallback local.
  */
@@ -154,15 +165,30 @@ export async function getRates(base: SupportedCurrency = 'ARS'): Promise<RatesRe
 
     if (res.ok) {
       const data = await res.json();
-      if (data && data.rates) {
+      if (data) {
+        const usdRate = extractRateNumber(
+          data.rates?.USD ?? data.usd?.blue ?? data.rates?.USD_BLUE ?? data.usd?.oficial,
+          FALLBACK_RATES.USD,
+        );
+        const eurRate = extractRateNumber(
+          data.rates?.EUR ?? data.eur,
+          FALLBACK_RATES.EUR,
+        );
+        const usdtRate = extractRateNumber(
+          data.rates?.USDT ?? data.usdt,
+          FALLBACK_RATES.USDT,
+        );
+
         return {
           base: data.base || base,
           rates: {
-            ...FALLBACK_RATES,
-            ...data.rates,
+            ARS: 1,
+            USD: usdRate,
+            EUR: eurRate,
+            USDT: usdtRate,
           },
-          lastUpdated: data.lastUpdated || new Date().toISOString(),
-          source: 'api',
+          lastUpdated: data.lastUpdated || data.timestamp || new Date().toISOString(),
+          source: (data.source as 'api' | 'fallback') || 'api',
         };
       }
     }

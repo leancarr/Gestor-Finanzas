@@ -218,7 +218,13 @@ interface PortfolioInsights {
   const insights: PortfolioInsights | null = useMemo(() => {
     if (!assets.length || !summary) return null;
 
-    const usdRate = summary.rates?.usdArs || 1180;
+    const rawUsd = summary.rates?.usdArs;
+    const usdRate =
+      typeof rawUsd === 'number'
+        ? rawUsd
+        : rawUsd && typeof rawUsd === 'object' && 'sell' in rawUsd && typeof (rawUsd as any).sell === 'number'
+          ? (rawUsd as any).sell
+          : 1180;
 
     let biggestAsset: Asset | null = null;
     let maxValArs = 0;
@@ -288,7 +294,13 @@ interface PortfolioInsights {
   const bestPerfAsset = insights?.bestPerfAsset;
   const nextDueDate = insights?.nextDueDate;
 
-  const usdRate = summary?.rates?.usdArs || 1180;
+  const rawHeaderUsd = summary?.rates?.usdArs;
+  const usdRate =
+    typeof rawHeaderUsd === 'number'
+      ? rawHeaderUsd
+      : rawHeaderUsd && typeof rawHeaderUsd === 'object' && 'sell' in rawHeaderUsd && typeof (rawHeaderUsd as any).sell === 'number'
+        ? (rawHeaderUsd as any).sell
+        : 1180;
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
