@@ -11,26 +11,27 @@ import {
   Calendar,
   Tag,
 } from 'lucide-react';
+import {
+  SupportedCurrency,
+  CURRENCY_LIST,
+  FALLBACK_RATES,
+  convertCurrencyLocal,
+  formatCurrency as formatCurrencyWithRates,
+} from '@/utils/api/rates';
 
 interface RecentExpensesListProps {
   expenses: ExpenseItem[];
   loading?: boolean;
+  preferredCurrency?: SupportedCurrency;
+  rates?: Record<SupportedCurrency, number>;
 }
 
 export function RecentExpensesList({
   expenses,
   loading = false,
+  preferredCurrency = 'ARS',
+  rates = FALLBACK_RATES,
 }: RecentExpensesListProps) {
-  const formatCurrency = (val: number | string) => {
-    const num = typeof val === 'number' ? val : parseFloat(String(val)) || 0;
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(num);
-  };
-
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -133,6 +134,17 @@ export function RecentExpensesList({
           {expenses.map((expense) => {
             const category = expense.category;
             const categoryColor = category?.color || '#10B981';
+            const numericAmount =
+              typeof expense.amount === 'number'
+                ? expense.amount
+                : parseFloat(String(expense.amount)) || 0;
+            const expenseCurrency = (expense.currency || 'ARS').toUpperCase() as SupportedCurrency;
+            const currencyInfo = CURRENCY_LIST[expenseCurrency] || CURRENCY_LIST.ARS;
+            const formattedOriginal = formatCurrencyWithRates(numericAmount, expenseCurrency);
+            const isDifferentCurrency = expenseCurrency !== preferredCurrency;
+            const convertedToPreferred = isDifferentCurrency
+              ? convertCurrencyLocal(numericAmount, expenseCurrency, preferredCurrency, rates)
+              : null;
 
             return (
               <div
@@ -158,9 +170,32 @@ export function RecentExpensesList({
 
                   {/* Details */}
                   <div className="min-w-0">
-                    <p className="truncate text-xs sm:text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
-                      {expense.description}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="truncate text-xs sm:text-sm font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                        {expense.description}
+                      </p>
+
+                      {/* Currency badge if foreign or different */}
+                      <span
+                        className="shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold border border-slate-700/60 bg-slate-800/80 text-slate-300"
+                        title={`Transacción en ${currencyInfo.name}`}
+                      >
+                        <span>{currencyInfo.flag}</span>
+                        <span>{expenseCurrency}</span>
+                      </span>
+
+                      {/* Tax badge */}
+                      {expense.isTaxable && (
+                        <span
+                          className="shrink-0 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-semibold bg-amber-500/10 border border-amber-500/20 text-amber-300"
+                          title="Cálculo impositivo aplicado"
+                        >
+                          <Receipt className="h-2.5 w-2.5" />
+                          <span>Impuestos</span>
+                        </span>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
                       {category ? (
                         <span
@@ -181,21 +216,26 @@ export function RecentExpensesList({
                   </div>
                 </div>
 
-                  {/* Amount & Type Indicator */}
-                  <div className="text-right shrink-0 ml-3">
-                    <span
-                      className={`text-xs sm:text-sm font-bold tracking-tight ${
-                        expense.type === 'INCOME'
-                          ? 'text-emerald-400'
-                          : 'text-white'
-                      }`}
-                    >
-                      {expense.type === 'INCOME' ? '+' : '-'} {formatCurrency(expense.amount)}
+                {/* Amount & Type Indicator */}
+                <div className="text-right shrink-0 ml-3">
+                  <span
+                    className={`text-xs sm:text-sm font-bold tracking-tight block ${
+                      expense.type === 'INCOME'
+                        ? 'text-emerald-400'
+                        : 'text-white'
+                    }`}
+                  >
+                    {expense.type === 'INCOME' ? '+' : '-'} {formattedOriginal}
+                  </span>
+                  {isDifferentCurrency && convertedToPreferred !== null && (
+                    <span className="text-[10px] text-slate-400 block font-normal">
+                      ≈ {formatCurrencyWithRates(convertedToPreferred, preferredCurrency)}
                     </span>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
 
           <div className="pt-2 text-center">
             <Link

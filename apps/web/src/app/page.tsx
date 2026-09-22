@@ -36,10 +36,18 @@ import {
   Users,
   Bot,
   Trophy,
+  Coins,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { getApiUrl } from '@/utils/api/config';
+import {
+  SupportedCurrency,
+  SUPPORTED_CURRENCIES,
+  CURRENCY_LIST,
+  FALLBACK_RATES,
+  getRates,
+} from '@/utils/api/rates';
 
 const MONTH_NAMES = [
   'Enero',
@@ -85,6 +93,33 @@ export default function HomePage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState<number>(0);
+
+  // Multi-currency preferences (SEI-25)
+  const [preferredCurrency, setPreferredCurrency] = useState<SupportedCurrency>('ARS');
+  const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
+
+  // Load saved currency preference and real-time exchange rates
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('gestor_preferred_currency');
+      if (saved && (SUPPORTED_CURRENCIES as readonly string[]).includes(saved)) {
+        setPreferredCurrency(saved as SupportedCurrency);
+      }
+    } catch {}
+
+    getRates().then((res) => {
+      if (res && res.rates) {
+        setRates(res.rates);
+      }
+    });
+  }, []);
+
+  const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
+    setPreferredCurrency(newCurrency);
+    try {
+      localStorage.setItem('gestor_preferred_currency', newCurrency);
+    } catch {}
+  };
 
   // Health check state
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -465,10 +500,49 @@ export default function HomePage() {
                     {MONTH_NAMES[selectedMonth - 1]} {selectedYear}
                   </span>
                 </p>
+                {preferredCurrency !== 'ARS' && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 font-medium">
+                    <Sparkles className="h-3 w-3 text-amber-400" />
+                    <span>
+                      Visualizando en {preferredCurrency} (1 {preferredCurrency} ≈ ${rates[preferredCurrency]?.toLocaleString('es-AR')} ARS)
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* Month Selector Controls */}
-              <div className="flex items-center gap-2 self-start sm:self-auto">
+              {/* Controls: Currency Selector & Month Selector */}
+              <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
+                {/* Preferred Currency Selector (SEI-25) */}
+                <div className="flex items-center gap-1.5">
+                  <span className="hidden md:flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    <Coins className="h-3.5 w-3.5 text-amber-400" />
+                    Moneda:
+                  </span>
+                  <div className="flex items-center p-1 rounded-2xl border border-slate-800 bg-slate-950/80 shadow-inner text-xs">
+                    {SUPPORTED_CURRENCIES.map((code) => {
+                      const isSelected = preferredCurrency === code;
+                      const info = CURRENCY_LIST[code];
+                      return (
+                        <button
+                          key={code}
+                          type="button"
+                          onClick={() => handleCurrencyChange(code)}
+                          className={`px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50 ring-1 ring-emerald-500/30'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                          title={`Ver Dashboard en ${info.name}`}
+                        >
+                          <span>{info.flag}</span>
+                          <span>{code}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Month Selector Controls */}
                 <div className="flex items-center rounded-2xl border border-slate-800 bg-slate-950/80 p-1 shadow-inner">
                   <button
                     onClick={handlePrevMonth}
@@ -536,7 +610,12 @@ export default function HomePage() {
             )}
 
             {/* Metrics Summary Cards */}
-            <ExpensesSummaryCards summary={summary} loading={isDataLoading} />
+            <ExpensesSummaryCards
+              summary={summary}
+              loading={isDataLoading}
+              currency={preferredCurrency}
+              rates={rates}
+            />
 
             {/* Main Visuals Grid: Chart + Recent Transactions */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -546,6 +625,8 @@ export default function HomePage() {
                   categories={summary?.byCategory || []}
                   totalAmount={summary?.totalAmount || 0}
                   loading={isDataLoading}
+                  currency={preferredCurrency}
+                  rates={rates}
                 />
               </div>
 
@@ -554,6 +635,8 @@ export default function HomePage() {
                 <RecentExpensesList
                   expenses={recentExpenses}
                   loading={isDataLoading}
+                  preferredCurrency={preferredCurrency}
+                  rates={rates}
                 />
               </div>
             </div>

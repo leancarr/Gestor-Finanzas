@@ -382,14 +382,20 @@ export class ExpensesService {
       const startDate = new Date(Date.UTC(targetYear, targetMonth - 1, 1, 0, 0, 0, 0));
       const endDate = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59, 999));
 
-      const expenses = await tx.expense.findMany({
-        where: {
-          userId,
-          date: {
-            gte: startDate,
-            lte: endDate,
-          },
+      const whereClause: any = {
+        userId,
+        date: {
+          gte: startDate,
+          lte: endDate,
         },
+      };
+
+      if (query?.currency && query.currency.toUpperCase() !== 'ALL') {
+        whereClause.currency = query.currency.toUpperCase();
+      }
+
+      const expenses = await tx.expense.findMany({
+        where: whereClause,
         include: {
           category: true,
         },
@@ -461,6 +467,7 @@ export class ExpensesService {
       return {
         month: targetMonth,
         year: targetYear,
+        currency: query?.currency ? query.currency.toUpperCase() : 'ARS',
         totalExpenses: Math.round(totalExpenses * 100) / 100,
         totalIncome: Math.round(totalIncome * 100) / 100,
         balance: Math.round(balance * 100) / 100,

@@ -12,11 +12,19 @@ import { CategorySummaryItem } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { PieChart as PieChartIcon, Plus } from 'lucide-react';
 import Link from 'next/link';
+import {
+  SupportedCurrency,
+  FALLBACK_RATES,
+  convertCurrencyLocal,
+  formatCurrency as formatCurrencyWithRates,
+} from '@/utils/api/rates';
 
 interface ExpensesDonutChartProps {
   categories: CategorySummaryItem[];
   totalAmount: number;
   loading?: boolean;
+  currency?: SupportedCurrency;
+  rates?: Record<SupportedCurrency, number>;
 }
 
 interface ChartItem {
@@ -34,6 +42,7 @@ interface CustomTooltipProps {
   payload?: Array<{
     payload: ChartItem;
   }>;
+  currency?: SupportedCurrency;
 }
 
 const DEFAULT_COLORS = [
@@ -49,15 +58,10 @@ const DEFAULT_COLORS = [
   '#64748B', // Slate
 ];
 
-function CustomTooltip({ active, payload }: CustomTooltipProps) {
+function CustomTooltip({ active, payload, currency = 'ARS' }: CustomTooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
-    const formattedVal = new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(data.value);
+    const formattedVal = formatCurrencyWithRates(data.value, currency);
 
     return (
       <div className="rounded-2xl border border-white/10 bg-black/60 p-3.5 shadow-2xl backdrop-blur-xl text-xs">
@@ -87,17 +91,19 @@ export function ExpensesDonutChart({
   categories,
   totalAmount,
   loading = false,
+  currency = 'ARS',
+  rates = FALLBACK_RATES,
 }: ExpensesDonutChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
+  const format = (val: number) => {
+    return formatCurrencyWithRates(val, currency);
   };
+
+  const convertedTotal =
+    currency === 'ARS'
+      ? totalAmount
+      : convertCurrencyLocal(totalAmount, 'ARS', currency, rates);
 
   if (loading) {
     return (
@@ -113,10 +119,13 @@ export function ExpensesDonutChart({
     );
   }
 
-  // Pre-process chart data
+  // Pre-process chart data with currency conversion if needed
   const chartData: ChartItem[] = categories.map((cat, idx) => ({
     name: cat.categoryName,
-    value: cat.total,
+    value:
+      currency === 'ARS'
+        ? cat.total
+        : convertCurrencyLocal(cat.total, 'ARS', currency, rates),
     percentage: cat.percentage,
     color: cat.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
     icon: cat.icon,
@@ -124,7 +133,7 @@ export function ExpensesDonutChart({
     categoryId: cat.categoryId,
   }));
 
-  const hasData = chartData.length > 0 && totalAmount > 0;
+  const hasData = chartData.length > 0 && convertedTotal > 0;
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col justify-between">
@@ -177,7 +186,7 @@ export function ExpensesDonutChart({
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip currency={currency} />} />
                   <Pie
                     data={chartData}
                     cx="50%"
@@ -212,7 +221,7 @@ export function ExpensesDonutChart({
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
               <span className="text-[11px] font-medium text-slate-400">Total</span>
               <span className="text-sm sm:text-base font-extrabold text-white tracking-tight">
-                {formatCurrency(totalAmount)}
+                {format(convertedTotal)}
               </span>
             </div>
           </div>
@@ -257,7 +266,7 @@ export function ExpensesDonutChart({
 
                 <div className="text-right shrink-0">
                   <span className="text-xs font-bold text-white tracking-tight">
-                    {formatCurrency(cat.value)}
+                    {format(cat.value)}
                   </span>
                   {/* Mini visual progress bar */}
                   <div className="mt-1 h-1 w-16 bg-slate-800 rounded-full overflow-hidden ml-auto">

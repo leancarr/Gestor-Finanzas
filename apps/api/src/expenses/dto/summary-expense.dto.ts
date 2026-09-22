@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SummaryExpenseDto {
@@ -15,4 +15,8 @@ export class SummaryExpenseDto {
   @Min(2000, { message: 'El año mínimo es 2000' })
   @Max(2100, { message: 'El año máximo es 2100' })
   year?: number;
+
+  @IsOptional()
+  @IsString({ message: 'La divisa debe ser una cadena de texto' })
+  currency?: string;
 }

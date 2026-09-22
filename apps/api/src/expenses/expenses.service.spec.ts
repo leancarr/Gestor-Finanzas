@@ -463,6 +463,22 @@ describe('ExpensesService', () => {
       expect(result.incomeCount).toBe(0);
       expect(result.byCategory).toEqual([]);
     });
+
+    it('should filter by currency when currency is specified (SEI-25)', async () => {
+      mockTx.expense.findMany.mockResolvedValue([]);
+
+      const result = await service.getSummary('user-123', { month: 9, year: 2026, currency: 'USD' });
+
+      expect(result.currency).toBe('USD');
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-123',
+            currency: 'USD',
+          }),
+        }),
+      );
+    });
   });
 
   describe('getRecent', () => {

@@ -11,23 +11,28 @@ import {
 } from 'lucide-react';
 import { ExpensesSummary } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import {
+  SupportedCurrency,
+  FALLBACK_RATES,
+  convertCurrencyLocal,
+  formatCurrency as formatCurrencyWithRates,
+} from '@/utils/api/rates';
 
 interface ExpensesSummaryCardsProps {
   summary: ExpensesSummary | null;
   loading?: boolean;
+  currency?: SupportedCurrency;
+  rates?: Record<SupportedCurrency, number>;
 }
 
 export function ExpensesSummaryCards({
   summary,
   loading = false,
+  currency = 'ARS',
+  rates = FALLBACK_RATES,
 }: ExpensesSummaryCardsProps) {
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(val);
+  const format = (val: number) => {
+    return formatCurrencyWithRates(val, currency);
   };
 
   if (loading || !summary) {
@@ -49,13 +54,34 @@ export function ExpensesSummaryCards({
     );
   }
 
-  const totalExpenses = summary.totalExpenses ?? summary.totalAmount ?? 0;
-  const totalIncome = summary.totalIncome ?? 0;
-  const balance = summary.balance !== undefined ? summary.balance : totalIncome - totalExpenses;
+  // Base amounts (in ARS or as stored in summary)
+  const rawExpenses = summary.totalExpenses ?? summary.totalAmount ?? 0;
+  const rawIncome = summary.totalIncome ?? 0;
+  const rawBalance = summary.balance !== undefined ? summary.balance : rawIncome - rawExpenses;
+
+  // Convert if viewing in a different currency
+  const totalExpenses =
+    currency === 'ARS'
+      ? rawExpenses
+      : convertCurrencyLocal(rawExpenses, 'ARS', currency, rates);
+  const totalIncome =
+    currency === 'ARS'
+      ? rawIncome
+      : convertCurrencyLocal(rawIncome, 'ARS', currency, rates);
+  const balance =
+    currency === 'ARS'
+      ? rawBalance
+      : convertCurrencyLocal(rawBalance, 'ARS', currency, rates);
+
   const isPositiveBalance = balance >= 0;
   const expensesCount = summary.expensesCount ?? summary.count ?? 0;
   const incomeCount = summary.incomeCount ?? 0;
   const topCategory = summary.byCategory.length > 0 ? summary.byCategory[0] : null;
+  const topCategoryTotal = topCategory
+    ? currency === 'ARS'
+      ? topCategory.total
+      : convertCurrencyLocal(topCategory.total, 'ARS', currency, rates)
+    : 0;
 
   return (
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -88,7 +114,7 @@ export function ExpensesSummaryCards({
                 isPositiveBalance ? 'text-emerald-400' : 'text-rose-400'
               }`}
             >
-              {formatCurrency(balance)}
+              {format(balance)}
             </p>
           </div>
         </div>
@@ -113,7 +139,7 @@ export function ExpensesSummaryCards({
           <div className="min-w-0">
             <span className="text-xs text-slate-400 font-medium">Total Ingresos</span>
             <p className="text-xl font-extrabold text-white tracking-tight truncate">
-              {formatCurrency(totalIncome)}
+              {format(totalIncome)}
             </p>
           </div>
         </div>
@@ -134,7 +160,7 @@ export function ExpensesSummaryCards({
           <div className="min-w-0">
             <span className="text-xs text-slate-400 font-medium">Total Gastos</span>
             <p className="text-xl font-extrabold text-white tracking-tight truncate">
-              {formatCurrency(totalExpenses)}
+              {format(totalExpenses)}
             </p>
           </div>
         </div>
@@ -170,7 +196,7 @@ export function ExpensesSummaryCards({
             </p>
             {topCategory && (
               <p className="text-xs font-semibold text-emerald-400 mt-0.5">
-                {formatCurrency(topCategory.total)} ({topCategory.percentage}%)
+                {format(topCategoryTotal)} ({topCategory.percentage}%)
               </p>
             )}
           </div>

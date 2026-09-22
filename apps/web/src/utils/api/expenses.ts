@@ -65,6 +65,7 @@ export interface CategorySummaryItem {
 export interface ExpensesSummary {
   month: number;
   year: number;
+  currency?: string;
   totalAmount: number;
   totalExpenses: number;
   totalIncome: number;
@@ -288,6 +289,7 @@ export async function deleteExpense(
 export async function getExpensesSummary(params?: {
   month?: number;
   year?: number;
+  currency?: string;
 }): Promise<ExpensesSummary> {
   const headers = await getAuthHeaders();
   const url = new URL(`${API_URL}/expenses/summary`);
@@ -296,6 +298,9 @@ export async function getExpensesSummary(params?: {
   }
   if (params?.year) {
     url.searchParams.set('year', String(params.year));
+  }
+  if (params?.currency) {
+    url.searchParams.set('currency', params.currency);
   }
 
   const res = await fetch(url.toString(), {
