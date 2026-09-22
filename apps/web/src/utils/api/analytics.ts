@@ -57,6 +57,7 @@ export interface GetAnalyticsOptions {
   currency?: SupportedCurrency;
   expenses?: ExpenseItem[];
   rates?: Record<SupportedCurrency, number>;
+  selectedDate?: string | null;
 }
 
 import { DYNAMIC_API_URL } from './config';
@@ -169,8 +170,32 @@ export function calculateLocalAnalytics(
   range: AnalyticsRange = '30d',
   targetCurrency: SupportedCurrency = 'ARS',
   rates: Record<SupportedCurrency, number> = FALLBACK_RATES,
+  selectedDate?: string | null,
 ): AnalyticsData {
-  const { currentStart, currentEnd, prevStart, prevEnd, daysCount } = getDateRanges(range);
+  let currentStart: Date;
+  let currentEnd: Date;
+  let prevStart: Date;
+  let prevEnd: Date;
+  let daysCount: number;
+
+  if (selectedDate) {
+    const parts = selectedDate.split('-').map(Number);
+    const y = parts[0];
+    const m = parts[1] - 1;
+    const d = parts[2];
+    currentStart = new Date(y, m, d, 0, 0, 0, 0);
+    currentEnd = new Date(y, m, d, 23, 59, 59, 999);
+    prevStart = new Date(currentStart.getTime() - 24 * 60 * 60 * 1000);
+    prevEnd = new Date(currentStart.getTime() - 1);
+    daysCount = 1;
+  } else {
+    const dates = getDateRanges(range);
+    currentStart = dates.currentStart;
+    currentEnd = dates.currentEnd;
+    prevStart = dates.prevStart;
+    prevEnd = dates.prevEnd;
+    daysCount = dates.daysCount;
+  }
 
   let currentExpenses = 0;
   let currentIncome = 0;
@@ -180,17 +205,27 @@ export function calculateLocalAnalytics(
   // Mapa de días del período actual para armar la línea temporal completa (sin días vacíos)
   const timelineMap = new Map<string, { date: string; displayDate: string; expenses: number; income: number }>();
 
-  // Inicializar todos los días del período en el timeline
-  const cursorDate = new Date(currentStart);
-  while (cursorDate <= currentEnd) {
-    const key = toDateKey(cursorDate);
+  if (selectedDate) {
+    const key = toDateKey(currentStart);
     timelineMap.set(key, {
       date: key,
-      displayDate: toDisplayDate(cursorDate),
+      displayDate: toDisplayDate(currentStart),
       expenses: 0,
       income: 0,
     });
-    cursorDate.setDate(cursorDate.getDate() + 1);
+  } else {
+    // Inicializar todos los días del período en el timeline
+    const cursorDate = new Date(currentStart);
+    while (cursorDate <= currentEnd) {
+      const key = toDateKey(cursorDate);
+      timelineMap.set(key, {
+        date: key,
+        displayDate: toDisplayDate(cursorDate),
+        expenses: 0,
+        income: 0,
+      });
+      cursorDate.setDate(cursorDate.getDate() + 1);
+    }
   }
 
   // Acumulador de categorías para el período actual
@@ -341,6 +376,20 @@ export async function getAnalytics(
   const range = options.range || '30d';
   const currency = options.currency || 'ARS';
   const rates = options.rates || FALLBACK_RATES;
+  const selectedDate = options.selectedDate;
+
+  // Si hay un filtro de día puntual, se procesa directamente mediante el cálculo local determinístico
+  if (selectedDate) {
+    let expensesList = options.expenses;
+    if (!expensesList) {
+      try {
+        expensesList = await getExpenses({ limit: 1000 });
+      } catch {
+        expensesList = [];
+      }
+    }
+    return calculateLocalAnalytics(expensesList, range, currency, rates, selectedDate);
+  }
 
   // Intento de consulta a la API remota si estamos en navegador y online
   if (typeof navigator === 'undefined' || navigator.onLine) {
@@ -474,5 +523,5 @@ export async function getAnalytics(
     }
   }
 
-  return calculateLocalAnalytics(expensesList, range, currency, rates);
+  return calculateLocalAnalytics(expensesList, range, currency, rates, selectedDate);
 }
