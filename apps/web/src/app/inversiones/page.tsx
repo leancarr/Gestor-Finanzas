@@ -22,6 +22,8 @@ import {
   Clock,
   Wallet,
   HelpCircle,
+  Award,
+  ScanLine,
   Trophy,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
@@ -32,11 +34,14 @@ import { AssetCard } from '@/components/investments/AssetCard';
 import { PortfolioDistributionChart } from '@/components/investments/PortfolioDistributionChart';
 import { AssetModal } from '@/components/investments/AssetModal';
 import { AssetDeleteModal } from '@/components/investments/AssetDeleteModal';
+import { BrokerImportModal } from '@/components/investments/BrokerImportModal';
 import {
   Asset,
   PortfolioSummary,
+  CreateAssetInput,
   getAssets,
   getPortfolioSummary,
+  createAsset,
   deleteAsset,
 } from '@/utils/api/investments';
 import { formatCurrency } from '@/utils/api/rates';
@@ -78,6 +83,7 @@ export default function InversionesPage() {
 
   // Modales
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBrokerModalOpen, setIsBrokerModalOpen] = useState(false);
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
   const [assetToDelete, setAssetToDelete] = useState<Asset | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -177,6 +183,25 @@ export default function InversionesPage() {
         : `Activo "${savedAsset.name}" agregado a tu portafolio.`
     );
     await loadData();
+  };
+
+  const handleBrokerImportSuccess = async (importedAssets: CreateAssetInput[]) => {
+    try {
+      setIsLoading(true);
+      for (const assetInput of importedAssets) {
+        await createAsset(assetInput);
+      }
+      showToast(
+        'success',
+        `¡${importedAssets.length} activos incorporados con éxito vía Broker OCR!`
+      );
+      await loadData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error al guardar activos importados';
+      showToast('error', msg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Filtrado de activos
@@ -360,11 +385,11 @@ interface PortfolioInsights {
               Inversiones
             </Link>
             <Link
-              href="/retos"
+              href="/metas"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <Trophy className="h-3.5 w-3.5 text-amber-400" />
-              Retos
+              <Award className="h-3.5 w-3.5 text-emerald-400" />
+              Metas
             </Link>
             <Link
               href="/presupuestos"
@@ -408,6 +433,17 @@ interface PortfolioInsights {
               <UserNavIcon className="h-3.5 w-3.5 text-emerald-400" />
               Perfil
             </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsBrokerModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/40 hover:bg-cyan-900/50 px-3 py-2 text-xs font-bold text-cyan-300 hover:text-white transition cursor-pointer shadow-sm"
+              title="Importar portafolio desde broker con OCR"
+            >
+              <ScanLine className="h-4 w-4 text-cyan-400" />
+              <span className="hidden sm:inline">Importar OCR</span>
+              <span className="sm:hidden">OCR</span>
+            </button>
 
             <button
               onClick={handleOpenCreate}
@@ -618,9 +654,9 @@ interface PortfolioInsights {
         {/* ========================================================================= */}
         <div className="space-y-6">
           {/* Filter Bar & Search */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             {/* Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-900/80 p-1.5 border border-white/10">
+            <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-900/80 p-1.5 border border-white/10 overflow-x-auto">
               {FILTER_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeFilter === tab.id;
@@ -643,9 +679,9 @@ interface PortfolioInsights {
               })}
             </div>
 
-            {/* Search Input & Add Button */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 sm:w-64">
+            {/* Search Input & Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
+              <div className="relative flex-1 sm:w-60 md:w-64">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <input
                   type="text"
@@ -656,20 +692,32 @@ interface PortfolioInsights {
                 />
               </div>
 
-              <button
-                type="button"
-                onClick={handleOpenCreate}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer shrink-0"
-              >
-                <Plus className="h-4 w-4" />
-                <span>+ Nuevo Activo</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsBrokerModalOpen(true)}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/40 hover:bg-cyan-900/50 px-3.5 py-2 text-xs font-bold text-cyan-300 hover:text-white shadow-sm transition cursor-pointer"
+                  title="Importar capturas de brokers con OCR"
+                >
+                  <ScanLine className="h-4 w-4 text-cyan-400" />
+                  <span>Importar OCR</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenCreate}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>+ Nuevo Activo</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Cards Grid */}
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
@@ -702,7 +750,7 @@ interface PortfolioInsights {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {filteredAssets.map((asset) => (
                 <AssetCard
                   key={asset.id}
@@ -730,6 +778,12 @@ interface PortfolioInsights {
           onConfirm={handleConfirmDelete}
           asset={assetToDelete}
           isDeleting={isDeleting}
+        />
+
+        <BrokerImportModal
+          isOpen={isBrokerModalOpen}
+          onClose={() => setIsBrokerModalOpen(false)}
+          onImportSuccess={handleBrokerImportSuccess}
         />
       </div>
     </main>
