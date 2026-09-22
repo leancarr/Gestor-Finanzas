@@ -358,6 +358,38 @@ export class ExpensesService {
         throw new NotFoundException(`Gasto con ID ${id} no encontrado`);
       }
 
+      // SEI-55: Si el gasto provino de una recurrencia, rebobinar fecha de vencimiento un ciclo
+      const recurringTag = existing.tags?.find((t) => t.startsWith('recurring:'));
+      if (recurringTag) {
+        const recurringId = recurringTag.split(':')[1];
+        if (recurringId) {
+          const rec = await tx.recurringTransaction.findFirst({
+            where: { id: recurringId, userId },
+          });
+          if (rec) {
+            const prev = new Date(rec.nextDueDate);
+            switch (rec.frequency) {
+              case 'DAILY':
+                prev.setDate(prev.getDate() - 1);
+                break;
+              case 'WEEKLY':
+                prev.setDate(prev.getDate() - 7);
+                break;
+              case 'MONTHLY':
+                prev.setMonth(prev.getMonth() - 1);
+                break;
+              case 'YEARLY':
+                prev.setFullYear(prev.getFullYear() - 1);
+                break;
+            }
+            await tx.recurringTransaction.update({
+              where: { id: recurringId },
+              data: { nextDueDate: prev },
+            });
+          }
+        }
+      }
+
       await tx.expense.delete({
         where: { id },
       });
