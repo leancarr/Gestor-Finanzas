@@ -23,13 +23,15 @@ import {
   ScanLine,
   Bot,
   TrendingUp,
-  Trophy,
+  Award,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpenseCard } from '@/components/expenses/ExpenseCard';
 import { ExpenseDeleteModal } from '@/components/expenses/ExpenseDeleteModal';
 import { ReceiptScannerModal } from '@/components/ai/ReceiptScannerModal';
+import { CsvImportModal } from '@/components/expenses/CsvImportModal';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { EventTagFilter } from '@/components/tags/EventTagFilter';
 import { EventsSummaryModal } from '@/components/tags/EventsSummaryModal';
@@ -61,6 +63,7 @@ export default function GastosPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<ExpenseItem | null>(null);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
 
   // Tag & Event filters (SEI-41)
   const [tagsSummary, setTagsSummary] = useState<TagSummary[]>([]);
@@ -301,11 +304,11 @@ export default function GastosPage() {
             <VaultSelector />
             <StreakBadge />
             <Link
-              href="/retos"
+              href="/metas"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <Trophy className="h-3.5 w-3.5 text-amber-400" />
-              Retos
+              <Award className="h-3.5 w-3.5 text-emerald-400" />
+              Metas
             </Link>
             <Link
               href="/bovedas"
@@ -577,7 +580,7 @@ export default function GastosPage() {
                 </div>
               </div>
 
-              {/* Action Button: Nueva Transacción y Escanear Ticket */}
+              {/* Action Button: Nueva Transacción, Escanear Ticket e Importar CSV */}
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
@@ -586,6 +589,14 @@ export default function GastosPage() {
                 >
                   <ScanLine className="h-4 w-4" />
                   <span>Escanear Ticket</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCsvModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/80 px-3.5 py-2.5 text-xs font-semibold text-teal-400 hover:text-teal-300 shadow-lg transition cursor-pointer"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span>Importar CSV</span>
                 </button>
                 <ExportMenu data={filteredExpenses} />
                 <Link
@@ -711,6 +722,20 @@ export default function GastosPage() {
             text: '¡Comprobante procesado y gasto registrado exitosamente!',
           });
         }}
+      />
+
+      {/* CSV Bank Import Modal (SEI-57) */}
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={(count) => {
+          loadData();
+          setToastMessage({
+            type: 'success',
+            text: `¡${count} movimientos importados exitosamente desde el archivo CSV!`,
+          });
+        }}
+        categories={categories}
       />
 
       {/* Events / Hashtags Summary Modal (SEI-41) */}

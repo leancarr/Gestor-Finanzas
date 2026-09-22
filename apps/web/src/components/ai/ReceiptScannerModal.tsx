@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   X,
   Upload,
@@ -20,10 +20,21 @@ import {
   Trash2,
   Layers,
   FileText,
+  Receipt,
+  Calculator,
 } from 'lucide-react';
 import { parseReceipt, ParsedReceipt, ReceiptItem } from '@/utils/api/ai';
 import { createExpense, ExpenseItem } from '@/utils/api/expenses';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
+import {
+  SupportedCurrency,
+  TaxSchemeType,
+  calculateTaxes,
+  getRates,
+  FALLBACK_RATES,
+  formatCurrency,
+  CURRENCY_LIST,
+} from '@/utils/api/rates';
 
 interface ReceiptScannerModalProps {
   isOpen: boolean;
@@ -42,18 +53,25 @@ export function ReceiptScannerModal({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isCreatingExpense, setIsCreatingExpense] = useState(false);
-  const [scanStatusText, setScanStatusText] = useState('Analizando comprobante con Vision AI...');
+  const [scanStatusText, setScanStatusText] = useState(
+    'Analizando comprobante con Vision AI...',
+  );
   const [error, setError] = useState<string | null>(null);
 
   // Editable parsed data
   const [merchant, setMerchant] = useState('');
   const [total, setTotal] = useState<number>(0);
-  const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS');
+  const [currency, setCurrency] = useState<SupportedCurrency>('ARS');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState<string>('');
-  const [taxAmount, setTaxAmount] = useState<number | undefined>(undefined);
   const [items, setItems] = useState<ReceiptItem[]>([]);
   const [showItemsBreakdown, setShowItemsBreakdown] = useState(true);
+
+  // Dynamic taxes state (SEI-56)
+  const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
+  const [taxScheme, setTaxScheme] = useState<TaxSchemeType | null>(null);
+  const [isTaxCalculationActive, setIsTaxCalculationActive] = useState<boolean>(true);
+  const [applyTaxesToTotal, setApplyTaxesToTotal] = useState<boolean>(false);
 
   // Camera handling
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -79,10 +97,11 @@ export function ReceiptScannerModal({
     onClose();
   }, [stopCameraStream, onClose]);
 
-  // Load categories
+  // Load categories and live exchange rates
   useEffect(() => {
     if (!isOpen) return;
     let isMounted = true;
+
     getCategories()
       .then((cats) => {
         if (isMounted) setCategories(cats);
@@ -90,6 +109,14 @@ export function ReceiptScannerModal({
       .catch(() => {
         if (isMounted) setCategories([]);
       });
+
+    getRates()
+      .then((res) => {
+        if (isMounted && res?.rates) {
+          setRates(res.rates);
+        }
+      })
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -112,6 +139,15 @@ export function ReceiptScannerModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, step, handleClose]);
+
+  // Active tax scheme: selected or default based on currency
+  const activeTaxScheme: TaxSchemeType =
+    taxScheme ?? (currency === 'ARS' ? 'IVA_21' : 'DIGITAL_SERVICES');
+
+  // Recálculo dinámico 100% reactivo de impuestos con calculateTaxes (SEI-56)
+  const taxCalculation = useMemo(() => {
+    return calculateTaxes(total, currency, activeTaxScheme, rates);
+  }, [total, currency, activeTaxScheme, rates]);
 
   // Start Camera
   const startCamera = async () => {
@@ -202,11 +238,29 @@ export function ReceiptScannerModal({
       const result: ParsedReceipt = await parseReceipt(base64, mimeType);
 
       setMerchant(result.merchant || 'Comercio General');
-      setTotal(result.total || 0);
-      setCurrency((result.currency?.toUpperCase() === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD');
+      const parsedItems = result.items || [];
+      setItems(parsedItems);
+
+      const itemsSum = parsedItems.reduce(
+        (sum, it) => sum + (Number(it.amount) || 0) * (Number(it.quantity) || 1),
+        0,
+      );
+
+      const detectedTotal = result.total || itemsSum || 0;
+      setTotal(detectedTotal);
+
+      const detectedCurr: SupportedCurrency =
+        result.currency?.toUpperCase() === 'USD' ? 'USD' : 'ARS';
+      setCurrency(detectedCurr);
+
       setDate(result.date || new Date().toISOString().split('T')[0]);
-      setTaxAmount(result.taxAmount);
-      setItems(result.items || []);
+
+      // Sugerir esquema impositivo
+      if (detectedCurr === 'USD') {
+        setTaxScheme('DIGITAL_SERVICES');
+      } else {
+        setTaxScheme('IVA_21');
+      }
 
       // Pre-select category if suggested or match by keyword
       if (result.categoryId) {
@@ -252,7 +306,11 @@ export function ReceiptScannerModal({
       text.includes('almacen') ||
       text.includes('verduleria')
     ) {
-      return catList.find((c) => c.name.toLowerCase().includes('super') || c.name.toLowerCase().includes('comida'));
+      return catList.find(
+        (c) =>
+          c.name.toLowerCase().includes('super') ||
+          c.name.toLowerCase().includes('comida'),
+      );
     }
 
     if (
@@ -266,7 +324,12 @@ export function ReceiptScannerModal({
       text.includes('uber') ||
       text.includes('cabify')
     ) {
-      return catList.find((c) => c.name.toLowerCase().includes('transporte') || c.name.toLowerCase().includes('combustible') || c.name.toLowerCase().includes('auto'));
+      return catList.find(
+        (c) =>
+          c.name.toLowerCase().includes('transporte') ||
+          c.name.toLowerCase().includes('combustible') ||
+          c.name.toLowerCase().includes('auto'),
+      );
     }
 
     if (
@@ -277,7 +340,11 @@ export function ReceiptScannerModal({
       text.includes('hospital') ||
       text.includes('salud')
     ) {
-      return catList.find((c) => c.name.toLowerCase().includes('salud') || c.name.toLowerCase().includes('farmacia'));
+      return catList.find(
+        (c) =>
+          c.name.toLowerCase().includes('salud') ||
+          c.name.toLowerCase().includes('farmacia'),
+      );
     }
 
     if (
@@ -290,10 +357,70 @@ export function ReceiptScannerModal({
       text.includes('burger') ||
       text.includes('pizza')
     ) {
-      return catList.find((c) => c.name.toLowerCase().includes('salida') || c.name.toLowerCase().includes('ocio') || c.name.toLowerCase().includes('restaurante'));
+      return catList.find(
+        (c) =>
+          c.name.toLowerCase().includes('salida') ||
+          c.name.toLowerCase().includes('ocio') ||
+          c.name.toLowerCase().includes('restaurante'),
+      );
     }
 
     return undefined;
+  };
+
+  // Add Item to table (recalculates total)
+  const handleAddItem = () => {
+    const newItems: ReceiptItem[] = [
+      ...items,
+      { description: 'Nuevo ítem', amount: 0, quantity: 1 },
+    ];
+    setItems(newItems);
+  };
+
+  // Remove Item (recalculates total)
+  const handleRemoveItem = (index: number) => {
+    const updated = items.filter((_, i) => i !== index);
+    setItems(updated);
+    if (updated.length > 0) {
+      const sum = updated.reduce(
+        (acc, item) =>
+          acc + (Number(item.amount) || 0) * (Number(item.quantity) || 1),
+        0,
+      );
+      setTotal(Math.round(sum * 100) / 100);
+    }
+  };
+
+  // Update Item (recalculates total dynamically)
+  const handleUpdateItem = (
+    index: number,
+    field: keyof ReceiptItem,
+    val: string | number,
+  ) => {
+    const updated = items.map((item, i) => {
+      if (i === index) {
+        return { ...item, [field]: val };
+      }
+      return item;
+    });
+    setItems(updated);
+
+    const sum = updated.reduce(
+      (acc, item) =>
+        acc + (Number(item.amount) || 0) * (Number(item.quantity) || 1),
+      0,
+    );
+    if (sum > 0) {
+      setTotal(Math.round(sum * 100) / 100);
+    }
+  };
+
+  // Handle currency switch
+  const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
+    setCurrency(newCurrency);
+    if (!taxScheme) {
+      setTaxScheme(newCurrency === 'ARS' ? 'IVA_21' : 'DIGITAL_SERVICES');
+    }
   };
 
   // Create final expense
@@ -310,14 +437,24 @@ export function ReceiptScannerModal({
     setIsCreatingExpense(true);
     setError(null);
 
+    const finalAmount =
+      isTaxCalculationActive && applyTaxesToTotal
+        ? taxCalculation.totalAmount
+        : total;
+
+    const exchangeRate =
+      currency !== 'ARS' ? rates[currency] ?? FALLBACK_RATES[currency] ?? 1 : 1;
+
     try {
       const created = await createExpense({
         description: merchant.trim(),
-        amount: total,
+        amount: finalAmount,
         currency,
         date: date || new Date().toISOString().split('T')[0],
         categoryId: categoryId || null,
         type: 'EXPENSE',
+        isTaxable: isTaxCalculationActive,
+        exchangeRate,
       });
 
       if (onSuccess) {
@@ -333,35 +470,6 @@ export function ReceiptScannerModal({
     } finally {
       setIsCreatingExpense(false);
     }
-  };
-
-  // Add Item to table
-  const handleAddItem = () => {
-    setItems((prev) => [
-      ...prev,
-      { description: 'Nuevo ítem', amount: 0, quantity: 1 },
-    ]);
-  };
-
-  // Remove Item
-  const handleRemoveItem = (index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Update Item
-  const handleUpdateItem = (
-    index: number,
-    field: keyof ReceiptItem,
-    val: string | number,
-  ) => {
-    setItems((prev) =>
-      prev.map((item, i) => {
-        if (i === index) {
-          return { ...item, [field]: val };
-        }
-        return item;
-      }),
-    );
   };
 
   if (!isOpen) return null;
@@ -389,11 +497,11 @@ export function ReceiptScannerModal({
                 </h3>
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
                   <Sparkles className="h-3 w-3" />
-                  Vision AI
+                  Vision AI + Impuestos
                 </span>
               </div>
               <p className="text-xs text-slate-400">
-                Extrae comercio, montos y desglose de tickets con inteligencia artificial
+                Extracción inteligente con recálculo dinámico de percepciones en vivo
               </p>
             </div>
           </div>
@@ -594,13 +702,13 @@ export function ReceiptScannerModal({
                   <span>{scanStatusText}</span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Reconociendo caracteres ópticos, formato de comprobante y tipos de cambio...
+                  Reconociendo caracteres ópticos, formato de comprobante y cálculo impositivo...
                 </p>
               </div>
             </div>
           )}
 
-          {/* STEP 4: EDITABLE PREVIEW OF EXTRACTED DATA */}
+          {/* STEP 4: EDITABLE PREVIEW WITH DYNAMIC TAX RECALCULATION */}
           {step === 'preview' && (
             <div className="space-y-6">
               {/* Top summary badge with small thumbnail */}
@@ -620,7 +728,7 @@ export function ReceiptScannerModal({
                       Datos extraídos con éxito
                     </span>
                     <p className="text-xs text-slate-300">
-                      Revisa y edita los campos antes de confirmar el gasto
+                      Modifica montos o moneda para ver los impuestos recalcularse en vivo
                     </p>
                   </div>
                 </div>
@@ -641,7 +749,7 @@ export function ReceiptScannerModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Merchant / Description */}
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <Store className="h-3.5 w-3.5 text-emerald-400" />
                     Comercio / Descripción
                   </label>
@@ -656,9 +764,9 @@ export function ReceiptScannerModal({
 
                 {/* Amount Total */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-                    Monto Total
+                    Monto Base del Ticket
                   </label>
                   <div className="relative">
                     <input
@@ -673,15 +781,20 @@ export function ReceiptScannerModal({
                   </div>
                 </div>
 
-                {/* Currency Selector */}
+                {/* Currency Selector (Switch triggers live tax recalculation) */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Moneda
+                  <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
+                    <span>Moneda</span>
+                    {currency !== 'ARS' && (
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        1 {currency} = ${rates[currency] ?? FALLBACK_RATES[currency]} ARS
+                      </span>
+                    )}
                   </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setCurrency('ARS')}
+                      onClick={() => handleCurrencyChange('ARS')}
                       className={`flex-1 rounded-2xl border py-2.5 text-xs font-bold transition cursor-pointer ${
                         currency === 'ARS'
                           ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
@@ -692,7 +805,7 @@ export function ReceiptScannerModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setCurrency('USD')}
+                      onClick={() => handleCurrencyChange('USD')}
                       className={`flex-1 rounded-2xl border py-2.5 text-xs font-bold transition cursor-pointer ${
                         currency === 'USD'
                           ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
@@ -706,7 +819,7 @@ export function ReceiptScannerModal({
 
                 {/* Category Selector */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5 text-emerald-400" />
                     Categoría (Sugerida por IA)
                   </label>
@@ -727,7 +840,7 @@ export function ReceiptScannerModal({
 
                 {/* Date Picker */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-emerald-400" />
                     Fecha del Comprobante
                   </label>
@@ -740,17 +853,139 @@ export function ReceiptScannerModal({
                 </div>
               </div>
 
-              {/* Tax Badge if detected */}
-              {taxAmount !== undefined && taxAmount > 0 && (
-                <div className="flex items-center justify-between rounded-xl border border-slate-800/80 bg-slate-900/40 px-3.5 py-2 text-xs text-slate-400">
-                  <span>Impuesto / IVA detectado en ticket:</span>
-                  <span className="font-semibold text-slate-200">
-                    ${taxAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
+              {/* SEI-56: DYNAMIC TAX CALCULATION & RECALCULATION PANEL */}
+              <div className="rounded-2xl border border-emerald-500/25 bg-slate-950/70 p-4 space-y-3.5 shadow-lg shadow-emerald-950/20">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      <Receipt className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white tracking-wide">
+                          Recálculo Impositivo en Vivo
+                        </span>
+                        <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                          +{taxCalculation.effectiveTaxPercentage}%
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Cálculo automático de IVA y percepciones oficiales según moneda
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Collapsible Items Breakdown */}
+                  {/* Toggle activate taxes */}
+                  <label className="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isTaxCalculationActive}
+                      onChange={(e) => setIsTaxCalculationActive(e.target.checked)}
+                      className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500 h-4 w-4"
+                    />
+                    <span className="text-[11px]">Calcular impuestos</span>
+                  </label>
+                </div>
+
+                {isTaxCalculationActive && (
+                  <div className="space-y-3">
+                    {/* Tax Scheme Selector */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                      <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5">
+                        <Calculator className="h-3 w-3 text-emerald-400" />
+                        Esquema tributario aplicado:
+                      </span>
+                      <select
+                        value={activeTaxScheme}
+                        onChange={(e) => setTaxScheme(e.target.value as TaxSchemeType)}
+                        className="rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-emerald-300 font-semibold focus:border-emerald-500 focus:outline-none transition cursor-pointer"
+                      >
+                        <option value="IVA_21">IVA Estándar (21%)</option>
+                        <option value="DIGITAL_SERVICES">
+                          Servicios Digitales Exterior (59%)
+                        </option>
+                        <option value="TARJETA_60">Dólar Tarjeta / Turista (60%)</option>
+                        <option value="IVA_10_5">IVA Reducido (10.5%)</option>
+                      </select>
+                    </div>
+
+                    {/* Tax Breakdown Pills */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {taxCalculation.items.map((tax) => (
+                        <div
+                          key={tax.id}
+                          className="flex items-center justify-between rounded-xl bg-slate-900/60 border border-slate-800/80 px-3 py-2 text-xs"
+                        >
+                          <span className="text-slate-300 text-[11px]">
+                            {tax.name}{' '}
+                            <span className="text-slate-500">({tax.ratePercent}%)</span>
+                          </span>
+                          <div className="text-right">
+                            <span className="font-semibold text-emerald-400">
+                              {formatCurrency(tax.amount, currency)}
+                            </span>
+                            {currency !== 'ARS' && (
+                              <p className="text-[10px] text-slate-500">
+                                ~{formatCurrency(tax.amountArs, 'ARS')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tax Totals Summary Box */}
+                    <div className="rounded-xl bg-emerald-950/20 border border-emerald-500/20 p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">
+                          Impuestos discriminados:
+                        </span>
+                        <span className="font-bold text-emerald-300 text-sm">
+                          +{formatCurrency(taxCalculation.totalTaxes, currency)}
+                        </span>
+                        {currency !== 'ARS' && (
+                          <span className="text-[11px] text-slate-400 ml-1.5">
+                            (~{formatCurrency(taxCalculation.totalTaxesArs, 'ARS')})
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-slate-400 block text-[11px]">
+                          Monto total con impuestos:
+                        </span>
+                        <span className="font-bold text-white text-sm">
+                          {formatCurrency(taxCalculation.totalAmount, currency)}
+                        </span>
+                        {currency !== 'ARS' && (
+                          <span className="text-[11px] text-emerald-400 block">
+                            ~{formatCurrency(taxCalculation.totalAmountArs, 'ARS')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Checkbox to persist with or without taxes */}
+                    <label className="flex items-center gap-2 pt-1 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyTaxesToTotal}
+                        onChange={(e) => setApplyTaxesToTotal(e.target.checked)}
+                        className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500 h-4 w-4"
+                      />
+                      <span className="text-[11px]">
+                        Guardar el total con impuestos calculados (
+                        <strong className="text-white">
+                          {formatCurrency(taxCalculation.totalAmount, currency)}
+                        </strong>
+                        ). Desmárcalo si el ticket ya incluía los impuestos en el precio.
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Collapsible Items Breakdown Table */}
               <div className="rounded-2xl border border-slate-800/90 bg-slate-900/40 overflow-hidden">
                 <button
                   type="button"
@@ -760,6 +995,9 @@ export function ReceiptScannerModal({
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-emerald-400" />
                     <span>Desglose de ítems detectados ({items.length})</span>
+                    <span className="text-[11px] text-slate-500">
+                      — Editar ítems recalcula el total e impuestos automáticamente
+                    </span>
                   </div>
                   {showItemsBreakdown ? (
                     <ChevronUp className="h-4 w-4 text-slate-400" />
@@ -807,7 +1045,9 @@ export function ReceiptScannerModal({
                               />
                             </div>
                             <div className="flex items-center gap-1 w-28">
-                              <span className="text-slate-500 text-[10px]">$</span>
+                              <span className="text-slate-500 text-[10px]">
+                                {CURRENCY_LIST[currency]?.symbol || '$'}
+                              </span>
                               <input
                                 type="number"
                                 step="0.01"
@@ -825,7 +1065,8 @@ export function ReceiptScannerModal({
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(idx)}
-                              className="p-1 text-slate-500 hover:text-red-400 transition"
+                              className="p-1 text-slate-500 hover:text-red-400 transition cursor-pointer"
+                              title="Eliminar ítem"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -875,7 +1116,14 @@ export function ReceiptScannerModal({
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" />
-                  Confirmar y Crear Gasto
+                  Confirmar y Crear Gasto (
+                  {formatCurrency(
+                    isTaxCalculationActive && applyTaxesToTotal
+                      ? taxCalculation.totalAmount
+                      : total,
+                    currency,
+                  )}
+                  )
                 </>
               )}
             </button>
