@@ -180,7 +180,7 @@ export function ExpensesDonutChart({
           </Link>
         </div>
       ) : (
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center lg:items-start">
           {/* Donut Chart Visualization */}
           <div className="lg:col-span-6 relative flex flex-col items-center justify-center">
             <div className="h-64 w-full">
@@ -227,7 +227,7 @@ export function ExpensesDonutChart({
           </div>
 
           {/* Category List Breakdown */}
-          <div className="lg:col-span-6 space-y-2.5 max-h-64 overflow-y-auto pr-1">
+          <div className="lg:col-span-6 space-y-2.5">
             {chartData.map((cat, index) => (
               <div
                 key={cat.categoryId || index}

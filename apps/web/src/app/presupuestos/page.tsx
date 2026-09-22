@@ -25,7 +25,7 @@ import {
   Users,
   Bot,
   TrendingUp,
-  Trophy,
+  Award,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
@@ -139,6 +139,9 @@ export default function PresupuestosPage() {
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
+    setIsDataLoading(true);
+    setError(null);
+
     Promise.all([
       getBudgets({ month: selectedMonth, year: selectedYear }),
       getCategories(),
@@ -331,11 +334,11 @@ export default function PresupuestosPage() {
               Inversiones
             </Link>
             <Link
-              href="/retos"
+              href="/metas"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <Trophy className="h-3.5 w-3.5 text-amber-400" />
-              Retos
+              <Award className="h-3.5 w-3.5 text-emerald-400" />
+              Metas
             </Link>
             <Link
               href="/presupuestos"
@@ -496,12 +499,21 @@ export default function PresupuestosPage() {
                     <Wallet className="h-4 w-4" />
                   </div>
                 </div>
-                <p className="mt-3 text-2xl font-extrabold text-white">
-                  {formatMoney(totalBudgeted)}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  {budgets.length} {budgets.length === 1 ? 'rubro monitoreado' : 'rubros monitoreados'}
-                </p>
+                {isDataLoading ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="h-8 w-36 rounded-xl bg-slate-800/80 animate-pulse" />
+                    <div className="h-3.5 w-24 rounded-md bg-slate-800/50 animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-3 text-2xl font-extrabold text-white">
+                      {formatMoney(totalBudgeted)}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {budgets.length} {budgets.length === 1 ? 'rubro monitoreado' : 'rubros monitoreados'}
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Gastado Real */}
@@ -514,12 +526,21 @@ export default function PresupuestosPage() {
                     <Receipt className="h-4 w-4" />
                   </div>
                 </div>
-                <p className="mt-3 text-2xl font-extrabold text-white">
-                  {formatMoney(totalSpent)}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  Consumos en categorías presupuestadas
-                </p>
+                {isDataLoading ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="h-8 w-36 rounded-xl bg-slate-800/80 animate-pulse" />
+                    <div className="h-3.5 w-32 rounded-md bg-slate-800/50 animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="mt-3 text-2xl font-extrabold text-white">
+                      {formatMoney(totalSpent)}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Consumos en categorías presupuestadas
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Saldo Restante / Desvío */}
@@ -538,18 +559,27 @@ export default function PresupuestosPage() {
                     <PiggyBank className="h-4 w-4" />
                   </div>
                 </div>
-                <p
-                  className={`mt-3 text-2xl font-extrabold ${
-                    totalRemaining < 0 ? 'text-rose-400' : 'text-emerald-400'
-                  }`}
-                >
-                  {formatMoney(Math.abs(totalRemaining))}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-400">
-                  {totalRemaining >= 0
-                    ? 'Margen antes de agotar presupuesto'
-                    : 'Superado sobre el total asignado'}
-                </p>
+                {isDataLoading ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="h-8 w-36 rounded-xl bg-slate-800/80 animate-pulse" />
+                    <div className="h-3.5 w-36 rounded-md bg-slate-800/50 animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <p
+                      className={`mt-3 text-2xl font-extrabold ${
+                        totalRemaining < 0 ? 'text-rose-400' : 'text-emerald-400'
+                      }`}
+                    >
+                      {formatMoney(Math.abs(totalRemaining))}
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      {totalRemaining >= 0
+                        ? 'Margen antes de agotar presupuesto'
+                        : 'Superado sobre el total asignado'}
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Salud General */}
@@ -558,39 +588,52 @@ export default function PresupuestosPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     Consumo Global
                   </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
-                      globalStatus === 'EXCEEDED'
-                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                  {isDataLoading ? (
+                    <div className="h-5 w-20 rounded-full bg-slate-800 animate-pulse" />
+                  ) : (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                        globalStatus === 'EXCEEDED'
+                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                          : globalStatus === 'WARNING'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                      }`}
+                    >
+                      {globalStatus === 'EXCEEDED'
+                        ? 'Desbordado'
                         : globalStatus === 'WARNING'
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    }`}
-                  >
-                    {globalStatus === 'EXCEEDED'
-                      ? 'Desbordado'
-                      : globalStatus === 'WARNING'
-                      ? 'Límite Alto'
-                      : 'Saludable'}
-                  </span>
+                        ? 'Límite Alto'
+                        : 'Saludable'}
+                    </span>
+                  )}
                 </div>
-                <div className="mt-3 flex items-baseline justify-between">
-                  <p className="text-2xl font-extrabold text-white">
-                    {globalPercentage}%
-                  </p>
-                </div>
-                <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-950/80 border border-slate-800/80">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      globalStatus === 'EXCEEDED'
-                        ? 'bg-rose-500'
-                        : globalStatus === 'WARNING'
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
-                    }`}
-                    style={{ width: `${Math.min(globalPercentage, 100)}%` }}
-                  />
-                </div>
+                {isDataLoading ? (
+                  <div className="mt-3 space-y-3">
+                    <div className="h-8 w-20 rounded-xl bg-slate-800/80 animate-pulse" />
+                    <div className="h-2 w-full rounded-full bg-slate-800/50 animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-3 flex items-baseline justify-between">
+                      <p className="text-2xl font-extrabold text-white">
+                        {globalPercentage}%
+                      </p>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-950/80 border border-slate-800/80">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          globalStatus === 'EXCEEDED'
+                            ? 'bg-rose-500'
+                            : globalStatus === 'WARNING'
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${Math.min(globalPercentage, 100)}%` }}
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
