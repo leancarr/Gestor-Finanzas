@@ -15,10 +15,12 @@ import {
   Users,
   Layers,
   User as UserIcon,
+  Trash2,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
+import { TrashModal } from '@/components/trash/TrashModal';
 
 interface NavItem {
   name: string;
@@ -39,6 +41,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const [isTrashOpen, setIsTrashOpen] = React.useState(false);
   if (pathname === '/') return null;
 
   return (
@@ -96,6 +99,14 @@ export function Navbar() {
           <div className="flex items-center gap-2.5 shrink-0">
             <VaultSelector />
             <StreakBadge />
+            <button
+              type="button"
+              onClick={() => setIsTrashOpen(true)}
+              title="Papelera de Reciclaje"
+              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800 transition cursor-pointer"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
             <Link
               href="/perfil"
               title="Mi Perfil"
@@ -106,6 +117,8 @@ export function Navbar() {
             <UserStatus />
           </div>
         </div>
+
+        <TrashModal isOpen={isTrashOpen} onClose={() => setIsTrashOpen(false)} />
 
         {/* Mobile Subnavigation bar */}
         <div className="lg:hidden flex items-center gap-1 overflow-x-auto py-2 border-t border-slate-900 scrollbar-none">
