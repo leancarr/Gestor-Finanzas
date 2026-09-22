@@ -21,6 +21,7 @@ import {
   updateCategory,
   CategoryItem,
 } from '@/utils/api/categories';
+import { CustomColorPicker } from '@/components/ui/CustomColorPicker';
 
 const categorySchema = z.object({
   name: z
@@ -250,54 +251,12 @@ export function CategoryFormModal({
           </div>
 
           {/* Color Selector */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Palette className="h-3.5 w-3.5 text-emerald-400" />
-                Color de Identificación
-              </span>
-              <span className="font-mono text-[11px] text-slate-400">
-                {watchedColor}
-              </span>
-            </label>
-            <div className="flex flex-wrap gap-2 items-center">
-              {PRESET_COLORS.map((c) => {
-                const isSelected = watchedColor?.toLowerCase() === c.hex.toLowerCase();
-                return (
-                  <button
-                    key={c.hex}
-                    type="button"
-                    title={c.name}
-                    onClick={() => setValue('color', c.hex, { shouldValidate: true })}
-                    className={`group relative flex h-8 w-8 items-center justify-center rounded-xl transition-all cursor-pointer ${
-                      isSelected
-                        ? 'scale-110 ring-2 ring-white shadow-lg'
-                        : 'hover:scale-105 opacity-85 hover:opacity-100'
-                    }`}
-                    style={{ backgroundColor: c.hex }}
-                  >
-                    {isSelected && <Check className="h-4 w-4 text-white drop-shadow" />}
-                  </button>
-                );
-              })}
-
-              {/* Custom Color Input */}
-              <div className="relative flex items-center">
-                <input
-                  type="color"
-                  value={watchedColor || '#10B981'}
-                  onChange={(e) =>
-                    setValue('color', e.target.value, { shouldValidate: true })
-                  }
-                  className="h-8 w-8 cursor-pointer appearance-none rounded-xl border border-slate-700 bg-transparent p-0 overflow-hidden"
-                  title="Color personalizado"
-                />
-              </div>
-            </div>
-            {errors.color && (
-              <p className="mt-1.5 text-xs text-red-400">{errors.color.message}</p>
-            )}
-          </div>
+          <CustomColorPicker
+            value={watchedColor || '#10B981'}
+            onChange={(hex) => setValue('color', hex, { shouldValidate: true })}
+            label="Color de Identificación"
+            error={errors.color?.message}
+          />
 
           {/* Icon Selector */}
           <div>

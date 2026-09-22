@@ -63,12 +63,13 @@ export function CategoryCard({ category, onEdit, onDelete }: CategoryCardProps) 
                 color: color,
                 border: `1px solid ${color}35`,
               }}
+              title="Color de categoría"
             >
               <span
-                className="h-1.5 w-1.5 rounded-full"
+                className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: color }}
               />
-              {color}
+              <span>Categoría</span>
             </span>
 
             <span className="inline-flex items-center gap-1 rounded-full bg-slate-800/60 px-2.5 py-0.5 text-[10px] text-slate-400 border border-slate-700/50">
