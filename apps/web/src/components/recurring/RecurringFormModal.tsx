@@ -126,7 +126,7 @@ function RecurringFormBody({
       setIsSubmitting(true);
 
       const parsedDueDate = new Date(nextDueDate + 'T00:00:00.000Z').toISOString();
-      const parsedDayOfMonth = frequency === 'MONTHLY' ? Number(dayOfMonth) : undefined;
+      const parsedDayOfMonth = frequency === 'MONTHLY' ? new Date(nextDueDate + 'T00:00:00.000Z').getUTCDate() : undefined;
 
       if (isEditing && recurringToEdit) {
         const updateData: UpdateRecurringInput = {
@@ -286,39 +286,21 @@ function RecurringFormBody({
           </div>
         </div>
 
-        {/* Frecuencia y Día del mes */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-          <div className="sm:col-span-7 space-y-1.5">
-            <label className="font-semibold text-slate-200">
-              Frecuencia *
-            </label>
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as RecurrenceFrequency)}
-              className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            >
-              <option value="MONTHLY" className="bg-slate-900 text-white">Mensual</option>
-              <option value="YEARLY" className="bg-slate-900 text-white">Anual</option>
-              <option value="WEEKLY" className="bg-slate-900 text-white">Semanal</option>
-              <option value="DAILY" className="bg-slate-900 text-white">Diario</option>
-            </select>
-          </div>
-
-          {frequency === 'MONTHLY' && (
-            <div className="sm:col-span-5 space-y-1.5">
-              <label className="font-semibold text-slate-200">
-                Día de cobro
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                value={dayOfMonth}
-                onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-          )}
+        {/* Frecuencia */}
+        <div className="space-y-1.5">
+          <label className="font-semibold text-slate-200">
+            Frecuencia *
+          </label>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value as RecurrenceFrequency)}
+            className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="MONTHLY" className="bg-slate-900 text-white">Mensual</option>
+            <option value="YEARLY" className="bg-slate-900 text-white">Anual</option>
+            <option value="WEEKLY" className="bg-slate-900 text-white">Semanal</option>
+            <option value="DAILY" className="bg-slate-900 text-white">Diario</option>
+          </select>
         </div>
 
         {/* Próximo Vencimiento */}

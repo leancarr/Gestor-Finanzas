@@ -11,8 +11,9 @@ import {
   Trash2,
   Zap,
 } from 'lucide-react';
-import { RecurringItem } from '@/utils/api/recurring';
+import { RecurringItem, updateRecurring } from '@/utils/api/recurring';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 import {
   formatCurrency,
   SupportedCurrency,
@@ -46,6 +47,22 @@ export function RecurringCard({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isTogglingAutoDebit, setIsTogglingAutoDebit] = useState(false);
   const [isTogglingActive, setIsTogglingActive] = useState(false);
+  const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+  const [currentDueDateStr, setCurrentDueDateStr] = useState(
+    new Date(recurring.nextDueDate).toISOString().split('T')[0]
+  );
+
+  const handleQuickDateChange = async (newDate: string) => {
+    if (!newDate) return;
+    setCurrentDueDateStr(newDate);
+    try {
+      await updateRecurring(recurring.id, { nextDueDate: new Date(newDate + 'T00:00:00.000Z').toISOString() });
+      recurring.nextDueDate = newDate;
+      setIsEditingDueDate(false);
+    } catch (err) {
+      console.error('Error updating recurring due date:', err);
+    }
+  };
 
   const numericAmount =
     typeof recurring.amount === 'number'
@@ -217,7 +234,32 @@ export function RecurringCard({
         <div className="flex items-center gap-2">
           <Calendar className="h-3.5 w-3.5 text-slate-400" />
           <span className="text-slate-300">Próximo vencimiento:</span>
-          <span className="font-semibold text-white">{formattedDueDate}</span>
+          {isEditingDueDate ? (
+            <div className="flex items-center gap-1.5">
+              <CustomDatePicker
+                value={currentDueDateStr}
+                onChange={handleQuickDateChange}
+                className="w-40"
+              />
+              <button
+                type="button"
+                onClick={() => setIsEditingDueDate(false)}
+                className="text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditingDueDate(true)}
+              className="group/date flex items-center gap-1.5 font-semibold text-white hover:text-emerald-400 transition cursor-pointer"
+              title="Click para modificar fecha de próximo cobro"
+            >
+              <span>{formattedDueDate}</span>
+              <Edit2 className="h-3 w-3 text-slate-500 group-hover/date:text-emerald-400 transition" />
+            </button>
+          )}
         </div>
 
         {/* Days left badge */}

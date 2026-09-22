@@ -284,7 +284,7 @@ export class RecurringService {
 
       const now = new Date();
 
-      // 1. Crear gasto asociado
+      // 1. Crear gasto asociado con vínculo bidireccional
       const expense = await tx.expense.create({
         data: {
           amount: recurring.amount,
@@ -294,6 +294,7 @@ export class RecurringService {
           date: now,
           categoryId: recurring.categoryId,
           userId,
+          tags: [`recurring:${recurring.id}`],
         },
         include: {
           category: true,
@@ -366,6 +367,7 @@ export class RecurringService {
             date: now,
             categoryId: item.categoryId,
             userId,
+            tags: [`recurring:${item.id}`],
           },
           include: {
             category: true,
