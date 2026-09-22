@@ -28,6 +28,9 @@ import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { CurrencySelector } from '@/components/currencies/CurrencySelector';
 import { TaxBreakdownPreview } from '@/components/expenses/TaxBreakdownPreview';
 import { TagInput } from '@/components/tags/TagInput';
+import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
+import { CustomAmountInput } from '@/components/ui/CustomAmountInput';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import {
   SupportedCurrency,
   CURRENCY_LIST,
@@ -599,30 +602,20 @@ export function ExpenseForm({
             )}
           </div>
 
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
-              <Tag className="h-4 w-4" />
-            </div>
-            <select
-              {...register('categoryId')}
-              disabled={isLoadingCategories}
-              className={`w-full appearance-none rounded-2xl border border-slate-800 bg-slate-950/80 pl-10 pr-10 py-3 text-xs text-white placeholder-slate-500 shadow-inner focus:outline-none focus:ring-2 transition cursor-pointer disabled:opacity-50 ${
-                isIncome
-                  ? 'focus:border-emerald-500/60 focus:ring-emerald-500/20'
-                  : 'focus:border-rose-500/60 focus:ring-rose-500/20'
-              }`}
-            >
-              <option value="">Seleccionar una categoría (opcional)</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-slate-900 text-white">
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500">
-              ▼
-            </div>
-          </div>
+          <CustomSelect
+            value={selectedCategoryId || ''}
+            onChange={(val) => setValue('categoryId', val, { shouldValidate: true })}
+            options={categories.map((cat) => ({
+              value: cat.id,
+              label: cat.name,
+              icon: cat.icon,
+              color: cat.color,
+              type: isIncome ? 'INCOME' : 'EXPENSE',
+            }))}
+            disabled={isLoadingCategories}
+            placeholder="Seleccionar una categoría (opcional)..."
+            error={errors.categoryId?.message as string}
+          />
 
           {/* Quick Category Chips */}
           {categories.length > 0 && (
@@ -695,27 +688,12 @@ export function ExpenseForm({
               </button>
             </div>
           </div>
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
-              <Calendar className="h-4 w-4" />
-            </div>
-            <input
-              type="date"
-              {...register('date')}
-              className={`w-full rounded-2xl border bg-slate-950/80 pl-10 pr-4 py-3 text-xs text-white shadow-inner focus:outline-none focus:ring-2 transition cursor-pointer ${
-                errors.date
-                  ? 'border-red-500/50 focus:ring-red-500/30'
-                  : isIncome
-                  ? 'border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20'
-                  : 'border-slate-800 focus:border-rose-500/60 focus:ring-rose-500/20'
-              }`}
-            />
-          </div>
-          {errors.date && (
-            <p className="mt-1.5 text-xs text-red-400 font-medium">
-              {errors.date.message as string}
-            </p>
-          )}
+          <CustomDatePicker
+            value={currentDate}
+            onChange={(val) => setValue('date', val, { shouldValidate: true })}
+            placeholder="Seleccionar fecha del movimiento"
+            error={errors.date?.message as string}
+          />
         </div>
 
         {/* Action Buttons */}

@@ -22,6 +22,7 @@ import {
 } from '@/utils/api/recurring';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
 import { SupportedCurrency, CURRENCY_LIST } from '@/utils/api/rates';
+import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 
 interface RecurringFormModalProps {
   isOpen: boolean;
@@ -262,7 +263,7 @@ function RecurringFormBody({
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
                 required
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 pl-8 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 pl-8 pr-4 py-2.5 text-sm font-semibold text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           </div>
@@ -314,7 +315,7 @@ function RecurringFormBody({
                 max="31"
                 value={dayOfMonth}
                 onChange={(e) => setDayOfMonth(parseInt(e.target.value) || 1)}
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-3 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           )}
@@ -326,12 +327,11 @@ function RecurringFormBody({
             <Calendar className="h-3.5 w-3.5 text-slate-400" />
             Fecha de Próximo Vencimiento *
           </label>
-          <input
-            type="date"
+          <CustomDatePicker
             value={nextDueDate}
-            onChange={(e) => setNextDueDate(e.target.value)}
+            onChange={(val) => setNextDueDate(val)}
+            placeholder="Seleccionar fecha de vencimiento"
             required
-            className="w-full rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-2.5 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           />
         </div>
 
