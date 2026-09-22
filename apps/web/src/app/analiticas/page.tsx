@@ -19,7 +19,10 @@ import {
   Target,
   Users,
   Bot,
-  Trophy,
+  Award,
+  FileText,
+  CalendarDays,
+  X,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
@@ -29,9 +32,12 @@ import {
   AnalyticsData,
   AnalyticsRange,
 } from '@/utils/api/analytics';
+import { getExpenses, ExpenseItem } from '@/utils/api/expenses';
 import { AnalyticsKpiCards } from '@/components/analytics/AnalyticsKpiCards';
 import { ExpenseTimelineChart } from '@/components/analytics/ExpenseTimelineChart';
 import { AnalyticsCategoryBreakdown } from '@/components/analytics/AnalyticsCategoryBreakdown';
+import { AnalyticsReportsView } from '@/components/analytics/AnalyticsReportsView';
+import { CustomDatePicker } from '@/components/ui/CustomDatePicker';
 import {
   SupportedCurrency,
   SUPPORTED_CURRENCIES,
@@ -47,22 +53,27 @@ const RANGE_OPTIONS: Array<{
   label: string;
   description: string;
 }> = [
+  { id: 'month', label: 'Mes Completo', description: 'Desde el día 1 del mes' },
   { id: '7d', label: '7 Días', description: 'Últimos 7 días' },
   { id: '30d', label: '30 Días', description: 'Últimos 30 días' },
-  { id: 'month', label: 'Mes Actual', description: 'Desde el día 1' },
 ];
 
 export default function AnaliticasPage() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // Pestaña activa: Tableros vs Reportes
+  const [activeTab, setActiveTab] = useState<'analiticas' | 'reportes'>('analiticas');
+
   // Filtros de analíticas
-  const [range, setRange] = useState<AnalyticsRange>('30d');
+  const [range, setRange] = useState<AnalyticsRange>('month');
+  const [selectedDate, setSelectedDate] = useState<string>(''); // 'YYYY-MM-DD' o vacío para rango
   const [currency, setCurrency] = useState<SupportedCurrency>('ARS');
   const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
 
   // Datos
   const [data, setData] = useState<AnalyticsData | null>(null);
+  const [allExpenses, setAllExpenses] = useState<ExpenseItem[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +123,13 @@ export default function AnaliticasPage() {
 
   const handleRangeChange = (newRange: AnalyticsRange) => {
     setIsDataLoading(true);
+    setSelectedDate('');
     setRange(newRange);
+  };
+
+  const handleDateChange = (newDate: string) => {
+    setIsDataLoading(true);
+    setSelectedDate(newDate);
   };
 
   const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
@@ -120,18 +137,24 @@ export default function AnaliticasPage() {
     setCurrency(newCurrency);
   };
 
-  // Cargar métricas analíticas
+  // Cargar movimientos y métricas analíticas
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
+    setIsDataLoading(true);
 
-    getAnalytics({
-      range,
-      currency,
-      rates,
-    })
-      .then((analyticsData) => {
+    Promise.all([
+      getExpenses({ limit: 1000 }).catch(() => [] as ExpenseItem[]),
+      getAnalytics({
+        range,
+        currency,
+        rates,
+        selectedDate: selectedDate || undefined,
+      }),
+    ])
+      .then(([expensesList, analyticsData]) => {
         if (isMounted) {
+          setAllExpenses(expensesList);
           setData(analyticsData);
           setError(null);
           setIsDataLoading(false);
@@ -151,7 +174,64 @@ export default function AnaliticasPage() {
     return () => {
       isMounted = false;
     };
-  }, [user, range, currency, rates, reloadKey]);
+  }, [user, range, currency, rates, reloadKey, selectedDate]);
+
+  // Movimientos filtrados por el período activo (para reportes y exportación CSV/PDF)
+  const periodExpenses = useMemo(() => {
+    if (!allExpenses || allExpenses.length === 0) return [];
+
+    if (selectedDate) {
+      return allExpenses.filter((item) => {
+        const itemDateStr = item.date
+          ? item.date.includes('T')
+            ? item.date.split('T')[0]
+            : item.date
+          : '';
+        return itemDateStr === selectedDate;
+      });
+    }
+
+    const now = new Date();
+    let start: Date;
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    if (range === '7d') {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+    } else if (range === '30d') {
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0);
+    } else {
+      // 'month'
+      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    }
+
+    return allExpenses.filter((item) => {
+      const dateStr = item.date;
+      if (!dateStr) return false;
+      const itemDate = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+      return !isNaN(itemDate.getTime()) && itemDate >= start && itemDate <= end;
+    });
+  }, [allExpenses, selectedDate, range]);
+
+  // Etiqueta legible del período seleccionado
+  const periodLabel = useMemo(() => {
+    if (selectedDate) {
+      const parts = selectedDate.split('-').map(Number);
+      const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+      return new Intl.DateTimeFormat('es-AR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(dateObj);
+    }
+    if (range === 'month') {
+      return `Mes Actual (${new Intl.DateTimeFormat('es-AR', {
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date())})`;
+    }
+    if (range === '7d') return 'Últimos 7 días';
+    return 'Últimos 30 días';
+  }, [selectedDate, range]);
 
   const activeRangeOption = RANGE_OPTIONS.find((r) => r.id === range);
 
@@ -207,11 +287,11 @@ export default function AnaliticasPage() {
               Inversiones
             </Link>
             <Link
-              href="/retos"
+              href="/metas"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <Trophy className="h-3.5 w-3.5 text-amber-400" />
-              Retos
+              <Award className="h-3.5 w-3.5 text-emerald-400" />
+              Metas
             </Link>
             <Link
               href="/presupuestos"
@@ -280,81 +360,145 @@ export default function AnaliticasPage() {
         {/* ========================================================================= */}
         {user && (
           <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Toolbar: Selector de Rango + Selector de Moneda */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-              {/* Range Selector */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  <Calendar className="h-4 w-4 text-emerald-400" />
-                  <span>Período:</span>
-                </div>
+            {/* Toolbar: Pestañas + Selector de Rango/Día + Selector de Moneda */}
+            <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+              {/* Fila 1: Pestañas principales (Tableros vs Reportes) y Selector de Moneda */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                {/* Tabs switcher */}
                 <div className="flex items-center p-1 rounded-2xl border border-white/10 bg-slate-950/70 shadow-inner">
-                  {RANGE_OPTIONS.map((opt) => {
-                    const isSelected = range === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => handleRangeChange(opt.id)}
-                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                        title={opt.description}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('analiticas')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'analiticas'
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Tableros Analíticos</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('reportes')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'reportes'
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>Vista de Reportes</span>
+                  </button>
                 </div>
-                <span className="hidden sm:inline text-xs text-slate-500">
-                  ({activeRangeOption?.description})
-                </span>
+
+                {/* Moneda & Recarga */}
+                <div className="flex items-center gap-3 self-start sm:self-auto">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                      <Coins className="h-3.5 w-3.5 text-amber-400" />
+                      Moneda:
+                    </span>
+                    <div className="flex items-center p-1 rounded-2xl border border-white/10 bg-slate-950/70 shadow-inner text-xs">
+                      {SUPPORTED_CURRENCIES.map((code) => {
+                        const isSelected = currency === code;
+                        const info = CURRENCY_LIST[code];
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            onClick={() => handleCurrencyChange(code)}
+                            className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                              isSelected
+                                ? 'bg-white/15 text-white shadow-sm ring-1 ring-white/20'
+                                : 'text-slate-400 hover:text-slate-200'
+                            }`}
+                            title={info.name}
+                          >
+                            <span>{info.flag}</span>
+                            <span>{code}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRefresh}
+                    disabled={isDataLoading}
+                    className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer disabled:opacity-50"
+                    title="Recargar análisis"
+                  >
+                    <RefreshCw
+                      className={`h-4 w-4 ${isDataLoading ? 'animate-spin text-emerald-400' : ''}`}
+                    />
+                  </button>
+                </div>
               </div>
 
-              {/* Currency Selector & Reload */}
-              <div className="flex items-center gap-3 self-start lg:self-auto">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                    <Coins className="h-3.5 w-3.5 text-amber-400" />
-                    Moneda:
-                  </span>
-                  <div className="flex items-center p-1 rounded-2xl border border-white/10 bg-slate-950/70 shadow-inner text-xs">
-                    {SUPPORTED_CURRENCIES.map((code) => {
-                      const isSelected = currency === code;
-                      const info = CURRENCY_LIST[code];
+              {/* Fila 2: Filtro de Período y Selector de Día Específico (CustomDatePicker) */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <Calendar className="h-4 w-4 text-emerald-400" />
+                    <span>Período:</span>
+                  </div>
+
+                  {/* Rangos predeterminados */}
+                  <div className="flex items-center p-1 rounded-2xl border border-white/10 bg-slate-950/70 shadow-inner">
+                    {RANGE_OPTIONS.map((opt) => {
+                      const isSelected = !selectedDate && range === opt.id;
                       return (
                         <button
-                          key={code}
+                          key={opt.id}
                           type="button"
-                          onClick={() => handleCurrencyChange(code)}
-                          className={`px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          onClick={() => handleRangeChange(opt.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-white/15 text-white shadow-sm ring-1 ring-white/20'
+                              ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50'
                               : 'text-slate-400 hover:text-slate-200'
                           }`}
-                          title={info.name}
+                          title={opt.description}
                         >
-                          <span>{info.flag}</span>
-                          <span>{code}</span>
+                          {opt.label}
                         </button>
                       );
                     })}
                   </div>
+
+                  {/* Selector de día específico con CustomDatePicker */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 font-medium">o</span>
+                    <div className="w-52">
+                      <CustomDatePicker
+                        value={selectedDate}
+                        onChange={handleDateChange}
+                        placeholder="Día específico..."
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleRefresh}
-                  disabled={isDataLoading}
-                  className="flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition cursor-pointer disabled:opacity-50"
-                  title="Recargar análisis"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 ${isDataLoading ? 'animate-spin text-emerald-400' : ''}`}
-                  />
-                </button>
+                {/* Badge o información de filtro activo */}
+                {selectedDate ? (
+                  <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs text-emerald-300 self-start lg:self-auto">
+                    <CalendarDays className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Filtrando día: <strong>{periodLabel}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => handleRangeChange('month')}
+                      className="ml-1 text-slate-400 hover:text-white transition cursor-pointer"
+                      title="Restablecer a Mes Completo"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-500 self-start lg:self-auto">
+                    Período activo: <strong className="text-slate-300">{periodLabel}</strong>
+                  </span>
+                )}
               </div>
             </div>
 
@@ -374,63 +518,80 @@ export default function AnaliticasPage() {
               </div>
             )}
 
-            {/* 1. SECCIÓN DE TARJETAS KPIS CON GLASSMORPHISM */}
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
-                    Indicadores Clave de Rendimiento (KPIs)
-                  </h2>
-                </div>
-                {data?.isFallback && (
-                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                    Cálculo local reactivo
-                  </span>
-                )}
-              </div>
-
-              <AnalyticsKpiCards
-                kpis={data?.kpis ?? null}
-                currency={currency}
-                loading={isDataLoading}
-                range={range}
-              />
-            </section>
-
-            {/* 2. SECCIÓN DE LÍNEA TEMPORAL: GASTOS VS INGRESOS (RECHARTS) */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
-                  Evolución y Curva Temporal
-                </h2>
-              </div>
-
-              <ExpenseTimelineChart
-                data={data?.timeline ?? []}
-                currency={currency}
-                loading={isDataLoading}
-              />
-            </section>
-
-            {/* 3. SECCIÓN DE DESGLOSE POR CATEGORÍAS */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-purple-400" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
-                  Distribución de Presupuesto
-                </h2>
-              </div>
-
-              <AnalyticsCategoryBreakdown
+            {/* RENDERIZADO SEGÚN PESTAÑA ACTIVA */}
+            {activeTab === 'reportes' ? (
+              /* VISTA DE REPORTES (SEI-58) */
+              <AnalyticsReportsView
+                periodExpenses={periodExpenses}
                 categories={data?.byCategory ?? []}
+                totalIncome={data?.kpis.totalIncome ?? 0}
                 totalExpenses={data?.kpis.totalExpenses ?? 0}
                 currency={currency}
+                periodLabel={periodLabel}
                 loading={isDataLoading}
               />
-            </section>
+            ) : (
+              /* VISTA DE TABLEROS ANALÍTICOS (GRÁFICOS & KPIS) */
+              <>
+                {/* 1. SECCIÓN DE TARJETAS KPIS CON GLASSMORPHISM */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+                        Indicadores Clave de Rendimiento (KPIs)
+                      </h2>
+                    </div>
+                    {data?.isFallback && (
+                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                        Cálculo local reactivo
+                      </span>
+                    )}
+                  </div>
+
+                  <AnalyticsKpiCards
+                    kpis={data?.kpis ?? null}
+                    currency={currency}
+                    loading={isDataLoading}
+                    range={range}
+                  />
+                </section>
+
+                {/* 2. SECCIÓN DE LÍNEA TEMPORAL: GASTOS VS INGRESOS (RECHARTS) */}
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+                      Evolución y Curva Temporal
+                    </h2>
+                  </div>
+
+                  <ExpenseTimelineChart
+                    data={data?.timeline ?? []}
+                    currency={currency}
+                    loading={isDataLoading}
+                  />
+                </section>
+
+                {/* 3. SECCIÓN DE DESGLOSE POR CATEGORÍAS */}
+                <section className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-purple-400" />
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+                      Distribución de Presupuesto
+                    </h2>
+                  </div>
+
+                  <AnalyticsCategoryBreakdown
+                    categories={data?.byCategory ?? []}
+                    totalExpenses={data?.kpis.totalExpenses ?? 0}
+                    currency={currency}
+                    loading={isDataLoading}
+                  />
+                </section>
+              </>
+            )}
 
             {/* Footer de navegación rápida */}
             <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 via-white/[0.02] to-white/5 p-6 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">

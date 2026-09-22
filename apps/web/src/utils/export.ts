@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+import jsPDF, { GState } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { ExpenseItem } from './api/expenses';
 
@@ -6,24 +6,28 @@ function formatCurrency(amount: number | string, currency: string = 'ARS') {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
     currency: currency,
-  }).format(Number(amount));
+  }).format(Number(amount) || 0);
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('es-AR');
+  if (!dateStr) return '-';
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('es-AR');
 }
 
-export function exportToCSV(data: ExpenseItem[]) {
+export function exportToCSV(data: ExpenseItem[], filenamePrefix: string = 'Gestor_Guita_Reporte') {
   if (!data || data.length === 0) return;
 
-  const headers = ['Fecha', 'Descripción', 'Categoría', 'Monto', 'Tipo'];
+  const headers = ['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Monto', 'Moneda'];
   
   const rows = data.map((item) => [
     formatDate(item.date),
-    `"${item.description.replace(/"/g, '""')}"`, // escape quotes
-    `"${item.category?.name || 'Sin Categoría'}"`,
-    item.amount,
+    `"${(item.description || '').replace(/"/g, '""')}"`, // escape quotes
+    `"${(item.category?.name || 'Sin Categoría').replace(/"/g, '""')}"`,
     item.type === 'INCOME' ? 'Ingreso' : 'Gasto',
+    typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount)) || 0,
+    item.currency || 'ARS',
   ]);
 
   const csvContent =
@@ -36,7 +40,7 @@ export function exportToCSV(data: ExpenseItem[]) {
   const url = URL.createObjectURL(blob);
 
   link.setAttribute('href', url);
-  link.setAttribute('download', `Gestor_Guita_Export_${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute('download', `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.csv`);
   link.style.visibility = 'hidden';
   
   document.body.appendChild(link);
@@ -44,64 +48,248 @@ export function exportToCSV(data: ExpenseItem[]) {
   document.body.removeChild(link);
 }
 
-export function exportToPDF(data: ExpenseItem[], includeSummary: boolean = true) {
+export interface ExportPDFOptions {
+  includeSummary?: boolean;
+  periodLabel?: string;
+  currency?: string;
+  customTitle?: string;
+}
+
+export function exportToPDF(
+  data: ExpenseItem[],
+  optionsOrSummary: boolean | ExportPDFOptions = true
+) {
   if (!data || data.length === 0) return;
 
-  const doc = new jsPDF();
-  
-  // Header
-  doc.setFontSize(20);
-  doc.setTextColor(16, 185, 129); // Emerald 500
-  doc.text('Reporte Financiero', 14, 22);
-  
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Generado el: ${new Date().toLocaleDateString('es-AR')}`, 14, 30);
-  doc.text('Gestor Guita App', 14, 35);
+  const options: ExportPDFOptions =
+    typeof optionsOrSummary === 'boolean'
+      ? { includeSummary: optionsOrSummary }
+      : optionsOrSummary || { includeSummary: true };
 
+  const {
+    includeSummary = true,
+    periodLabel,
+    currency = 'ARS',
+    customTitle = 'REPORTE FINANCIERO EJECUTIVO',
+  } = options;
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // 1. Franja decorativa institucional superior (Esmeralda)
+  doc.setFillColor(16, 185, 129); // Emerald 500
+  doc.rect(0, 0, pageWidth, 4, 'F');
+
+  // 2. Badge Corporativo Sobrio (Slate / Esmeralda)
+  doc.setFillColor(15, 23, 42); // Slate 900
+  doc.roundedRect(14, 10, 48, 7, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(255, 255, 255);
+  doc.text('GESTOR GUITA', 18, 14.8);
+  doc.setFillColor(16, 185, 129);
+  doc.circle(56, 13.5, 1.2, 'F');
+
+  // 3. Título Principal Formal
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(15, 23, 42); // Slate 900
+  doc.text(customTitle, 14, 24);
+
+  // 4. Metadatos de Encabezado Formal
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 116, 139); // Slate 500
+  doc.text(`Período auditado: ${periodLabel || 'Consolidado histórico'}`, 14, 30);
+  doc.text(
+    `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`,
+    pageWidth - 14,
+    24,
+    { align: 'right' }
+  );
+  doc.text(
+    `Total de registros: ${data.length} movimientos`,
+    pageWidth - 14,
+    30,
+    { align: 'right' }
+  );
+
+  // 5. Línea divisoria formal
+  doc.setDrawColor(226, 232, 240); // Slate 200
+  doc.setLineWidth(0.4);
+  doc.line(14, 34, pageWidth - 14, 34);
+
+  let startTableY = 40;
+
+  // 6. Tarjetas de Balance Ejecutivo (si includeSummary es true)
+  if (includeSummary) {
+    const totalIncomes = data
+      .filter((d) => d.type === 'INCOME')
+      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+    const totalExpenses = data
+      .filter((d) => (d.type || 'EXPENSE') === 'EXPENSE')
+      .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+    const netBalance = totalIncomes - totalExpenses;
+    const savingRate =
+      totalIncomes > 0
+        ? Math.max(0, Math.round(((totalIncomes - totalExpenses) / totalIncomes) * 1000) / 10)
+        : 0;
+
+    const cardY = 37;
+    const cardHeight = 16;
+    const cardGap = 3.5;
+    const cardWidth = (pageWidth - 28 - cardGap * 3) / 4;
+
+    const summaryCards = [
+      {
+        label: 'TOTAL INGRESOS',
+        value: formatCurrency(totalIncomes, currency),
+        color: [5, 150, 105], // Emerald 600
+      },
+      {
+        label: 'TOTAL GASTOS',
+        value: formatCurrency(totalExpenses, currency),
+        color: [225, 29, 72], // Rose 600
+      },
+      {
+        label: 'BALANCE NETO',
+        value: `${netBalance >= 0 ? '+' : ''}${formatCurrency(netBalance, currency)}`,
+        color: netBalance >= 0 ? [5, 150, 105] : [225, 29, 72],
+      },
+      {
+        label: 'TASA DE AHORRO',
+        value: `${savingRate}%`,
+        color: [15, 23, 42], // Slate 900
+      },
+    ];
+
+    summaryCards.forEach((card, idx) => {
+      const cardX = 14 + idx * (cardWidth + cardGap);
+      doc.setFillColor(248, 250, 252); // Slate 50
+      doc.setDrawColor(226, 232, 240); // Slate 200
+      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 1.8, 1.8, 'FD');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139); // Slate 500
+      doc.text(card.label, cardX + 3.2, cardY + 5.2);
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(card.color[0], card.color[1], card.color[2]);
+      doc.text(card.value, cardX + 3.2, cardY + 12.2);
+    });
+
+    startTableY = cardY + cardHeight + 6;
+  }
+
+  // 7. Tabla estructurada con jspdf-autotable
   const tableData = data.map((item) => [
     formatDate(item.date),
-    item.description,
-    item.category?.name || '-',
+    item.description || '-',
+    item.category?.name || 'Sin Categoría',
     item.type === 'INCOME' ? 'Ingreso' : 'Gasto',
-    formatCurrency(item.amount, item.currency)
+    formatCurrency(item.amount, item.currency || currency),
   ]);
 
   autoTable(doc, {
-    startY: 45,
+    startY: startTableY,
+    margin: { top: 25, bottom: 20, left: 14, right: 14 },
     head: [['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Monto']],
     body: tableData,
     theme: 'grid',
-    headStyles: { fillColor: [16, 185, 129] },
-    alternateRowStyles: { fillColor: [245, 245, 245] },
+    headStyles: {
+      fillColor: [15, 23, 42], // Slate 900
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: 'bold',
+      halign: 'left',
+    },
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2.8,
+      lineColor: [226, 232, 240], // Slate 200
+      lineWidth: 0.2,
+      textColor: [30, 41, 59], // Slate 800
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252], // Slate 50
+    },
     columnStyles: {
-      4: { halign: 'right' },
+      0: { cellWidth: 24, halign: 'center' },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 22, halign: 'center' },
+      4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+    },
+    didParseCell: (hookData) => {
+      if (hookData.section === 'body' && hookData.column.index === 3) {
+        if (hookData.cell.raw === 'Ingreso') {
+          hookData.cell.styles.textColor = [5, 150, 105]; // Emerald
+          hookData.cell.styles.fontStyle = 'bold';
+        } else {
+          hookData.cell.styles.textColor = [225, 29, 72]; // Rose
+        }
+      }
     },
   });
 
-  if (includeSummary) {
-    const totalIncomes = data.filter(d => d.type === 'INCOME').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const totalExpenses = data.filter(d => d.type === 'EXPENSE').reduce((acc, curr) => acc + Number(curr.amount), 0);
-    const balance = totalIncomes - totalExpenses;
+  // 8. Marca de agua diagonal y numeración de página formal en todas las páginas
+  const totalPages = doc.getNumberOfPages();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const finalY = (doc as any).lastAutoTable.finalY || 45;
-    
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Resumen Total', 14, finalY + 15);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(16, 185, 129); // Green
-    doc.text(`Total Ingresos: ${formatCurrency(totalIncomes)}`, 14, finalY + 23);
-    
-    doc.setTextColor(239, 68, 68); // Red
-    doc.text(`Total Gastos: ${formatCurrency(totalExpenses)}`, 14, finalY + 30);
-    
-    doc.setFontSize(12);
-    doc.setTextColor(balance >= 0 ? 16 : 239, balance >= 0 ? 185 : 68, balance >= 0 ? 129 : 68);
-    doc.text(`Balance Neto: ${formatCurrency(balance)}`, 14, finalY + 40);
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+
+    // Marca de agua institucional sutil en diagonal ('GESTOR GUITA')
+    doc.saveGraphicsState();
+    doc.setGState(new GState({ opacity: 0.05 }));
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(48);
+    doc.setTextColor(100, 116, 139); // Slate 500
+    doc.text('GESTOR GUITA', pageWidth / 2, pageHeight / 2, {
+      align: 'center',
+      angle: 45,
+    });
+    doc.restoreGraphicsState();
+
+    // Encabezado compacto en páginas subsiguientes
+    if (i > 1) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text('GESTOR GUITA — REPORTE FINANCIERO EJECUTIVO', 14, 12);
+      doc.setFont('helvetica', 'normal');
+      if (periodLabel) {
+        doc.text(`Período: ${periodLabel}`, pageWidth - 14, 12, { align: 'right' });
+      }
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.3);
+      doc.line(14, 15, pageWidth - 14, 15);
+    }
+
+    // Pie de página formal con paginación
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.4);
+    doc.line(14, pageHeight - 14, pageWidth - 14, pageHeight - 14);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(148, 163, 184); // Slate 400
+    const footerText = `Página ${i} de ${totalPages} - Documento confidencial generado por Gestor Guita`;
+    doc.text(footerText, pageWidth / 2, pageHeight - 9, { align: 'center' });
   }
 
-  doc.save(`Gestor_Guita_Reporte_${new Date().toISOString().split('T')[0]}.pdf`);
+  const safeFilename = (customTitle || 'Reporte_Financiero')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_');
+  doc.save(`Gestor_Guita_${safeFilename}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
+
