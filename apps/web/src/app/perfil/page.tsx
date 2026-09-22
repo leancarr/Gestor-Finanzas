@@ -15,9 +15,6 @@ import {
   Shield,
   ShieldAlert,
   Trash2,
-  Fingerprint,
-  Check,
-  Copy,
   BarChart3,
   DollarSign,
   Repeat,
@@ -25,7 +22,7 @@ import {
   Users,
   Bot,
   TrendingUp,
-  Trophy,
+  Award,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { UserStatus } from '@/components/auth/UserStatus';
@@ -49,7 +46,6 @@ export default function PerfilPage() {
   // Form states
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState(false);
 
   // Status feedback
   const [isSaving, startTransition] = useTransition();
@@ -183,14 +179,6 @@ export default function PerfilPage() {
     });
   };
 
-  // Copiar UUID al portapapeles
-  const handleCopyId = () => {
-    if (!profile?.id) return;
-    navigator.clipboard.writeText(profile.id);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
-  };
-
   const formattedRegisterDate = profile?.createdAt
     ? new Date(profile.createdAt).toLocaleDateString('es-AR', {
         day: 'numeric',
@@ -266,11 +254,11 @@ export default function PerfilPage() {
               Inversiones
             </Link>
             <Link
-              href="/retos"
+              href="/metas"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
             >
-              <Trophy className="h-3.5 w-3.5 text-amber-400" />
-              Retos
+              <Award className="h-3.5 w-3.5 text-emerald-400" />
+              Metas
             </Link>
             <Link
               href="/presupuestos"
@@ -503,73 +491,78 @@ export default function PerfilPage() {
               </form>
             </section>
 
-            {/* Sección 3: Seguridad, Auditoría y Aislamiento RLS */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur-md space-y-4">
+            {/* Sección 3: Seguridad y Privacidad */}
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur-md space-y-5">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
                   <h2 className="text-base font-bold text-white flex items-center gap-2">
                     <Shield className="h-4 w-4 text-emerald-400" />
-                    Seguridad & Metadatos de Sesión
+                    Seguridad & Protección de Datos
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Información técnica de protección criptográfica y acceso
+                    Resguardo de tu cuenta y privacidad financiera personal
                   </p>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {/* Identificador UUID */}
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5 sm:col-span-2 lg:col-span-1">
-                  <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                    <Fingerprint className="h-3 w-3 text-slate-400" />
-                    ID de Usuario (UUID)
-                  </span>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs text-slate-300 truncate">
-                      {profile?.id || user.id}
+              {/* Badge sobrio y profesional: Cuenta protegida y blindada */}
+              <div className="rounded-2xl border border-emerald-500/25 bg-emerald-950/20 p-4 sm:p-5 flex items-start sm:items-center gap-4 backdrop-blur-sm shadow-inner">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30 shadow-md">
+                  <Shield className="h-6 w-6" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm font-bold text-white tracking-wide">
+                      Cuenta protegida y blindada
                     </span>
-                    <button
-                      type="button"
-                      onClick={handleCopyId}
-                      className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer shrink-0"
-                      title="Copiar ID"
-                    >
-                      {copiedId ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Activo
+                    </span>
                   </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Tus movimientos, categorías y patrimonio están completamente aislados y cifrados. Solo tú tienes acceso a tu información financiera personal.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-1">
+                {/* Estado de Protección */}
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1.5 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Estado de Protección
+                  </span>
+                  <p className="font-semibold text-xs text-white flex items-center gap-1.5">
+                    <span className="text-emerald-400">Blindaje de Privacidad</span>
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    Aislamiento estricto por cuenta
+                  </p>
                 </div>
 
-                {/* Proveedor y Rol */}
+                {/* Proveedor y Sesión */}
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5">
-                  <span className="text-[11px] text-slate-500">Proveedor / Rol</span>
+                  <span className="text-[11px] text-slate-400 font-medium">Método de Acceso</span>
                   <p className="font-semibold text-xs text-white capitalize flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-                    {profile?.provider || user.app_metadata?.provider || 'email'}
-                    <span className="text-[10px] font-normal text-slate-400">
-                      ({profile?.role || user.role || 'authenticated'})
-                    </span>
+                    {profile?.provider || user.app_metadata?.provider || 'Email Seguro'}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    Sesión cifrada y verificada
                   </p>
                 </div>
 
                 {/* Último Acceso */}
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5">
-                  <span className="text-[11px] text-slate-500">Último Acceso Registrado</span>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5 sm:col-span-2 lg:col-span-1">
+                  <span className="text-[11px] text-slate-400 font-medium">Última Conexión Registrada</span>
                   <p className="font-semibold text-xs text-slate-200">
                     {formattedLastSignIn}
                   </p>
+                  <p className="text-[10px] text-slate-500">
+                    Registro de actividad reciente
+                  </p>
                 </div>
-              </div>
-
-              {/* Banner de RLS */}
-              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-4 flex items-center gap-3">
-                <Shield className="h-5 w-5 text-emerald-400 shrink-0" />
-                <p className="text-xs text-emerald-300 leading-relaxed">
-                  <strong className="font-semibold text-white">Row Level Security (RLS) Activo:</strong> Todas tus transacciones, categorías y balances están blindados con aislamiento estricto en el motor PostgreSQL vinculado exclusivamente a tu UUID.
-                </p>
               </div>
             </section>
 
