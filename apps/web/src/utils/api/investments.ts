@@ -94,115 +94,124 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 /**
  * Clave de almacenamiento y mock inicial para desarrollo offline / local
  */
-const MOCK_INVESTMENTS_STORAGE_KEY = 'gestorguita_mock_investments_data';
+const MOCK_INVESTMENTS_STORAGE_KEY = 'gestorguita_mock_investments_v3';
 
-const INITIAL_MOCK_ASSETS: Asset[] = [
+export const INITIAL_MOCK_ASSETS: Asset[] = [
   {
-    id: 'asset-1',
-    name: 'Efectivo y Cuentas a la Vista',
-    type: 'CASH_ARS',
-    quantity: 650000,
-    purchasePrice: 1,
-    currentPrice: 1,
+    id: 'asset-aapl',
+    name: 'CEDEAR Apple (AAPL)',
+    type: 'CEDEAR',
+    ticker: 'AAPL',
+    quantity: 15,
+    purchasePrice: 4700,
+    currentPrice: 5000, // 15 * 5000 = ~$75.000 ARS
     currency: 'ARS',
-    institution: 'Banco Galicia',
-    notes: 'Liquidez diaria para emergencias y gastos del mes',
+    institution: 'Bull Market Brokers',
+    notes: '15 acciones CEDEAR Apple Inc.',
+    createdAt: new Date(Date.now() - 45 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'asset-spy',
+    name: 'CEDEAR SPY (S&P 500)',
+    type: 'CEDEAR',
+    ticker: 'SPY',
+    quantity: 10,
+    purchasePrice: 11200,
+    currentPrice: 12000, // 10 * 12000 = ~$120.000 ARS
+    currency: 'ARS',
+    institution: 'IOL InvertirOnline',
+    notes: '10 acciones ETF SPDR S&P 500',
     createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'asset-2',
-    name: 'Dólares Ahorro Líquidos',
+    id: 'asset-plazo-fijo-galicia',
+    name: 'Plazo Fijo Banco Galicia',
+    type: 'FIXED_TERM',
+    quantity: 1500000, // Capital $1.500.000 ARS
+    purchasePrice: 1500000,
+    currentPrice: 1545616, // Capital + rendimiento proyectado
+    currency: 'ARS',
+    institution: 'Banco Galicia',
+    interestRate: 37, // TNA 37%
+    dueDate: new Date(Date.now() + 20 * 86400000).toISOString().split('T')[0],
+    notes: 'Capital $1.500.000 ARS a TNA 37%',
+    createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'asset-dolar-mep',
+    name: 'Dólar MEP',
     type: 'CASH_USD',
-    quantity: 1800,
+    quantity: 2500, // 2.500 USD
     purchasePrice: 1,
     currentPrice: 1,
     currency: 'USD',
-    institution: 'Caja de Seguridad / Banco Santander',
-    notes: 'Reserva estratégica en billete físico y cuenta USD',
-    createdAt: new Date(Date.now() - 90 * 86400000).toISOString(),
+    institution: 'Balanz',
+    notes: '2.500 USD disponibles en cuenta comitente',
+    createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'asset-3',
-    name: 'Plazo Fijo Tradicional 30d',
-    type: 'FIXED_TERM',
-    quantity: 1200000,
-    purchasePrice: 1200000,
-    currentPrice: 1238000,
-    currency: 'ARS',
-    institution: 'Banco BBVA',
-    dueDate: new Date(Date.now() + 18 * 86400000).toISOString().split('T')[0],
-    interestRate: 38.5,
-    notes: 'Rendimiento mensual con acreditación al vencimiento',
-    createdAt: new Date(Date.now() - 12 * 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asset-4',
-    name: 'Apple Inc.',
-    type: 'CEDEAR',
-    ticker: 'AAPL',
-    quantity: 25,
-    purchasePrice: 19500,
-    currentPrice: 24650,
-    currency: 'ARS',
-    institution: 'Bull Market Brokers',
-    notes: 'Posición de largo plazo en gigante tecnológico',
-    createdAt: new Date(Date.now() - 120 * 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asset-5',
-    name: 'SPDR S&P 500 ETF Trust',
-    type: 'CEDEAR',
-    ticker: 'SPY',
-    quantity: 40,
-    purchasePrice: 32000,
-    currentPrice: 42150,
-    currency: 'ARS',
-    institution: 'IOL InvertirOnline',
-    notes: 'Indexado al mercado de renta variable estadounidense',
-    createdAt: new Date(Date.now() - 150 * 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asset-6',
+    id: 'asset-bitcoin',
     name: 'Bitcoin',
     type: 'CRYPTO',
     ticker: 'BTC',
-    quantity: 0.055,
-    purchasePrice: 59200,
-    currentPrice: 68400,
+    quantity: 0.045, // 0.045 BTC
+    purchasePrice: 58500,
+    currentPrice: 64200,
     currency: 'USD',
     institution: 'Hardware Wallet (Trezor)',
-    notes: 'HODL reserva de valor digital descentralizada',
-    createdAt: new Date(Date.now() - 200 * 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'asset-7',
-    name: 'Ethereum',
-    type: 'CRYPTO',
-    ticker: 'ETH',
-    quantity: 0.95,
-    purchasePrice: 2750,
-    currentPrice: 3480,
-    currency: 'USD',
-    institution: 'Lemon Cash',
-    notes: 'Ecosistema de contratos inteligentes y DeFi',
-    createdAt: new Date(Date.now() - 180 * 86400000).toISOString(),
+    notes: '0.045 BTC reserva en custodia fría',
+    createdAt: new Date(Date.now() - 90 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
 ];
 
+/**
+ * Sanitiza la lista de activos purgando cualquier valor anómalo o de prueba astronómico
+ */
+export function sanitizeAssets(assets: Asset[]): Asset[] {
+  return assets.filter((asset) => {
+    const qty = Number(asset.quantity) || 0;
+    const currentPrice = Number(asset.currentPrice) || Number(asset.purchasePrice) || 0;
+    const isUsd = (asset.currency || 'ARS').toUpperCase() === 'USD';
+    const approxArs = isUsd ? qty * currentPrice * 1200 : qty * currentPrice;
+
+    // Purgar activos con valuación astronómica (> 100.000 millones ARS o > 100M USD) o cantidades irreales
+    if (approxArs > 100_000_000_000 || qty > 500_000_000) {
+      return false;
+    }
+    const nameLower = (asset.name || '').toLowerCase();
+    const notesLower = (asset.notes || '').toLowerCase();
+    if (
+      nameLower.includes('trillon') ||
+      nameLower.includes('trillón') ||
+      notesLower.includes('trillon') ||
+      notesLower.includes('trillón')
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function getLocalAssets(): Asset[] {
   if (typeof window === 'undefined') return INITIAL_MOCK_ASSETS;
   try {
+    // Purgar versiones previas con posibles mocks astronómicos
+    if (localStorage.getItem('gestorguita_mock_investments_data')) {
+      localStorage.removeItem('gestorguita_mock_investments_data');
+    }
+
     const raw = localStorage.getItem(MOCK_INVESTMENTS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        const sanitized = sanitizeAssets(parsed);
+        if (sanitized.length > 0) return sanitized;
+      }
     }
   } catch {
     // fallback a iniciales
@@ -214,7 +223,8 @@ function getLocalAssets(): Asset[] {
 function saveLocalAssets(assets: Asset[]) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(MOCK_INVESTMENTS_STORAGE_KEY, JSON.stringify(assets));
+    const sanitized = sanitizeAssets(assets);
+    localStorage.setItem(MOCK_INVESTMENTS_STORAGE_KEY, JSON.stringify(sanitized));
   } catch {
     // Silently ignore storage quota or private mode issues
   }
@@ -345,8 +355,9 @@ export async function getAssets(type?: AssetType): Promise<Asset[]> {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
-        saveLocalAssets(data);
-        return data;
+        const sanitized = sanitizeAssets(data);
+        saveLocalAssets(sanitized);
+        return type ? sanitized.filter((a) => a.type === type) : sanitized;
       }
     }
   } catch {

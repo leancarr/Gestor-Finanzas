@@ -343,6 +343,7 @@ describe('RecurringService', () => {
           date: expect.any(Date),
           categoryId: mockRecurring.categoryId,
           userId: 'user-123',
+          tags: [`recurring:${mockRecurring.id}`],
         },
         include: { category: true },
       });

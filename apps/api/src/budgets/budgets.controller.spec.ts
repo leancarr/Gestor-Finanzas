@@ -11,10 +11,8 @@ describe('BudgetsController', () => {
     id: 'user-123',
     email: 'test@example.com',
     role: 'authenticated',
-    app_metadata: {},
-    user_metadata: {},
-    aud: 'authenticated',
-    created_at: new Date().toISOString(),
+    appMetadata: {},
+    userMetadata: {},
   };
 
   const mockEnrichedBudget = {

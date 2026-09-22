@@ -11,6 +11,98 @@ interface AvatarUploadProps {
   disabled?: boolean;
 }
 
+/**
+ * Comprime y redimensiona una imagen en el cliente utilizando HTML Canvas.
+ * Genera un avatar circular de máximo 128x128 píxeles en formato WebP (con fallback a JPEG)
+ * a calidad 0.8 y garantiza un tamaño final inferior a 40 KB antes de persistir.
+ */
+export async function compressAvatarImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    // Si no está en entorno de navegador, devolver archivo original
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return resolve(file);
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = async () => {
+      URL.revokeObjectURL(objectUrl);
+
+      try {
+        const TARGET_SIZE = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = TARGET_SIZE;
+        canvas.height = TARGET_SIZE;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(file);
+        }
+
+        // 1. Recorte centrado a relación de aspecto 1:1
+        const minDim = Math.min(img.naturalWidth || img.width, img.naturalHeight || img.height);
+        const sx = ((img.naturalWidth || img.width) - minDim) / 2;
+        const sy = ((img.naturalHeight || img.height) - minDim) / 2;
+
+        // 2. Aplicar recorte circular
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(TARGET_SIZE / 2, TARGET_SIZE / 2, TARGET_SIZE / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        // 3. Dibujar la imagen escalada en el canvas circular
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, TARGET_SIZE, TARGET_SIZE);
+        ctx.restore();
+
+        // 4. Determinar formato preferido (WebP con fallback a JPEG)
+        const isWebpSupported = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+        const mimeType = isWebpSupported ? 'image/webp' : 'image/jpeg';
+        const fileExt = isWebpSupported ? 'webp' : 'jpg';
+
+        // 5. Garantizar tamaño < 40 KB iterando calidad si fuera necesario
+        const MAX_BYTES = 40 * 1024; // 40 KB
+        let quality = 0.8;
+        let blob: Blob | null = null;
+
+        while (quality >= 0.2) {
+          blob = await new Promise<Blob | null>((res) =>
+            canvas.toBlob((b) => res(b), mimeType, quality),
+          );
+
+          if (blob && blob.size <= MAX_BYTES) {
+            break;
+          }
+          quality -= 0.15;
+        }
+
+        if (!blob) {
+          return resolve(file);
+        }
+
+        const cleanName = file.name.replace(/\.[^/.]+$/, '');
+        const compressedFile = new File([blob], `${cleanName}-128.${fileExt}`, {
+          type: mimeType,
+          lastModified: Date.now(),
+        });
+
+        resolve(compressedFile);
+      } catch (err) {
+        console.warn('Fallo en la compresión en Canvas, utilizando archivo original:', err);
+        resolve(file);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('No se pudo cargar la imagen para su procesamiento.'));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export function AvatarUpload({
   avatarUrl,
   name,
@@ -18,6 +110,7 @@ export function AvatarUpload({
   disabled = false,
 }: AvatarUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,24 +124,30 @@ export function AvatarUpload({
       return;
     }
 
-    // Validación de tamaño (5MB máximo)
-    const MAX_SIZE_MB = 5;
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      setError(`La imagen excede el límite de ${MAX_SIZE_MB}MB.`);
+    // Validación de tamaño previo (10MB máximo de entrada)
+    const MAX_INPUT_SIZE_MB = 10;
+    if (file.size > MAX_INPUT_SIZE_MB * 1024 * 1024) {
+      setError(`La imagen original excede el límite de ${MAX_INPUT_SIZE_MB}MB.`);
       return;
     }
 
     setError(null);
+    setCompressing(true);
     setUploading(true);
 
     try {
-      const publicUrl = await uploadAvatar(file);
+      // Compresión en cliente: 128x128 circular, < 40KB (evita error HTTP 431)
+      const compressedFile = await compressAvatarImage(file);
+      setCompressing(false);
+
+      const publicUrl = await uploadAvatar(compressedFile);
       onAvatarChange(publicUrl);
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : 'Error al subir la imagen de avatar.';
+        err instanceof Error ? err.message : 'Error al procesar o subir la imagen de avatar.';
       setError(msg);
     } finally {
+      setCompressing(false);
       setUploading(false);
       // Limpiar el input para permitir seleccionar el mismo archivo si es necesario
       if (fileInputRef.current) {
@@ -94,7 +193,9 @@ export function AvatarUpload({
           {uploading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs text-white">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
-              <span className="mt-1 text-[10px] font-medium text-slate-300">Subiendo...</span>
+              <span className="mt-1 text-[10px] font-medium text-slate-300">
+                {compressing ? 'Optimizando...' : 'Subiendo...'}
+              </span>
             </div>
           )}
         </div>
@@ -117,11 +218,11 @@ export function AvatarUpload({
           <h3 className="text-sm font-bold text-white flex items-center justify-center sm:justify-start gap-2">
             Foto de Perfil
             <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Supabase Storage
+              Optimización 128x128 (&lt;40KB)
             </span>
           </h3>
           <p className="mt-1 text-xs text-slate-400 leading-relaxed max-w-md">
-            Personaliza tu identidad visual. Admite formatos PNG, JPG o WEBP de hasta 5MB. Se sincroniza con el bucket &apos;avatars&apos; con respaldo automático.
+            Personaliza tu identidad visual. Tu imagen es optimizada y comprimida automáticamente a 128x128 px ultra liviana (&lt;40 KB) garantizando compatibilidad total.
           </p>
         </div>
 

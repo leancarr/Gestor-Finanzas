@@ -166,13 +166,13 @@ export function StreakBadge({ className = '', initialStreak }: StreakBadgeProps)
 
             {/* Link to Full Challenges Screen */}
             <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-900 text-[11px]">
-              <span className="text-slate-500">¿Querés más retos?</span>
+              <span className="text-slate-500">¿Querés ahorrar más?</span>
               <Link
-                href="/retos"
+                href="/metas"
                 onClick={() => setIsOpen(false)}
                 className="inline-flex items-center gap-1 font-semibold text-emerald-400 hover:text-emerald-300 transition"
               >
-                <span>Ver Sala de Trofeos</span>
+                <span>Ver Metas de Ahorro</span>
                 <ChevronRight className="h-3 w-3" />
               </Link>
             </div>
