@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpensesSummaryCards } from '@/components/dashboard/ExpensesSummaryCards';
 import { ExpensesDonutChart } from '@/components/dashboard/ExpensesDonutChart';
 import { RecentExpensesList } from '@/components/dashboard/RecentExpensesList';
@@ -17,7 +16,6 @@ import { UpcomingDuesWidget } from '@/components/dashboard/UpcomingDuesWidget';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import {
-  DollarSign,
   Plus,
   Layers,
   ChevronLeft,
@@ -29,17 +27,11 @@ import {
   AlertCircle,
   TrendingUp,
   ArrowRight,
-  BarChart3,
-  Repeat,
-  Target,
-  User as UserNavIcon,
   Users,
-  Bot,
-  Trophy,
   Coins,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
-import { StreakBadge } from '@/components/gamification/StreakBadge';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { getApiUrl } from '@/utils/api/config';
 import {
   SupportedCurrency,
@@ -78,6 +70,53 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
+  // Multi-tenant vault context (SEI-46)
+  const { activeVault, activeVaultId, clearActiveVault } = useVaultStore();
+
+  // User role in active vault
+  const userVaultRole = useMemo(() => {
+    if (!activeVault || !user) return null;
+    if (activeVault.ownerId === user.id) return 'OWNER';
+    const member = activeVault.members?.find(
+      (m) =>
+        m.userId === user.id ||
+        (m.user?.email && m.user.email.toLowerCase() === user.email?.toLowerCase()),
+    );
+    return member?.role || null;
+  }, [activeVault, user]);
+
+  const roleBadgeConfig = useMemo(() => {
+    if (!userVaultRole) {
+      return {
+        label: 'Miembro',
+        className: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+      };
+    }
+    switch (userVaultRole) {
+      case 'OWNER':
+        return {
+          label: '👑 Propietario',
+          className: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        };
+      case 'ADMIN':
+        return {
+          label: '⚡ Administrador',
+          className: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+        };
+      case 'VIEWER':
+        return {
+          label: '👁️ Observador',
+          className: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+        };
+      case 'MEMBER':
+      default:
+        return {
+          label: '👥 Miembro',
+          className: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        };
+    }
+  }, [userVaultRole]);
+
   // Month navigation state
   const currentDate = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState<number>(
@@ -95,18 +134,21 @@ export default function HomePage() {
   const [reloadKey, setReloadKey] = useState<number>(0);
 
   // Multi-currency preferences (SEI-25)
-  const [preferredCurrency, setPreferredCurrency] = useState<SupportedCurrency>('ARS');
+  const [preferredCurrency, setPreferredCurrency] = useState<SupportedCurrency>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('gestor_preferred_currency');
+        if (saved && (SUPPORTED_CURRENCIES as readonly string[]).includes(saved)) {
+          return saved as SupportedCurrency;
+        }
+      } catch {}
+    }
+    return 'ARS';
+  });
   const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
 
-  // Load saved currency preference and real-time exchange rates
+  // Load real-time exchange rates
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('gestor_preferred_currency');
-      if (saved && (SUPPORTED_CURRENCIES as readonly string[]).includes(saved)) {
-        setPreferredCurrency(saved as SupportedCurrency);
-      }
-    } catch {}
-
     getRates().then((res) => {
       if (res && res.rates) {
         setRates(res.rates);
@@ -157,17 +199,19 @@ export default function HomePage() {
     };
   }, [supabase]);
 
-  // Load dashboard data on mount and whenever user, date or reloadKey changes
+  // Load dashboard data on mount and whenever user, date, currency, activeVault or reloadKey changes
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
 
     Promise.all([
-      getExpensesSummary({
-        month: selectedMonth,
-        year: selectedYear,
-      }),
-      getRecentExpenses(5),
+      getExpensesSummary(
+        selectedMonth,
+        selectedYear,
+        preferredCurrency,
+        activeVaultId || undefined,
+      ),
+      getRecentExpenses(5, activeVaultId || undefined),
     ])
       .then(([summaryData, recentData]) => {
         if (isMounted) {
@@ -191,7 +235,7 @@ export default function HomePage() {
     return () => {
       isMounted = false;
     };
-  }, [user, selectedMonth, selectedYear, reloadKey]);
+  }, [user, selectedMonth, selectedYear, preferredCurrency, activeVaultId, reloadKey]);
 
   const handleRefresh = () => {
     setIsDataLoading(true);
@@ -275,13 +319,16 @@ export default function HomePage() {
 
           <div className="flex flex-wrap items-center gap-3">
             {user && (
-              <Link
-                href="/gastos/nuevo"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
-              >
-                <Plus className="h-4 w-4" />
-                Nuevo Gasto
-              </Link>
+              <>
+                <VaultSelector />
+                <Link
+                  href="/gastos/nuevo"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo Gasto
+                </Link>
+              </>
             )}
           </div>
         </header>
@@ -530,6 +577,73 @@ export default function HomePage() {
                   >
                     Reintentar conexión &rarr;
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* ACTIVE WORKSPACE / SHARED VAULT BANNER (SEI-46)                           */}
+            {/* ========================================================================= */}
+            {activeVault && (
+              <div className="relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-slate-900/80 to-slate-950/80 p-5 sm:p-6 backdrop-blur-xl shadow-xl shadow-emerald-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] animate-in fade-in duration-300">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  {/* Vault Identity & Meta Badges */}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="text-xl" role="img" aria-label="Espacio de Trabajo">
+                        🏛️
+                      </span>
+                      <h2 className="text-lg sm:text-xl font-black tracking-tight text-white">
+                        Espacio de Trabajo: {activeVault.name}
+                      </h2>
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                        Bóveda Compartida
+                      </span>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${roleBadgeConfig.className}`}
+                      >
+                        {roleBadgeConfig.label}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-slate-300">
+                        <Users className="h-3.5 w-3.5 text-emerald-400" />
+                        {activeVault.members?.length || 1}{' '}
+                        {(activeVault.members?.length || 1) === 1
+                          ? 'integrante'
+                          : 'integrantes'}
+                      </span>
+                      {activeVault.description && (
+                        <>
+                          <span className="text-slate-600">•</span>
+                          <span className="truncate max-w-md text-slate-400">
+                            {activeVault.description}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Navigation & Context Management Actions */}
+                  <div className="flex flex-wrap items-center gap-2.5 pt-2 lg:pt-0">
+                    <Link
+                      href="/bovedas"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      <span>Gestionar Integrantes</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={clearActiveVault}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-slate-800/80 hover:bg-slate-700 hover:border-slate-600 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white shadow-sm transition cursor-pointer"
+                      title="Volver a la vista de cuenta personal"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+                      <span>Volver a Mi Cuenta Personal</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
