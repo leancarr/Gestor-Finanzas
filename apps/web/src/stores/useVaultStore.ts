@@ -28,7 +28,7 @@ if (typeof window !== 'undefined') {
       if (parsed && typeof parsed === 'object') {
         currentState = {
           activeVault: parsed.activeVault || null,
-          activeVaultId: parsed.activeVault?.id || null,
+          activeVaultId: parsed.activeVaultId || parsed.activeVault?.id || null,
         };
       }
     }
