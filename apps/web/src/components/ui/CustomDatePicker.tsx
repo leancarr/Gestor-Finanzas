@@ -161,26 +161,30 @@ export function CustomDatePicker({
       )}
 
       {/* Button trigger */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border bg-slate-900/90 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
-          disabled
-            ? 'opacity-50 cursor-not-allowed border-slate-800'
-            : isOpen
-            ? 'border-emerald-500/50 ring-2 ring-emerald-500/20'
-            : error
-            ? 'border-red-500/50'
-            : 'border-slate-800 hover:border-slate-700'
-        }`}
-      >
-        <div className="flex items-center gap-2.5 truncate">
-          <CalendarIcon className="h-4 w-4 text-emerald-400 shrink-0" />
-          <span className={value ? 'text-white font-medium' : 'text-slate-500'}>
-            {displayFormattedDate() || placeholder}
-          </span>
-        </div>
+      <div className="relative w-full">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          className={`w-full flex items-center justify-between gap-2 px-3.5 py-2.5 ${
+            value && !disabled ? 'pr-9' : ''
+          } rounded-xl border bg-slate-900/90 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
+            disabled
+              ? 'opacity-50 cursor-not-allowed border-slate-800'
+              : isOpen
+              ? 'border-emerald-500/50 ring-2 ring-emerald-500/20'
+              : error
+              ? 'border-red-500/50'
+              : 'border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            <CalendarIcon className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span className={value ? 'text-white font-medium' : 'text-slate-500'}>
+              {displayFormattedDate() || placeholder}
+            </span>
+          </div>
+        </button>
         {value && !disabled && (
           <button
             type="button"
@@ -188,12 +192,13 @@ export function CustomDatePicker({
               e.stopPropagation();
               onChange('');
             }}
-            className="p-0.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition z-10"
+            title="Borrar fecha"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         )}
-      </button>
+      </div>
 
       {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
 

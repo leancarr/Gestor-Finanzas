@@ -170,54 +170,63 @@ export function CustomSelect({
       )}
 
       {/* Select trigger button */}
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-3 rounded-2xl border bg-slate-950/80 text-xs text-white shadow-inner transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
-          disabled
-            ? 'opacity-50 cursor-not-allowed border-slate-800'
-            : isOpen
-            ? 'border-emerald-500/60 ring-2 ring-emerald-500/20'
-            : error
-            ? 'border-red-500/50'
-            : 'border-slate-800 hover:border-slate-700'
-        }`}
-      >
-        <div className="flex items-center gap-2.5 truncate">
-          {selectedOption ? (
-            <>
-              {selectedOption.color && (
-                <span
-                  className="h-2.5 w-2.5 rounded-full shrink-0 shadow-sm"
-                  style={{ backgroundColor: selectedOption.color }}
-                />
-              )}
-              {selectedOption.icon && (
-                <CategoryIcon name={selectedOption.icon} className="h-4 w-4 shrink-0 text-slate-300" />
-              )}
-              <span className="font-semibold text-white truncate">
-                {selectedOption.label}
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-500 font-normal">{placeholder}</span>
-          )}
-        </div>
+      <div className="relative w-full">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          className={`w-full flex items-center justify-between gap-2.5 px-3.5 py-3 ${
+            value && !disabled ? 'pr-16' : 'pr-8'
+          } rounded-2xl border bg-slate-950/80 text-xs text-white shadow-inner transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+            disabled
+              ? 'opacity-50 cursor-not-allowed border-slate-800'
+              : isOpen
+              ? 'border-emerald-500/60 ring-2 ring-emerald-500/20'
+              : error
+              ? 'border-red-500/50'
+              : 'border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            {selectedOption ? (
+              <>
+                {selectedOption.color && (
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0 shadow-sm"
+                    style={{ backgroundColor: selectedOption.color }}
+                  />
+                )}
+                {selectedOption.icon && (
+                  <CategoryIcon name={selectedOption.icon} className="h-4 w-4 shrink-0 text-slate-300" />
+                )}
+                <span className="font-semibold text-white truncate">
+                  {selectedOption.label}
+                </span>
+              </>
+            ) : (
+              <span className="text-slate-500 font-normal">{placeholder}</span>
+            )}
+          </div>
+        </button>
 
-        <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-slate-400">
           {value && !disabled && (
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 rounded-md hover:bg-slate-800 hover:text-white transition"
+              className="p-1 rounded-md hover:bg-slate-800 hover:text-white transition z-10"
+              title="Limpiar selección"
             >
               <X className="h-3.5 w-3.5" />
             </button>
           )}
-          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <ChevronDown
+            className={`h-4 w-4 transition-transform duration-200 pointer-events-none ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+          />
         </div>
-      </button>
+      </div>
 
       {error && <p className="mt-1.5 text-xs text-red-400 font-medium">{error}</p>}
 
