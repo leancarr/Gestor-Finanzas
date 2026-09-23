@@ -135,6 +135,29 @@ export function ExpenseCard({ expense, onDelete, onTagClick }: ExpenseCardProps)
               </span>
             )}
 
+            {/* Transaction Author Pill (SEI-47) */}
+            {expense.user && (
+              <span
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-slate-800/80 border border-slate-700/60 px-2 py-0.5 text-[10px] text-slate-300 font-medium"
+                title={expense.user.email ? `Cargado por ${expense.user.name || expense.user.email} (${expense.user.email})` : undefined}
+              >
+                {expense.user.avatarUrl ? (
+                  <img
+                    src={expense.user.avatarUrl}
+                    alt={expense.user.name || 'Avatar'}
+                    className="h-3.5 w-3.5 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-700 text-[8px] font-bold text-slate-200 uppercase">
+                    {((expense.user.name || expense.user.email || 'U')[0] || 'U').toUpperCase()}
+                  </span>
+                )}
+                <span>
+                  👤 Cargado por {expense.user.name || (expense.user.email ? expense.user.email.split('@')[0] : 'Usuario')}
+                </span>
+              </span>
+            )}
+
             {/* Event Tags Badges */}
             {combinedTags.map((tagStr) => (
               <TagBadge
