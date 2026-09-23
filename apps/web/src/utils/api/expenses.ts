@@ -9,6 +9,13 @@ export interface ExpenseCategory {
   color: string | null;
 }
 
+export interface ExpenseItemUser {
+  id: string;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+}
+
 export interface ExpenseItem {
   id: string;
   amount: number | string;
@@ -24,6 +31,8 @@ export interface ExpenseItem {
   exchangeRate?: number | string | null;
   isTaxable?: boolean;
   tags?: string[];
+  vaultId?: string | null;
+  user?: ExpenseItemUser | null;
 }
 
 export type Expense = ExpenseItem;
@@ -38,6 +47,7 @@ export interface CreateExpenseInput {
   exchangeRate?: number | null;
   isTaxable?: boolean;
   tags?: string[];
+  vaultId?: string | null;
 }
 
 export interface UpdateExpenseInput {
@@ -50,6 +60,7 @@ export interface UpdateExpenseInput {
   exchangeRate?: number | null;
   isTaxable?: boolean;
   tags?: string[];
+  vaultId?: string | null;
 }
 
 export interface CategorySummaryItem {
@@ -85,6 +96,7 @@ export interface ExpenseFilterQuery {
   endDate?: string;
   limit?: number;
   page?: number;
+  vaultId?: string | null;
 }
 
 import { DYNAMIC_API_URL } from './config';
@@ -143,6 +155,9 @@ export async function getExpenses(
   if (query?.page) {
     url.searchParams.set('page', String(query.page));
   }
+  if (query?.vaultId) {
+    url.searchParams.set('vaultId', query.vaultId);
+  }
 
   const res = await fetch(url.toString(), {
     method: 'GET',
@@ -199,6 +214,7 @@ export async function createExpense(
       exchangeRate: data.exchangeRate || null,
       isTaxable: data.isTaxable || false,
       userId: '',
+      vaultId: data.vaultId || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     } as ExpenseItem;
@@ -233,6 +249,7 @@ export async function createExpense(
         exchangeRate: data.exchangeRate || null,
         isTaxable: data.isTaxable || false,
         userId: '',
+        vaultId: data.vaultId || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       } as ExpenseItem;
@@ -290,17 +307,58 @@ export async function getExpensesSummary(params?: {
   month?: number;
   year?: number;
   currency?: string;
-}): Promise<ExpensesSummary> {
+  vaultId?: string | null;
+}): Promise<ExpensesSummary>;
+export async function getExpensesSummary(
+  month?: number,
+  year?: number,
+  currency?: string,
+  vaultId?: string | null,
+): Promise<ExpensesSummary>;
+export async function getExpensesSummary(
+  monthOrParams?:
+    | number
+    | {
+        month?: number;
+        year?: number;
+        currency?: string;
+        vaultId?: string | null;
+      },
+  year?: number,
+  currency?: string,
+  vaultId?: string | null,
+): Promise<ExpensesSummary> {
   const headers = await getAuthHeaders();
   const url = new URL(`${API_URL}/expenses/summary`);
-  if (params?.month) {
-    url.searchParams.set('month', String(params.month));
+
+  let m: number | undefined;
+  let y: number | undefined;
+  let c: string | undefined;
+  let v: string | null | undefined;
+
+  if (typeof monthOrParams === 'object' && monthOrParams !== null) {
+    m = monthOrParams.month;
+    y = monthOrParams.year;
+    c = monthOrParams.currency;
+    v = monthOrParams.vaultId;
+  } else {
+    m = monthOrParams;
+    y = year;
+    c = currency;
+    v = vaultId;
   }
-  if (params?.year) {
-    url.searchParams.set('year', String(params.year));
+
+  if (m) {
+    url.searchParams.set('month', String(m));
   }
-  if (params?.currency) {
-    url.searchParams.set('currency', params.currency);
+  if (y) {
+    url.searchParams.set('year', String(y));
+  }
+  if (c) {
+    url.searchParams.set('currency', c);
+  }
+  if (v) {
+    url.searchParams.set('vaultId', v);
   }
 
   const res = await fetch(url.toString(), {
@@ -322,11 +380,17 @@ export async function getExpensesSummary(params?: {
 /**
  * Obtiene los últimos gastos del usuario autenticado.
  */
-export async function getRecentExpenses(limit: number = 5): Promise<ExpenseItem[]> {
+export async function getRecentExpenses(
+  limit: number = 5,
+  vaultId?: string | null,
+): Promise<ExpenseItem[]> {
   const headers = await getAuthHeaders();
   const url = new URL(`${API_URL}/expenses/recent`);
   if (limit) {
     url.searchParams.set('limit', String(limit));
+  }
+  if (vaultId) {
+    url.searchParams.set('vaultId', vaultId);
   }
 
   const res = await fetch(url.toString(), {

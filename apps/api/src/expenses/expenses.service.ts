@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
@@ -118,10 +119,32 @@ export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Valida que el usuario tenga acceso a la bóveda especificada (propietario o miembro).
+   */
+  private async assertVaultAccess(tx: any, userId: string, vaultId: string) {
+    const hasAccess = await tx.vault.findFirst({
+      where: {
+        id: vaultId,
+        OR: [{ ownerId: userId }, { members: { some: { userId } } }],
+      },
+    });
+
+    if (!hasAccess) {
+      throw new ForbiddenException('No tienes acceso a esta bóveda.');
+    }
+
+    return hasAccess;
+  }
+
+  /**
    * Registra una nueva transacción (gasto o ingreso) asociada al usuario autenticado bajo contexto RLS.
    */
   async create(userId: string, createExpenseDto: CreateExpenseDto) {
     return this.prisma.withUser(userId, async (tx) => {
+      if (createExpenseDto.vaultId) {
+        await this.assertVaultAccess(tx, userId, createExpenseDto.vaultId);
+      }
+
       // Si se indicó una categoría, verificar que pertenezca al usuario
       if (createExpenseDto.categoryId) {
         const category = await tx.category.findFirst({
@@ -160,9 +183,18 @@ export class ExpensesService {
           categoryId: createExpenseDto.categoryId || null,
           tags: normalizedTags,
           userId,
+          vaultId: createExpenseDto.vaultId ?? null,
         },
         include: {
           category: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
         },
       });
     });
@@ -175,9 +207,15 @@ export class ExpensesService {
    */
   async findAll(userId: string, query?: QueryExpenseDto) {
     return this.prisma.withUser(userId, async (tx) => {
-      const whereClause: any = {
-        userId,
-      };
+      const whereClause: any = {};
+
+      if (query?.vaultId) {
+        await this.assertVaultAccess(tx, userId, query.vaultId);
+        whereClause.vaultId = query.vaultId;
+      } else {
+        whereClause.userId = userId;
+        whereClause.vaultId = null;
+      }
 
       if (query?.type) {
         whereClause.type = query.type;
@@ -227,6 +265,14 @@ export class ExpensesService {
         skip,
         include: {
           category: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
         },
       });
     });
@@ -240,10 +286,17 @@ export class ExpensesService {
       const expense = await tx.expense.findFirst({
         where: {
           id,
-          userId,
         },
         include: {
           category: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
         },
       });
 
@@ -251,7 +304,16 @@ export class ExpensesService {
         throw new NotFoundException(`Gasto con ID ${id} no encontrado`);
       }
 
-      return expense;
+      if (expense.userId === userId) {
+        return expense;
+      }
+
+      if (expense.vaultId) {
+        await this.assertVaultAccess(tx, userId, expense.vaultId);
+        return expense;
+      }
+
+      throw new NotFoundException(`Gasto con ID ${id} no encontrado`);
     });
   }
 
@@ -415,12 +477,19 @@ export class ExpensesService {
       const endDate = new Date(Date.UTC(targetYear, targetMonth, 0, 23, 59, 59, 999));
 
       const whereClause: any = {
-        userId,
         date: {
           gte: startDate,
           lte: endDate,
         },
       };
+
+      if (query?.vaultId) {
+        await this.assertVaultAccess(tx, userId, query.vaultId);
+        whereClause.vaultId = query.vaultId;
+      } else {
+        whereClause.userId = userId;
+        whereClause.vaultId = null;
+      }
 
       if (query?.currency && query.currency.toUpperCase() !== 'ALL') {
         whereClause.currency = query.currency.toUpperCase();
@@ -534,10 +603,19 @@ export class ExpensesService {
           ? { currency: targetCurrency }
           : {};
 
+      const baseFilter: any = {};
+      if (query?.vaultId) {
+        await this.assertVaultAccess(tx, userId, query.vaultId);
+        baseFilter.vaultId = query.vaultId;
+      } else {
+        baseFilter.userId = userId;
+        baseFilter.vaultId = null;
+      }
+
       const [currentExpenses, prevExpenses] = await Promise.all([
         tx.expense.findMany({
           where: {
-            userId,
+            ...baseFilter,
             ...currencyFilter,
             date: {
               gte: currentStart,
@@ -553,7 +631,7 @@ export class ExpensesService {
         }),
         tx.expense.findMany({
           where: {
-            userId,
+            ...baseFilter,
             ...currencyFilter,
             date: {
               gte: prevStart,
@@ -749,16 +827,32 @@ export class ExpensesService {
   /**
    * Obtiene los gastos más recientes del usuario.
    */
-  async getRecent(userId: string, limit = 5) {
+  async getRecent(userId: string, limit = 5, vaultId?: string) {
     return this.prisma.withUser(userId, async (tx) => {
+      const whereClause: any = {};
+
+      if (vaultId) {
+        await this.assertVaultAccess(tx, userId, vaultId);
+        whereClause.vaultId = vaultId;
+      } else {
+        whereClause.userId = userId;
+        whereClause.vaultId = null;
+      }
+
       return tx.expense.findMany({
-        where: {
-          userId,
-        },
+        where: whereClause,
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         take: limit,
         include: {
           category: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
         },
       });
     });
@@ -768,15 +862,24 @@ export class ExpensesService {
    * Agrupa los gastos por cada tag único y calcula:
    * { tag: string, totalAmount: number, currency: string, count: number, firstDate: string, lastDate: string }
    */
-  async getTagsSummary(userId: string) {
+  async getTagsSummary(userId: string, vaultId?: string) {
     return this.prisma.withUser(userId, async (tx) => {
-      const expenses = await tx.expense.findMany({
-        where: {
-          userId,
-          tags: {
-            isEmpty: false,
-          },
+      const whereClause: any = {
+        tags: {
+          isEmpty: false,
         },
+      };
+
+      if (vaultId) {
+        await this.assertVaultAccess(tx, userId, vaultId);
+        whereClause.vaultId = vaultId;
+      } else {
+        whereClause.userId = userId;
+        whereClause.vaultId = null;
+      }
+
+      const expenses = await tx.expense.findMany({
+        where: whereClause,
         orderBy: {
           date: 'asc',
         },

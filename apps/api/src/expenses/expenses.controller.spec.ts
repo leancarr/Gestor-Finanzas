@@ -181,17 +181,17 @@ describe('ExpensesController', () => {
     expect(result).toEqual(mockAnalytics);
   });
 
-  it('should get recent expenses for authenticated user with default or custom limit', async () => {
-    const result = await controller.getRecent(mockUser, '5');
+  it('should get recent expenses for authenticated user with default or custom limit and optional vaultId', async () => {
+    const result = await controller.getRecent(mockUser, '5', 'vault-abc');
 
-    expect(mockExpensesService.getRecent).toHaveBeenCalledWith('user-123', 5);
+    expect(mockExpensesService.getRecent).toHaveBeenCalledWith('user-123', 5, 'vault-abc');
     expect(result).toEqual([mockExpense]);
   });
 
-  it('should get tags summary for authenticated user', async () => {
-    const result = await controller.getTagsSummary(mockUser);
+  it('should get tags summary for authenticated user with optional vaultId', async () => {
+    const result = await controller.getTagsSummary(mockUser, 'vault-abc');
 
-    expect(mockExpensesService.getTagsSummary).toHaveBeenCalledWith('user-123');
+    expect(mockExpensesService.getTagsSummary).toHaveBeenCalledWith('user-123', 'vault-abc');
     expect(result).toEqual([
       {
         tag: '#viaje',

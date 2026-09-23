@@ -196,7 +196,7 @@ export function RecentExpensesList({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 flex-wrap">
                       {category ? (
                         <span
                           className="font-medium"
@@ -212,6 +212,31 @@ export function RecentExpensesList({
                         <Calendar className="h-3 w-3" />
                         {formatDate(expense.date)}
                       </span>
+                      {expense.user && (
+                        <>
+                          <span>•</span>
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/60 shadow-xs"
+                            title={`Cargado por ${expense.user.name || expense.user.email}`}
+                          >
+                            {expense.user.avatarUrl ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={expense.user.avatarUrl}
+                                alt={expense.user.name || 'Avatar'}
+                                className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-700/80 text-[9px] font-bold text-slate-300 shrink-0">
+                                👤
+                              </span>
+                            )}
+                            <span className="truncate max-w-[100px]">
+                              {expense.user.name || expense.user.email?.split('@')[0] || 'Miembro'}
+                            </span>
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

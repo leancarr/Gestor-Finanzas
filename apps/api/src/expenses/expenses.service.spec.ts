@@ -7,7 +7,7 @@ import {
   normalizeTags,
 } from './expenses.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
 
 describe('ExpensesService', () => {
@@ -21,6 +21,22 @@ describe('ExpensesService', () => {
     userId: 'user-123',
   };
 
+  const mockUserAuthor = {
+    id: 'user-123',
+    name: 'Test User',
+    email: 'test@example.com',
+    avatarUrl: null,
+  };
+
+  const expectedUserInclude = {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+    },
+  };
+
   const mockExpense = {
     id: 'exp-1',
     amount: 15400.5,
@@ -30,12 +46,14 @@ describe('ExpensesService', () => {
     date: new Date('2026-09-01T12:00:00.000Z'),
     categoryId: 'cat-1',
     userId: 'user-123',
+    vaultId: null,
     exchangeRate: null,
     isTaxable: false,
     tags: [],
     createdAt: new Date(),
     updatedAt: new Date(),
     category: mockCategory,
+    user: mockUserAuthor,
   };
 
   const mockIncome = {
@@ -47,6 +65,7 @@ describe('ExpensesService', () => {
     date: new Date('2026-09-01T10:00:00.000Z'),
     categoryId: 'cat-inc',
     userId: 'user-123',
+    vaultId: null,
     exchangeRate: null,
     isTaxable: false,
     tags: [],
@@ -59,6 +78,7 @@ describe('ExpensesService', () => {
       color: '#10B981',
       userId: 'user-123',
     },
+    user: mockUserAuthor,
   };
 
   const mockTx = {
@@ -70,6 +90,9 @@ describe('ExpensesService', () => {
       delete: vi.fn(),
     },
     category: {
+      findFirst: vi.fn(),
+    },
+    vault: {
       findFirst: vi.fn(),
     },
   };
@@ -134,8 +157,9 @@ describe('ExpensesService', () => {
           categoryId: 'cat-1',
           tags: [],
           userId: 'user-123',
+          vaultId: null,
         },
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
       });
       expect(result).toEqual(mockExpense);
     });
@@ -165,8 +189,9 @@ describe('ExpensesService', () => {
           categoryId: 'cat-inc',
           tags: [],
           userId: 'user-123',
+          vaultId: null,
         },
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
       });
       expect(result).toEqual(mockIncome);
     });
@@ -193,8 +218,9 @@ describe('ExpensesService', () => {
           categoryId: null,
           tags: [],
           userId: 'user-123',
+          vaultId: null,
         },
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
       });
     });
 
@@ -212,6 +238,52 @@ describe('ExpensesService', () => {
       );
       expect(mockTx.expense.create).not.toHaveBeenCalled();
     });
+
+    it('should create an expense with valid vaultId when user has access (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-1', ownerId: 'user-123' });
+      mockTx.expense.create.mockResolvedValue({
+        ...mockExpense,
+        vaultId: 'vault-1',
+      });
+
+      const dto = {
+        amount: 12000,
+        description: 'Insumos de oficina',
+        vaultId: 'vault-1',
+      };
+
+      const result = await service.create('user-123', dto);
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-1',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(mockTx.expense.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'user-123',
+          vaultId: 'vault-1',
+          amount: 12000,
+          description: 'Insumos de oficina',
+        }),
+        include: { category: true, user: expectedUserInclude },
+      });
+      expect(result.vaultId).toBe('vault-1');
+    });
+
+    it('should throw ForbiddenException if user has no access to the vault (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue(null);
+
+      const dto = {
+        amount: 5000,
+        description: 'Intento en bóveda ajena',
+        vaultId: 'vault-no-access',
+      };
+
+      await expect(service.create('user-123', dto)).rejects.toThrow(ForbiddenException);
+      expect(mockTx.expense.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
@@ -225,11 +297,11 @@ describe('ExpensesService', () => {
         expect.any(Function),
       );
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123' },
+        where: { userId: 'user-123', vaultId: null },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         take: undefined,
         skip: undefined,
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
       });
       expect(result).toEqual([mockExpense]);
     });
@@ -252,6 +324,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
+          vaultId: null,
           type: TransactionType.EXPENSE,
           categoryId: 'cat-1',
           description: {
@@ -266,8 +339,56 @@ describe('ExpensesService', () => {
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         take: 10,
         skip: 10,
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
       });
+    });
+
+    it('should list all expenses for vault without filtering by userId (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-1', ownerId: 'user-123' });
+      const orgExpenses = [
+        { ...mockExpense, id: 'exp-1', userId: 'user-123', vaultId: 'vault-1' },
+        {
+          ...mockExpense,
+          id: 'exp-2',
+          userId: 'user-456',
+          vaultId: 'vault-1',
+          user: { id: 'user-456', name: 'Compañero', email: 'partner@test.local', avatarUrl: null },
+        },
+      ];
+      mockTx.expense.findMany.mockResolvedValue(orgExpenses);
+
+      const result = await service.findAll('user-123', { vaultId: 'vault-1' });
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-1',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: { vaultId: 'vault-1' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: undefined,
+        skip: undefined,
+        include: { category: true, user: expectedUserInclude },
+      });
+      expect(result).toHaveLength(2);
+      expect(result[1].user.id).toBe('user-456');
+    });
+
+    it('should ensure personal isolation with vaultId: null when query does not include vaultId (SEI-44)', async () => {
+      mockTx.expense.findMany.mockResolvedValue([mockExpense]);
+
+      await service.findAll('user-123', {});
+
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-123', vaultId: null },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: undefined,
+        skip: undefined,
+        include: { category: true, user: expectedUserInclude },
+      });
+      expect(mockTx.vault.findFirst).not.toHaveBeenCalled();
     });
   });
 
@@ -278,8 +399,8 @@ describe('ExpensesService', () => {
       const result = await service.findOne('user-123', 'exp-1');
 
       expect(mockTx.expense.findFirst).toHaveBeenCalledWith({
-        where: { id: 'exp-1', userId: 'user-123' },
-        include: { category: true },
+        where: { id: 'exp-1' },
+        include: { category: true, user: expectedUserInclude },
       });
       expect(result).toEqual(mockExpense);
     });
@@ -290,6 +411,52 @@ describe('ExpensesService', () => {
       await expect(service.findOne('user-123', 'non-existent')).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should allow viewing expense in vault even if created by another user (SEI-44)', async () => {
+      const partnerExpense = {
+        ...mockExpense,
+        id: 'exp-partner',
+        userId: 'user-456',
+        vaultId: 'vault-shared',
+      };
+      mockTx.expense.findFirst.mockResolvedValue(partnerExpense);
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-shared', members: [{ userId: 'user-123' }] });
+
+      const result = await service.findOne('user-123', 'exp-partner');
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-shared',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(result).toEqual(partnerExpense);
+    });
+
+    it('should throw ForbiddenException in findOne if expense belongs to a vault user cannot access (SEI-44)', async () => {
+      const secretExpense = {
+        ...mockExpense,
+        id: 'exp-secret',
+        userId: 'user-456',
+        vaultId: 'vault-secret',
+      };
+      mockTx.expense.findFirst.mockResolvedValue(secretExpense);
+      mockTx.vault.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOne('user-123', 'exp-secret')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw NotFoundException if expense belongs to another user and has no vaultId (SEI-44)', async () => {
+      const privateExpense = {
+        ...mockExpense,
+        id: 'exp-private',
+        userId: 'user-other',
+        vaultId: null,
+      };
+      mockTx.expense.findFirst.mockResolvedValue(privateExpense);
+
+      await expect(service.findOne('user-123', 'exp-private')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -410,6 +577,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
+          vaultId: null,
           date: {
             gte: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
             lte: new Date(Date.UTC(2026, 9, 0, 23, 59, 59, 999)),
@@ -474,10 +642,45 @@ describe('ExpensesService', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             userId: 'user-123',
+            vaultId: null,
             currency: 'USD',
           }),
         }),
       );
+    });
+
+    it('should get summary with vaultId without filtering by userId (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-1', ownerId: 'user-123' });
+      mockTx.expense.findMany.mockResolvedValue([]);
+
+      const result = await service.getSummary('user-123', { month: 9, year: 2026, vaultId: 'vault-1' });
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-1',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: {
+          vaultId: 'vault-1',
+          date: {
+            gte: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
+            lte: new Date(Date.UTC(2026, 9, 0, 23, 59, 59, 999)),
+          },
+        },
+        include: { category: true },
+        orderBy: { date: 'desc' },
+      });
+      expect(result.month).toBe(9);
+    });
+
+    it('should throw ForbiddenException in getSummary if user has no access to the vault (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getSummary('user-123', { month: 9, year: 2026, vaultId: 'vault-no-access' }),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -489,10 +692,10 @@ describe('ExpensesService', () => {
 
       expect(mockPrismaService.withUser).toHaveBeenCalledWith('user-123', expect.any(Function));
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123' },
+        where: { userId: 'user-123', vaultId: null },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         take: 5,
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
       });
       expect(result).toEqual([mockExpense]);
     });
@@ -503,10 +706,30 @@ describe('ExpensesService', () => {
       await service.getRecent('user-123', 10);
 
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123' },
+        where: { userId: 'user-123', vaultId: null },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         take: 10,
-        include: { category: true },
+        include: { category: true, user: expectedUserInclude },
+      });
+    });
+
+    it('should return recent expenses for vault when vaultId is provided (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-1', ownerId: 'user-123' });
+      mockTx.expense.findMany.mockResolvedValue([mockExpense]);
+
+      await service.getRecent('user-123', 5, 'vault-1');
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-1',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: { vaultId: 'vault-1' },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        take: 5,
+        include: { category: true, user: expectedUserInclude },
       });
     });
   });
@@ -671,6 +894,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(1, {
         where: {
           userId: 'user-123',
+          vaultId: null,
           currency: 'ARS',
           date: {
             gte: new Date(Date.UTC(2026, 8, 12, 0, 0, 0, 0)),
@@ -684,6 +908,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(2, {
         where: {
           userId: 'user-123',
+          vaultId: null,
           currency: 'ARS',
           date: {
             gte: new Date(Date.UTC(2026, 8, 5, 0, 0, 0, 0)),
@@ -860,6 +1085,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(3, {
         where: {
           userId: 'user-123',
+          vaultId: null,
           date: {
             gte: new Date(Date.UTC(2026, 8, 1, 0, 0, 0, 0)),
             lte: new Date(Date.UTC(2026, 8, 30, 23, 59, 59, 999)),
@@ -868,6 +1094,50 @@ describe('ExpensesService', () => {
         include: { category: true },
         orderBy: { date: 'asc' },
       });
+    });
+
+    it('should filter by vaultId without userId when vaultId is provided (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-1', ownerId: 'user-123' });
+      mockTx.expense.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await service.getAnalytics(
+        'user-123',
+        { range: '7d', currency: 'ARS', vaultId: 'vault-1' },
+        fixedNow,
+      );
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-1',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        where: expect.objectContaining({
+          vaultId: 'vault-1',
+          currency: 'ARS',
+        }),
+      }));
+      expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        where: expect.objectContaining({
+          vaultId: 'vault-1',
+          currency: 'ARS',
+        }),
+      }));
+    });
+
+    it('should throw ForbiddenException in getAnalytics if user has no access to the vault (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.getAnalytics(
+          'user-123',
+          { range: '7d', currency: 'ARS', vaultId: 'vault-forbidden' },
+          fixedNow,
+        ),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -1021,6 +1291,7 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenCalledWith({
         where: {
           userId: 'user-123',
+          vaultId: null,
           tags: {
             isEmpty: false,
           },
@@ -1064,6 +1335,39 @@ describe('ExpensesService', () => {
       const result = await service.getTagsSummary('user-123');
 
       expect(result).toEqual([]);
+    });
+
+    it('should aggregate tagged expenses for vault when vaultId is provided (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue({ id: 'vault-1', ownerId: 'user-123' });
+      mockTx.expense.findMany.mockResolvedValue([]);
+
+      await service.getTagsSummary('user-123', 'vault-1');
+
+      expect(mockTx.vault.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'vault-1',
+          OR: [{ ownerId: 'user-123' }, { members: { some: { userId: 'user-123' } } }],
+        },
+      });
+      expect(mockTx.expense.findMany).toHaveBeenCalledWith({
+        where: {
+          vaultId: 'vault-1',
+          tags: {
+            isEmpty: false,
+          },
+        },
+        orderBy: {
+          date: 'asc',
+        },
+      });
+    });
+
+    it('should throw ForbiddenException in getTagsSummary if user has no access to the vault (SEI-44)', async () => {
+      mockTx.vault.findFirst.mockResolvedValue(null);
+
+      await expect(service.getTagsSummary('user-123', 'vault-forbidden')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

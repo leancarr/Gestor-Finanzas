@@ -58,6 +58,7 @@ export interface GetAnalyticsOptions {
   expenses?: ExpenseItem[];
   rates?: Record<SupportedCurrency, number>;
   selectedDate?: string | null;
+  vaultId?: string | null;
 }
 
 import { DYNAMIC_API_URL } from './config';
@@ -171,7 +172,15 @@ export function calculateLocalAnalytics(
   targetCurrency: SupportedCurrency = 'ARS',
   rates: Record<SupportedCurrency, number> = FALLBACK_RATES,
   selectedDate?: string | null,
+  vaultId?: string | null,
 ): AnalyticsData {
+  const filteredExpenses = expensesList.filter((exp) => {
+    if (vaultId) {
+      return exp.vaultId === vaultId;
+    }
+    return !exp.vaultId;
+  });
+
   let currentStart: Date;
   let currentEnd: Date;
   let prevStart: Date;
@@ -241,7 +250,7 @@ export function calculateLocalAnalytics(
     }
   >();
 
-  for (const item of expensesList) {
+  for (const item of filteredExpenses) {
     const itemDate = new Date(item.date);
     if (isNaN(itemDate.getTime())) continue;
 
@@ -377,18 +386,19 @@ export async function getAnalytics(
   const currency = options.currency || 'ARS';
   const rates = options.rates || FALLBACK_RATES;
   const selectedDate = options.selectedDate;
+  const vaultId = options.vaultId;
 
   // Si hay un filtro de día puntual, se procesa directamente mediante el cálculo local determinístico
   if (selectedDate) {
     let expensesList = options.expenses;
     if (!expensesList) {
       try {
-        expensesList = await getExpenses({ limit: 1000 });
+        expensesList = await getExpenses({ limit: 1000, ...(vaultId ? { vaultId } : {}) });
       } catch {
         expensesList = [];
       }
     }
-    return calculateLocalAnalytics(expensesList, range, currency, rates, selectedDate);
+    return calculateLocalAnalytics(expensesList, range, currency, rates, selectedDate, vaultId);
   }
 
   // Intento de consulta a la API remota si estamos en navegador y online
@@ -398,6 +408,9 @@ export async function getAnalytics(
       const url = new URL(`${API_URL}/expenses/analytics`);
       url.searchParams.set('range', range);
       url.searchParams.set('currency', currency);
+      if (vaultId) {
+        url.searchParams.set('vaultId', vaultId);
+      }
 
       const res = await fetch(url.toString(), {
         method: 'GET',
@@ -517,11 +530,11 @@ export async function getAnalytics(
   let expensesList = options.expenses;
   if (!expensesList) {
     try {
-      expensesList = await getExpenses({ limit: 1000 });
+      expensesList = await getExpenses({ limit: 1000, ...(vaultId ? { vaultId } : {}) });
     } catch {
       expensesList = [];
     }
   }
 
-  return calculateLocalAnalytics(expensesList, range, currency, rates, selectedDate);
+  return calculateLocalAnalytics(expensesList, range, currency, rates, selectedDate, vaultId);
 }

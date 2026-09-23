@@ -28,6 +28,7 @@ export interface AnalyticsReportsViewProps {
   currency: SupportedCurrency;
   periodLabel: string;
   loading?: boolean;
+  vaultName?: string | null;
 }
 
 export function AnalyticsReportsView({
@@ -38,6 +39,7 @@ export function AnalyticsReportsView({
   currency,
   periodLabel,
   loading = false,
+  vaultName,
 }: AnalyticsReportsViewProps) {
   const netBalance = totalIncome - totalExpenses;
   const isSurplus = netBalance >= 0;
@@ -54,7 +56,7 @@ export function AnalyticsReportsView({
       return;
     }
     const safePeriod = periodLabel.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    exportToCSV(periodExpenses, `Gestor_Guita_${safePeriod}`);
+    exportToCSV(periodExpenses, `Gestor_Guita_${safePeriod}`, { vaultName });
   };
 
   const handleExportPDF = () => {
@@ -66,7 +68,10 @@ export function AnalyticsReportsView({
       includeSummary: true,
       periodLabel,
       currency,
-      customTitle: 'REPORTE FINANCIERO EJECUTIVO',
+      customTitle: vaultName
+        ? `REPORTE FINANCIERO EJECUTIVO - ${vaultName.toUpperCase()}`
+        : 'REPORTE FINANCIERO EJECUTIVO',
+      vaultName,
     });
   };
 
@@ -92,11 +97,16 @@ export function AnalyticsReportsView({
       {/* 1. HEADER DE LA VISTA DE REPORTES CON ACCIONES DE EXPORTACIÓN */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-gradient-to-r from-emerald-950/20 via-slate-900/60 to-slate-950/40 p-5 backdrop-blur-md shadow-lg">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-400">
               <Sparkles className="h-3 w-3" />
               Reporte Ejecutivo Consolidado
             </span>
+            {vaultName && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-bold text-emerald-200 shadow-sm">
+                🏛️ Espacio: {vaultName}
+              </span>
+            )}
             <span className="text-xs text-slate-400 flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5 text-slate-500" />
               {periodLabel}

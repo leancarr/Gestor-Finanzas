@@ -60,4 +60,8 @@ export class UpdateExpenseDto {
   @IsArray({ message: 'Las etiquetas deben ser una lista de textos' })
   @IsString({ each: true, message: 'Cada etiqueta debe ser una cadena de texto' })
   tags?: string[];
+
+  @IsOptional()
+  @IsUUID('all', { message: 'El ID de la bóveda debe ser un UUID válido' })
+  vaultId?: string;
 }

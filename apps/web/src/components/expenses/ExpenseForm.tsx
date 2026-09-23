@@ -18,6 +18,7 @@ import {
   Square,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { createExpense, ExpenseItem } from '@/utils/api/expenses';
 import {
   getCategories,
@@ -101,6 +102,19 @@ export function ExpenseForm({
   defaultTags = [],
 }: ExpenseFormProps) {
   const router = useRouter();
+  const { activeVault, activeVaultId } = useVaultStore();
+  const [selectedDestination, setSelectedDestination] = useState<'vault' | 'personal'>(
+    activeVault ? 'vault' : 'personal',
+  );
+
+  useEffect(() => {
+    if (activeVault) {
+      setSelectedDestination('vault');
+    } else {
+      setSelectedDestination('personal');
+    }
+  }, [activeVault]);
+
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isSeedingCategories, setIsSeedingCategories] = useState(false);
@@ -289,6 +303,7 @@ export function ExpenseForm({
         date: data.date ? new Date(data.date).toISOString() : new Date().toISOString(),
         categoryId: data.categoryId && data.categoryId.trim() !== '' ? data.categoryId : null,
         tags: allTags.length > 0 ? allTags : undefined,
+        vaultId: selectedDestination === 'vault' && activeVault ? activeVault.id : null,
       });
 
       const typeLabel = transactionType === 'INCOME' ? 'Ingreso' : 'Gasto';
@@ -369,6 +384,53 @@ export function ExpenseForm({
           </span>
         </div>
       </div>
+
+      {/* Selector/Toggle Visual Elegante de Destino (SEI-47) */}
+      {activeVault && (
+        <div className="mb-6 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 backdrop-blur shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-emerald-300">
+              Destino del Movimiento
+            </label>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              {selectedDestination === 'vault' ? 'Bóveda Compartida' : 'Cuenta Personal'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-1.5 rounded-xl bg-slate-950/80 border border-slate-800 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setSelectedDestination('vault')}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                selectedDestination === 'vault'
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 shadow-md ring-1 ring-emerald-500/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              }`}
+            >
+              <span className="text-base">🏛️</span>
+              <span className="truncate">{activeVault.name} (Bóveda Compartida)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedDestination('personal')}
+              className={`flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                selectedDestination === 'personal'
+                  ? 'bg-slate-800 border border-slate-700 text-white shadow-md ring-1 ring-slate-600'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+              }`}
+            >
+              <span className="text-base">👤</span>
+              <span>Mi Cuenta Personal</span>
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">
+            {selectedDestination === 'vault'
+              ? `Este movimiento será registrado en la bóveda "${activeVault.name}" y visible para todos sus miembros.`
+              : 'Este movimiento será privado y exclusivo de tu cuenta personal.'}
+          </p>
+        </div>
+      )}
 
       {/* Prominent Type Switch (Gasto vs Ingreso) */}
       <div className="mb-6">

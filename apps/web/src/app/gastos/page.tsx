@@ -27,6 +27,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { ExpenseCard } from '@/components/expenses/ExpenseCard';
 import { ExpenseDeleteModal } from '@/components/expenses/ExpenseDeleteModal';
@@ -44,6 +45,7 @@ import type { User } from '@supabase/supabase-js';
 import { SupportedCurrency, FALLBACK_RATES } from '@/utils/api/rates';
 
 export default function GastosPage() {
+  const { activeVault, activeVaultId } = useVaultStore();
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
@@ -54,6 +56,7 @@ export default function GastosPage() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<'ALL' | 'EXPENSE' | 'INCOME'>('ALL');
   const [selectedCurrencyFilter, setSelectedCurrencyFilter] = useState<string>('ALL');
+  const [selectedMemberFilter, setSelectedMemberFilter] = useState<string>('ALL');
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<{
     type: 'success' | 'error';
@@ -102,13 +105,18 @@ export default function GastosPage() {
     };
   }, [supabase]);
 
+  // Reset member filter on activeVault change
+  useEffect(() => {
+    setSelectedMemberFilter('ALL');
+  }, [activeVaultId]);
+
   // Load expenses and categories
   const loadData = useCallback(async () => {
     setIsDataLoading(true);
     setError(null);
     try {
       const [expensesData, categoriesData, tagsData] = await Promise.all([
-        getExpenses(),
+        getExpenses({ vaultId: activeVaultId || undefined }),
         getCategories().catch(() => []),
         getTagsSummary().catch(() => []),
       ]);
@@ -124,13 +132,14 @@ export default function GastosPage() {
     } finally {
       setIsDataLoading(false);
     }
-  }, []);
+  }, [activeVaultId]);
 
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
+    setIsDataLoading(true);
     Promise.all([
-      getExpenses(),
+      getExpenses({ vaultId: activeVaultId || undefined }),
       getCategories().catch(() => []),
       getTagsSummary().catch(() => []),
     ])
@@ -160,7 +169,7 @@ export default function GastosPage() {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, activeVaultId]);
 
   // Auto-hide toast after 4s
   useEffect(() => {
@@ -209,12 +218,18 @@ export default function GastosPage() {
         matchesTag = Boolean(hasTagInArray || hasTagInDesc);
       }
 
+      const matchesMember =
+        selectedMemberFilter === 'ALL' ||
+        exp.userId === selectedMemberFilter ||
+        exp.user?.id === selectedMemberFilter;
+
       return (
         matchesSearch &&
         matchesCategory &&
         matchesType &&
         matchesCurrency &&
-        matchesTag
+        matchesTag &&
+        matchesMember
       );
     });
   }, [
@@ -224,6 +239,7 @@ export default function GastosPage() {
     selectedTypeFilter,
     selectedCurrencyFilter,
     selectedTag,
+    selectedMemberFilter,
   ]);
 
   // Statistics calculations (consolidated in ARS)
@@ -291,9 +307,16 @@ export default function GastosPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shadow-md shadow-emerald-950/40">
                 <DollarSign className="h-5 w-5" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                Movimientos
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+                  Movimientos
+                </h1>
+                {activeVault && (
+                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-400">
+                    🏛️ {activeVault.name}
+                  </span>
+                )}
+              </div>
             </div>
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
               Historial y registro de ingresos y gastos multi-moneda (ARS, USD, EUR, USDT) con motor impositivo
@@ -366,6 +389,43 @@ export default function GastosPage() {
             <UserStatus />
           </div>
         </div>
+
+        {/* Banner Indicador de Bóveda Activa (SEI-47) */}
+        {activeVault && (
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 backdrop-blur shadow-sm animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30 shrink-0">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-white">
+                    Mostrando movimientos de: {activeVault.name}
+                  </span>
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300 border border-emerald-500/30 uppercase tracking-wider">
+                    Bóveda Compartida
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {activeVault.description || 'Movimientos y gastos compartidos de la organización.'}
+                  {activeVault.members && activeVault.members.length > 0 && (
+                    <span className="ml-1 text-slate-400 font-medium">
+                      • {activeVault.members.length} {activeVault.members.length === 1 ? 'integrante' : 'integrantes'}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href="/bovedas"
+                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 transition cursor-pointer"
+              >
+                Panel de Bóvedas &rarr;
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Toast Feedback Notification */}
         {toastMessage && (
@@ -578,6 +638,34 @@ export default function GastosPage() {
                     ▼
                   </div>
                 </div>
+
+                {/* Member Filter Contextual to Vault (SEI-47) */}
+                {activeVault && (activeVault.members?.length ?? 0) > 0 && (
+                  <div className="relative w-full sm:max-w-[170px]">
+                    <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-400">
+                      <Users className="h-3.5 w-3.5" />
+                    </div>
+                    <select
+                      value={selectedMemberFilter}
+                      onChange={(e) => setSelectedMemberFilter(e.target.value)}
+                      className="w-full appearance-none rounded-2xl border border-emerald-500/30 bg-slate-900/60 pl-9 pr-8 py-2.5 text-xs text-white focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 transition cursor-pointer"
+                    >
+                      <option value="ALL">Todos los miembros</option>
+                      {activeVault.members!.map((m) => {
+                        const memberName =
+                          m.user?.name || (m.user?.email ? m.user.email.split('@')[0] : m.userId);
+                        return (
+                          <option key={m.userId} value={m.userId} className="bg-slate-900 text-white">
+                            👤 {memberName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 text-xs">
+                      ▼
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Action Button: Nueva Transacción, Escanear Ticket e Importar CSV */}
@@ -678,6 +766,10 @@ export default function GastosPage() {
                   onClick={() => {
                     setSearch('');
                     setSelectedCategoryFilter('');
+                    setSelectedTypeFilter('ALL');
+                    setSelectedCurrencyFilter('ALL');
+                    setSelectedTag(null);
+                    setSelectedMemberFilter('ALL');
                   }}
                   className="mt-3 text-xs text-emerald-400 hover:underline cursor-pointer"
                 >
