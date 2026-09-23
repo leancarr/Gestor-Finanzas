@@ -80,17 +80,21 @@ export class ExpensesController {
   getRecent(
     @CurrentUser() user: AuthUser,
     @Query('limit') limit?: string,
+    @Query('vaultId') vaultId?: string,
   ) {
     const take = limit ? Math.min(Math.max(Number(limit), 1), 50) : 5;
-    return this.expensesService.getRecent(user.id, take);
+    return this.expensesService.getRecent(user.id, take, vaultId);
   }
 
   /**
    * Obtiene el resumen de gastos agrupados por etiquetas (#Hashtags).
    */
   @Get('tags/summary')
-  getTagsSummary(@CurrentUser() user: AuthUser) {
-    return this.expensesService.getTagsSummary(user.id);
+  getTagsSummary(
+    @CurrentUser() user: AuthUser,
+    @Query('vaultId') vaultId?: string,
+  ) {
+    return this.expensesService.getTagsSummary(user.id, vaultId);
   }
 
   /**

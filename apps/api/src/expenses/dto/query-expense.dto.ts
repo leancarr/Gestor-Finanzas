@@ -1,8 +1,12 @@
-import { IsOptional, IsString, IsISO8601, IsInt, Min, Max, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsISO8601, IsInt, Min, Max, IsEnum, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TransactionType } from '@prisma/client';
 
 export class QueryExpenseDto {
+  @IsOptional()
+  @IsUUID('all', { message: 'El ID de la bóveda debe ser un UUID válido' })
+  vaultId?: string;
+
   @IsOptional()
   @IsEnum(TransactionType, { message: 'El tipo debe ser EXPENSE o INCOME' })
   type?: TransactionType;

@@ -1,7 +1,11 @@
-import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SummaryExpenseDto {
+  @IsOptional()
+  @IsUUID('all', { message: 'El ID de la bóveda debe ser un UUID válido' })
+  vaultId?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'El mes debe ser un número entero entre 1 y 12' })
