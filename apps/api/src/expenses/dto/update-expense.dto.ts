@@ -8,6 +8,7 @@ import {
   IsISO8601,
   IsEnum,
   IsArray,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TransactionType } from '@prisma/client';
@@ -20,6 +21,7 @@ export class UpdateExpenseDto {
     { message: 'El monto debe ser un número válido con hasta 2 decimales' },
   )
   @IsPositive({ message: 'El monto debe ser mayor a 0' })
+  @Max(9999999999.99, { message: 'El monto excede el límite permitido ($9.999.999.999,99)' })
   amount?: number;
 
   @IsOptional()

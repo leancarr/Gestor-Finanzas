@@ -218,6 +218,7 @@ export async function processRecurring(
   const res = await fetch(`${API_URL}/recurring/${id}/process`, {
     method: 'POST',
     headers,
+    body: JSON.stringify({}),
   });
 
   if (!res.ok) {
@@ -238,6 +239,7 @@ export async function processDueRecurring(): Promise<ProcessDueResponse> {
   const res = await fetch(`${API_URL}/recurring/process-due`, {
     method: 'POST',
     headers,
+    body: JSON.stringify({}),
   });
 
   if (!res.ok) {

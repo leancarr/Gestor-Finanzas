@@ -78,6 +78,7 @@ export async function restoreTrashItem(id: string): Promise<void> {
   const res = await fetch(`${getApiUrl()}/trash/${id}/restore`, {
     method: 'POST',
     headers,
+    body: JSON.stringify({}),
   });
 
   if (!res.ok) {

@@ -25,6 +25,10 @@ async function bootstrap() {
   );
 
   const port = process.env.PORT ?? 4000;
+  const server = app.getHttpServer();
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+
   await app.listen(port);
   console.log(`🚀 Gestor-Finanzas API running on: http://localhost:${port}`);
   console.log(`🩺 Healthcheck available at: http://localhost:${port}/health`);
