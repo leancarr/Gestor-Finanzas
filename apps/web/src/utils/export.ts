@@ -16,19 +16,38 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('es-AR');
 }
 
-export function exportToCSV(data: ExpenseItem[], filenamePrefix: string = 'Gestor_Guita_Reporte') {
+export interface ExportCSVOptions {
+  vaultName?: string | null;
+  organizationName?: string | null;
+}
+
+export function exportToCSV(
+  data: ExpenseItem[],
+  filenamePrefix: string = 'Gestor_Guita_Reporte',
+  options?: ExportCSVOptions,
+) {
   if (!data || data.length === 0) return;
 
+  const orgName = options?.vaultName || options?.organizationName;
   const headers = ['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Monto', 'Moneda'];
+  if (orgName) {
+    headers.push('Organización / Bóveda');
+  }
   
-  const rows = data.map((item) => [
-    formatDate(item.date),
-    `"${(item.description || '').replace(/"/g, '""')}"`, // escape quotes
-    `"${(item.category?.name || 'Sin Categoría').replace(/"/g, '""')}"`,
-    item.type === 'INCOME' ? 'Ingreso' : 'Gasto',
-    typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount)) || 0,
-    item.currency || 'ARS',
-  ]);
+  const rows = data.map((item) => {
+    const row = [
+      formatDate(item.date),
+      `"${(item.description || '').replace(/"/g, '""')}"`, // escape quotes
+      `"${(item.category?.name || 'Sin Categoría').replace(/"/g, '""')}"`,
+      item.type === 'INCOME' ? 'Ingreso' : 'Gasto',
+      typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount)) || 0,
+      item.currency || 'ARS',
+    ];
+    if (orgName) {
+      row.push(`"${orgName.replace(/"/g, '""')}"`);
+    }
+    return row;
+  });
 
   const csvContent =
     headers.join(',') +
@@ -39,8 +58,9 @@ export function exportToCSV(data: ExpenseItem[], filenamePrefix: string = 'Gesto
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
 
+  const orgSuffix = orgName ? `_${orgName.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : '';
   link.setAttribute('href', url);
-  link.setAttribute('download', `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute('download', `${filenamePrefix}${orgSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
   link.style.visibility = 'hidden';
   
   document.body.appendChild(link);
@@ -53,6 +73,8 @@ export interface ExportPDFOptions {
   periodLabel?: string;
   currency?: string;
   customTitle?: string;
+  vaultName?: string | null;
+  organizationName?: string | null;
 }
 
 export function exportToPDF(
@@ -71,7 +93,11 @@ export function exportToPDF(
     periodLabel,
     currency = 'ARS',
     customTitle = 'REPORTE FINANCIERO EJECUTIVO',
+    vaultName,
+    organizationName,
   } = options;
+
+  const orgName = vaultName || organizationName;
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -96,6 +122,18 @@ export function exportToPDF(
   doc.setFillColor(16, 185, 129);
   doc.circle(56, 13.5, 1.2, 'F');
 
+  // Badge contextual de Bóveda / Organización si aplica
+  if (orgName) {
+    const orgBadgeText = `ESPACIO: ${orgName.toUpperCase()}`;
+    const badgeWidth = Math.min(doc.getTextWidth(orgBadgeText) + 8, 70);
+    doc.setFillColor(6, 78, 59); // Emerald 900
+    doc.roundedRect(66, 10, badgeWidth, 7, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(167, 243, 208); // Emerald 200
+    doc.text(orgBadgeText, 70, 14.8);
+  }
+
   // 3. Título Principal Formal
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
@@ -106,7 +144,10 @@ export function exportToPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139); // Slate 500
-  doc.text(`Período auditado: ${periodLabel || 'Consolidado histórico'}`, 14, 30);
+  const periodText = orgName
+    ? `Período: ${periodLabel || 'Consolidado'}  |  Organización: ${orgName}`
+    : `Período auditado: ${periodLabel || 'Consolidado histórico'}`;
+  doc.text(periodText, 14, 30);
   doc.text(
     `Fecha de emisión: ${new Date().toLocaleDateString('es-AR')}`,
     pageWidth - 14,
@@ -265,7 +306,7 @@ export function exportToPDF(
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7.5);
       doc.setTextColor(100, 116, 139);
-      doc.text('GESTOR GUITA — REPORTE FINANCIERO EJECUTIVO', 14, 12);
+      doc.text(`GESTOR GUITA — REPORTE FINANCIERO EJECUTIVO${orgName ? ` [${orgName}]` : ''}`, 14, 12);
       doc.setFont('helvetica', 'normal');
       if (periodLabel) {
         doc.text(`Período: ${periodLabel}`, pageWidth - 14, 12, { align: 'right' });
@@ -283,13 +324,14 @@ export function exportToPDF(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184); // Slate 400
-    const footerText = `Página ${i} de ${totalPages} - Documento confidencial generado por Gestor Guita`;
+    const footerText = `Página ${i} de ${totalPages} - Documento confidencial generado por Gestor Guita${orgName ? ` (${orgName})` : ''}`;
     doc.text(footerText, pageWidth / 2, pageHeight - 9, { align: 'center' });
   }
 
   const safeFilename = (customTitle || 'Reporte_Financiero')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '_');
-  doc.save(`Gestor_Guita_${safeFilename}_${new Date().toISOString().split('T')[0]}.pdf`);
+  const orgSuffix = orgName ? `_${orgName.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : '';
+  doc.save(`Gestor_Guita_${safeFilename}${orgSuffix}_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 

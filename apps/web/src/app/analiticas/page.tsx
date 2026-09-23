@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { UserStatus } from '@/components/auth/UserStatus';
 import {
@@ -61,6 +62,9 @@ const RANGE_OPTIONS: Array<{
 export default function AnaliticasPage() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Contexto de Bóveda Workspace (SEI-48)
+  const { activeVault, activeVaultId, clearActiveVault } = useVaultStore();
 
   // Pestaña activa: Tableros vs Reportes
   const [activeTab, setActiveTab] = useState<'analiticas' | 'reportes'>('analiticas');
@@ -144,12 +148,16 @@ export default function AnaliticasPage() {
     setIsDataLoading(true);
 
     Promise.all([
-      getExpenses({ limit: 1000 }).catch(() => [] as ExpenseItem[]),
+      getExpenses({
+        limit: 1000,
+        vaultId: activeVaultId || undefined,
+      }).catch(() => [] as ExpenseItem[]),
       getAnalytics({
         range,
         currency,
         rates,
         selectedDate: selectedDate || undefined,
+        vaultId: activeVaultId || undefined,
       }),
     ])
       .then(([expensesList, analyticsData]) => {
@@ -174,7 +182,7 @@ export default function AnaliticasPage() {
     return () => {
       isMounted = false;
     };
-  }, [user, range, currency, rates, reloadKey, selectedDate]);
+  }, [user, range, currency, rates, reloadKey, selectedDate, activeVaultId]);
 
   // Movimientos filtrados por el período activo (para reportes y exportación CSV/PDF)
   const periodExpenses = useMemo(() => {
@@ -261,6 +269,21 @@ export default function AnaliticasPage() {
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
               Análisis comparativo de KPIs mes a mes, curva de gastos vs ingresos y concentración de presupuesto
             </p>
+            {activeVault && (
+              <div className="mt-2.5 flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-teal-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 shadow-sm shadow-emerald-950/20 backdrop-blur">
+                  <span>🏛️ Analíticas del Espacio: <strong>{activeVault.name}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => clearActiveVault()}
+                    className="ml-2 inline-flex items-center gap-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 px-2.5 py-0.5 text-[11px] font-bold text-emerald-200 transition cursor-pointer"
+                    title="Alternar al modo Personal"
+                  >
+                    <span>Alternar a Personal</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -529,6 +552,7 @@ export default function AnaliticasPage() {
                 currency={currency}
                 periodLabel={periodLabel}
                 loading={isDataLoading}
+                vaultName={activeVault?.name}
               />
             ) : (
               /* VISTA DE TABLEROS ANALÍTICOS (GRÁFICOS & KPIS) */
