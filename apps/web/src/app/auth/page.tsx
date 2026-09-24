@@ -38,14 +38,16 @@ export default function AuthPage() {
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('your-project-id');
 
-  const handleQuickDemoLogin = (customEmail?: string) => {
+  const handleQuickDemoLogin = (customEmail?: string, customName?: string) => {
     setErrorMessage(null);
     setSuccessMessage(null);
     startTransition(async () => {
       try {
         const { loginWithDevAccount } = await import('@/utils/supabase/client');
-        await loginWithDevAccount(customEmail || 'demo@gestorguita.com', 'Usuario Demo');
-        setSuccessMessage('¡Sesión demo iniciada! Redirigiendo al dashboard...');
+        const email = customEmail || 'demo@gestorguita.com';
+        const name = customName || (email.includes('demo2') ? 'Flor Demo' : 'Demo User');
+        await loginWithDevAccount(email, name);
+        setSuccessMessage(`¡Sesión iniciada como ${name}! Redirigiendo al dashboard...`);
         router.push('/');
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
@@ -430,16 +432,30 @@ export default function AuthPage() {
               </form>
 
               {/* Acceso Rápido Demo Neon */}
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemoLogin()}
-                  disabled={isPending}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-[0.99] px-4 py-2.5 text-sm font-semibold text-emerald-400 shadow-md shadow-emerald-950/30 transition-all duration-200 disabled:opacity-50 cursor-pointer"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span>⚡ Entrar con Usuario Demo (Neon)</span>
-                </button>
+              <div className="mt-4 space-y-2">
+                <div className="text-center text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                  ⚡ Accesos Rápidos Demo (Bóvedas & Colaboración)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('demo@gestorguita.com', 'Demo User')}
+                    disabled={isPending}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-[0.99] px-3 py-2.5 text-xs sm:text-sm font-semibold text-emerald-400 shadow-md shadow-emerald-950/30 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span className="truncate">Demo 1: Demo User</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin('demo2@gestorguita.com', 'Flor Demo')}
+                    disabled={isPending}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 hover:bg-violet-500/20 active:scale-[0.99] px-3 py-2.5 text-xs sm:text-sm font-semibold text-violet-300 shadow-md shadow-violet-950/30 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0 text-violet-400" />
+                    <span className="truncate">Demo 2: Flor Demo</span>
+                  </button>
+                </div>
               </div>
 
               {/* Social Login Separator */}

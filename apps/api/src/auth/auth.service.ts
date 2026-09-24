@@ -105,7 +105,15 @@ export class AuthService {
    */
   async devLogin(dto: DevLoginDto) {
     const email = dto.email?.trim().toLowerCase() || 'demo@gestorguita.com';
-    const name = dto.name?.trim() || (dto.email ? dto.email.split('@')[0] : 'Usuario Demo');
+    const defaultName =
+      email === 'demo2@gestorguita.com'
+        ? 'Flor Demo'
+        : email === 'demo@gestorguita.com'
+          ? 'Demo User'
+          : dto.email
+            ? dto.email.split('@')[0]
+            : 'Usuario Demo';
+    const name = dto.name?.trim() || defaultName;
     const id = dto.id?.trim() || `usr_${crypto.createHash('md5').update(email).digest('hex').slice(0, 16)}`;
 
     const authUser: AuthUser = {
