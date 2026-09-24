@@ -217,14 +217,14 @@ export default function CategoriasPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
-        {/* Navigation & Header */}
+        {/* Header */}
         <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
               <Link
-                href="/"
+                href="/dashboard"
                 className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
-                title="Volver al Inicio"
+                title="Volver al Dashboard"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -238,72 +238,6 @@ export default function CategoriasPage() {
             <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
               Personaliza tus rubros con íconos y colores protegidos con Row Level Security
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <VaultSelector />
-            <StreakBadge />
-            <Link
-              href="/gastos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-              Gastos
-            </Link>
-            <Link
-              href="/bovedas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Users className="h-3.5 w-3.5 text-emerald-400" />
-              Bóvedas
-            </Link>
-            <Link
-              href="/inversiones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              Inversiones
-            </Link>
-            <Link
-              href="/metas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Award className="h-3.5 w-3.5 text-emerald-400" />
-              Metas
-            </Link>
-            <Link
-              href="/presupuestos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Target className="h-3.5 w-3.5 text-emerald-400" />
-              Presupuestos
-            </Link>
-            <Link
-              href="/suscripciones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
-              Suscripciones
-            </Link>
-            <Link
-              href="/analiticas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
-              Analíticas
-            </Link>
-            <Link
-              href="/asistente"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer shadow-sm"
-            >
-              <Bot className="h-3.5 w-3.5 text-emerald-400" />
-              Asistente
-            </Link>
-            <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Ticket 2.1: SEI-21
-            </div>
-            <UserStatus />
           </div>
         </div>
 

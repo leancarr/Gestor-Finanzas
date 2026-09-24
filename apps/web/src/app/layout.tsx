@@ -24,6 +24,7 @@ export const metadata: Metadata = {
 import SyncManager from "@/components/SyncManager";
 import { FinancialChatbot } from "@/components/ai/FinancialChatbot";
 import { Navbar } from "@/components/layout/Navbar";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 export default function RootLayout({
   children,
@@ -37,7 +38,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
         <Navbar />
-        {children}
+        <AuthGuard>{children}</AuthGuard>
         <FinancialChatbot />
         <SyncManager />
       </body>

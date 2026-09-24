@@ -209,7 +209,17 @@ export default function InversionesPage() {
     return assets.filter((asset) => {
       // Filtro por categoría
       if (activeFilter === 'CASH') {
-        if (asset.type !== 'CASH_ARS' && asset.type !== 'CASH_USD') return false;
+        if (
+          asset.type !== 'CASH_ARS' &&
+          asset.type !== 'CASH_USD' &&
+          (asset.type as string) !== 'CURRENCY'
+        ) {
+          return false;
+        }
+      } else if (activeFilter === 'CEDEAR') {
+        if (asset.type !== 'CEDEAR' && (asset.type as string) !== 'STOCK') {
+          return false;
+        }
       } else if (activeFilter !== 'ALL') {
         if (asset.type !== activeFilter) return false;
       }
@@ -275,7 +285,12 @@ interface PortfolioInsights {
       }
 
       // Desempeño
-      if (asset.type !== 'CASH_ARS' && asset.type !== 'CASH_USD' && purPrice > 0) {
+      if (
+        asset.type !== 'CASH_ARS' &&
+        asset.type !== 'CASH_USD' &&
+        (asset.type as string) !== 'CURRENCY' &&
+        purPrice > 0
+      ) {
         const perf = ((curPrice - purPrice) / purPrice) * 100;
         if (perf > maxPerfPercent) {
           maxPerfPercent = perf;
@@ -294,7 +309,14 @@ interface PortfolioInsights {
       }
 
       // Exposición a moneda dura (USD, CEDEARs, CRYPTO)
-      if (isUsd || asset.type === 'CEDEAR' || asset.type === 'CRYPTO' || asset.type === 'CASH_USD') {
+      if (
+        isUsd ||
+        asset.type === 'CEDEAR' ||
+        (asset.type as string) === 'STOCK' ||
+        asset.type === 'CRYPTO' ||
+        asset.type === 'CASH_USD' ||
+        (asset.type as string) === 'CURRENCY'
+      ) {
         totalUsdExposureArs += valArs;
       }
     });
@@ -330,14 +352,14 @@ interface PortfolioInsights {
   return (
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-8">
-        {/* Navigation & Header */}
+        {/* Header */}
         <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
               <Link
-                href="/"
+                href="/dashboard"
                 className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
-                title="Volver al Inicio"
+                title="Volver al Dashboard"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Link>
@@ -358,82 +380,7 @@ interface PortfolioInsights {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* Selector de Contexto Global */}
-            <VaultSelector />
-            <StreakBadge />
-
-            <Link
-              href="/gastos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
-              Gastos
-            </Link>
-            <Link
-              href="/bovedas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Users className="h-3.5 w-3.5 text-emerald-400" />
-              Bóvedas
-            </Link>
-            <Link
-              href="/inversiones"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1.5 text-xs font-bold text-emerald-400 shadow-sm"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              Inversiones
-            </Link>
-            <Link
-              href="/metas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Award className="h-3.5 w-3.5 text-emerald-400" />
-              Metas
-            </Link>
-            <Link
-              href="/presupuestos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Target className="h-3.5 w-3.5 text-emerald-400" />
-              Presupuestos
-            </Link>
-            <Link
-              href="/suscripciones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
-              Suscripciones
-            </Link>
-            <Link
-              href="/categorias"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Layers className="h-3.5 w-3.5 text-slate-400" />
-              Categorías
-            </Link>
-            <Link
-              href="/analiticas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
-              Analíticas
-            </Link>
-            <Link
-              href="/asistente"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer shadow-sm"
-            >
-              <Bot className="h-3.5 w-3.5 text-emerald-400" />
-              Asistente
-            </Link>
-            <Link
-              href="/perfil"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <UserNavIcon className="h-3.5 w-3.5 text-emerald-400" />
-              Perfil
-            </Link>
-
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setIsBrokerModalOpen(true)}
@@ -450,9 +397,8 @@ interface PortfolioInsights {
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/50 transition cursor-pointer"
             >
               <Plus className="h-4 w-4" />
-              + Nuevo Activo
+              <span>+ Nuevo Activo</span>
             </button>
-            <UserStatus />
           </div>
         </header>
 
