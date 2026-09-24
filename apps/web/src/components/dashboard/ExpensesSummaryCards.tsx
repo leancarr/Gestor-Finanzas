@@ -54,33 +54,34 @@ export function ExpensesSummaryCards({
     );
   }
 
-  // Base amounts (in ARS or as stored in summary)
+  // Base amounts (using summary currency denomination)
+  const baseCurrency = (summary.currency || 'ARS').toUpperCase() as SupportedCurrency;
   const rawExpenses = summary.totalExpenses ?? summary.totalAmount ?? 0;
   const rawIncome = summary.totalIncome ?? 0;
   const rawBalance = summary.balance !== undefined ? summary.balance : rawIncome - rawExpenses;
 
-  // Convert if viewing in a different currency
+  // Convert if viewing in a different currency than returned by summary
   const totalExpenses =
-    currency === 'ARS'
+    baseCurrency === currency
       ? rawExpenses
-      : convertCurrencyLocal(rawExpenses, 'ARS', currency, rates);
+      : convertCurrencyLocal(rawExpenses, baseCurrency, currency, rates);
   const totalIncome =
-    currency === 'ARS'
+    baseCurrency === currency
       ? rawIncome
-      : convertCurrencyLocal(rawIncome, 'ARS', currency, rates);
+      : convertCurrencyLocal(rawIncome, baseCurrency, currency, rates);
   const balance =
-    currency === 'ARS'
+    baseCurrency === currency
       ? rawBalance
-      : convertCurrencyLocal(rawBalance, 'ARS', currency, rates);
+      : convertCurrencyLocal(rawBalance, baseCurrency, currency, rates);
 
   const isPositiveBalance = balance >= 0;
   const expensesCount = summary.expensesCount ?? summary.count ?? 0;
   const incomeCount = summary.incomeCount ?? 0;
   const topCategory = summary.byCategory.length > 0 ? summary.byCategory[0] : null;
   const topCategoryTotal = topCategory
-    ? currency === 'ARS'
+    ? baseCurrency === currency
       ? topCategory.total
-      : convertCurrencyLocal(topCategory.total, 'ARS', currency, rates)
+      : convertCurrencyLocal(topCategory.total, baseCurrency, currency, rates)
     : 0;
 
   return (

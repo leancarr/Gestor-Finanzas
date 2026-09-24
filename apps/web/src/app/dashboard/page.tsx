@@ -13,6 +13,7 @@ import {
 } from '@/utils/api/expenses';
 import { MagicInput } from '@/components/dashboard/MagicInput';
 import { UpcomingDuesWidget } from '@/components/dashboard/UpcomingDuesWidget';
+import { DolarRatesModal } from '@/components/rates/DolarRatesModal';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -155,6 +156,27 @@ export default function HomePage() {
       }
     });
   }, []);
+
+  const [isDolarModalOpen, setIsDolarModalOpen] = useState(false);
+  const [selectedUsdRateType, setSelectedUsdRateType] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('preferred_usd_rate_type') || 'blue';
+      } catch {}
+    }
+    return 'blue';
+  });
+
+  const handleSelectRateType = (rateType: string, rateValue: number) => {
+    setSelectedUsdRateType(rateType);
+    setRates((prev) => ({
+      ...prev,
+      USD: rateValue,
+    }));
+    try {
+      localStorage.setItem('preferred_usd_rate_type', rateType);
+    } catch {}
+  };
 
   const handleCurrencyChange = (newCurrency: SupportedCurrency) => {
     setPreferredCurrency(newCurrency);
@@ -473,12 +495,18 @@ export default function HomePage() {
                   </span>
                 </p>
                 {preferredCurrency !== 'ARS' && (
-                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setIsDolarModalOpen(true)}
+                    className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-[11px] text-amber-300 font-medium transition cursor-pointer"
+                    title="Click para ver todas las cotizaciones de dólares"
+                  >
                     <Sparkles className="h-3 w-3 text-amber-400" />
                     <span>
                       Visualizando en {preferredCurrency} (1 {preferredCurrency} ≈ ${rates[preferredCurrency]?.toLocaleString('es-AR')} ARS)
                     </span>
-                  </div>
+                    <span className="underline ml-1 text-amber-200">Ver cotizaciones</span>
+                  </button>
                 )}
               </div>
 
@@ -512,6 +540,16 @@ export default function HomePage() {
                       );
                     })}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsDolarModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-semibold transition cursor-pointer shadow-sm"
+                    title="Ver cotizaciones de todos los dólares (Blue, MEP, Oficial, Tarjeta, Cripto)"
+                  >
+                    <Coins className="h-3.5 w-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">Dólares</span>
+                  </button>
                 </div>
 
                 {/* Month Selector Controls */}
@@ -666,6 +704,7 @@ export default function HomePage() {
                   loading={isDataLoading}
                   currency={preferredCurrency}
                   rates={rates}
+                  summaryCurrency={summary?.currency}
                 />
               </div>
 
@@ -710,6 +749,13 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      <DolarRatesModal
+        isOpen={isDolarModalOpen}
+        onClose={() => setIsDolarModalOpen(false)}
+        selectedRateType={selectedUsdRateType}
+        onSelectRateType={handleSelectRateType}
+      />
     </main>
   );
 }
