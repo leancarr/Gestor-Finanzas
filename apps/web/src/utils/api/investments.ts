@@ -8,7 +8,9 @@ export type AssetType =
   | 'FIXED_TERM'
   | 'CEDEAR'
   | 'CRYPTO'
-  | 'OTHER';
+  | 'OTHER'
+  | 'STOCK'
+  | 'CURRENCY';
 
 export interface Asset {
   id: string;
@@ -102,12 +104,12 @@ export const INITIAL_MOCK_ASSETS: Asset[] = [
     name: 'CEDEAR Apple (AAPL)',
     type: 'CEDEAR',
     ticker: 'AAPL',
-    quantity: 15,
-    purchasePrice: 4700,
-    currentPrice: 5000, // 15 * 5000 = ~$75.000 ARS
+    quantity: 25,
+    purchasePrice: 4200,
+    currentPrice: 4850,
     currency: 'ARS',
     institution: 'Bull Market Brokers',
-    notes: '15 acciones CEDEAR Apple Inc.',
+    notes: '25 acciones CEDEAR Apple Inc.',
     createdAt: new Date(Date.now() - 45 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -116,27 +118,27 @@ export const INITIAL_MOCK_ASSETS: Asset[] = [
     name: 'CEDEAR SPY (S&P 500)',
     type: 'CEDEAR',
     ticker: 'SPY',
-    quantity: 10,
-    purchasePrice: 11200,
-    currentPrice: 12000, // 10 * 12000 = ~$120.000 ARS
+    quantity: 15,
+    purchasePrice: 11500,
+    currentPrice: 12850,
     currency: 'ARS',
     institution: 'IOL InvertirOnline',
-    notes: '10 acciones ETF SPDR S&P 500',
+    notes: '15 acciones ETF SPDR S&P 500',
     createdAt: new Date(Date.now() - 60 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'asset-plazo-fijo-galicia',
-    name: 'Plazo Fijo Banco Galicia',
+    name: 'Plazo Fijo Tradicional',
     type: 'FIXED_TERM',
-    quantity: 1500000, // Capital $1.500.000 ARS
-    purchasePrice: 1500000,
-    currentPrice: 1545616, // Capital + rendimiento proyectado
+    quantity: 2000000,
+    purchasePrice: 2000000,
+    currentPrice: 2060821,
     currency: 'ARS',
     institution: 'Banco Galicia',
-    interestRate: 37, // TNA 37%
+    interestRate: 37,
     dueDate: new Date(Date.now() + 20 * 86400000).toISOString().split('T')[0],
-    notes: 'Capital $1.500.000 ARS a TNA 37%',
+    notes: 'Plazo Fijo a 30 días, TNA 37%',
     createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -144,26 +146,26 @@ export const INITIAL_MOCK_ASSETS: Asset[] = [
     id: 'asset-dolar-mep',
     name: 'Dólar MEP',
     type: 'CASH_USD',
-    quantity: 2500, // 2.500 USD
+    quantity: 3500,
     purchasePrice: 1,
     currentPrice: 1,
     currency: 'USD',
     institution: 'Balanz',
-    notes: '2.500 USD disponibles en cuenta comitente',
+    notes: '3.500 USD disponibles en cuenta comitente',
     createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 'asset-bitcoin',
-    name: 'Bitcoin',
+    name: 'Bitcoin BTC',
     type: 'CRYPTO',
     ticker: 'BTC',
-    quantity: 0.045, // 0.045 BTC
+    quantity: 0.065,
     purchasePrice: 58500,
-    currentPrice: 64200,
+    currentPrice: 64500,
     currency: 'USD',
     institution: 'Hardware Wallet (Trezor)',
-    notes: '0.045 BTC reserva en custodia fría',
+    notes: '0.065 BTC reserva en custodia fría',
     createdAt: new Date(Date.now() - 90 * 86400000).toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -258,7 +260,7 @@ export async function calculateLocalPortfolioSummary(assets: Asset[]): Promise<P
   let totalNetWorthArs = 0;
   let totalInvestedArs = 0;
 
-  const distributionMap: Record<AssetType, { totalArs: number; totalUsd: number }> = {
+  const distributionMap: Record<string, { totalArs: number; totalUsd: number }> = {
     CASH_ARS: { totalArs: 0, totalUsd: 0 },
     CASH_USD: { totalArs: 0, totalUsd: 0 },
     FIXED_TERM: { totalArs: 0, totalUsd: 0 },
@@ -272,6 +274,16 @@ export async function calculateLocalPortfolioSummary(assets: Asset[]): Promise<P
     const currentPrice = Number(asset.currentPrice) || Number(asset.purchasePrice) || 0;
     const purchasePrice = Number(asset.purchasePrice) || currentPrice;
 
+    const rawType = asset.type as string;
+    const normalizedType =
+      rawType === 'STOCK'
+        ? 'CEDEAR'
+        : rawType === 'CURRENCY'
+          ? 'CASH_USD'
+          : rawType in distributionMap
+            ? rawType
+            : 'OTHER';
+
     const isUsd = (asset.currency || 'ARS').toUpperCase() === 'USD';
 
     let currentValArs = 0;
@@ -283,15 +295,15 @@ export async function calculateLocalPortfolioSummary(assets: Asset[]): Promise<P
       currentValArs = currentValUsd * usdRate;
       investedValArs = investedValUsd * usdRate;
 
-      distributionMap[asset.type].totalUsd += currentValUsd;
-      distributionMap[asset.type].totalArs += currentValArs;
+      distributionMap[normalizedType].totalUsd += currentValUsd;
+      distributionMap[normalizedType].totalArs += currentValArs;
     } else {
       currentValArs = qty * currentPrice;
       investedValArs = qty * purchasePrice;
       const currentValUsd = currentValArs / usdRate;
 
-      distributionMap[asset.type].totalArs += currentValArs;
-      distributionMap[asset.type].totalUsd += currentValUsd;
+      distributionMap[normalizedType].totalArs += currentValArs;
+      distributionMap[normalizedType].totalUsd += currentValUsd;
     }
 
     totalNetWorthArs += currentValArs;
@@ -357,7 +369,16 @@ export async function getAssets(type?: AssetType): Promise<Asset[]> {
       if (Array.isArray(data)) {
         const sanitized = sanitizeAssets(data);
         saveLocalAssets(sanitized);
-        return type ? sanitized.filter((a) => a.type === type) : sanitized;
+        if (!type) return sanitized;
+        if (type === 'CEDEAR' || (type as string) === 'STOCK') {
+          return sanitized.filter((a) => a.type === 'CEDEAR' || (a.type as string) === 'STOCK');
+        }
+        if (type === 'CASH_USD' || type === 'CASH_ARS' || (type as string) === 'CURRENCY') {
+          return sanitized.filter(
+            (a) => a.type === 'CASH_USD' || a.type === 'CASH_ARS' || (a.type as string) === 'CURRENCY'
+          );
+        }
+        return sanitized.filter((a) => a.type === type);
       }
     }
   } catch {
@@ -366,6 +387,14 @@ export async function getAssets(type?: AssetType): Promise<Asset[]> {
 
   const local = getLocalAssets();
   if (type) {
+    if (type === 'CEDEAR' || (type as string) === 'STOCK') {
+      return local.filter((a) => a.type === 'CEDEAR' || (a.type as string) === 'STOCK');
+    }
+    if (type === 'CASH_USD' || type === 'CASH_ARS' || (type as string) === 'CURRENCY') {
+      return local.filter(
+        (a) => a.type === 'CASH_USD' || a.type === 'CASH_ARS' || (a.type as string) === 'CURRENCY'
+      );
+    }
     return local.filter((a) => a.type === type);
   }
   return local;

@@ -62,6 +62,20 @@ const TYPE_CONFIGS: Record<AssetType, TypeConfig> = {
     badgeText: 'text-blue-400',
     icon: TrendingUp,
   },
+  STOCK: {
+    label: 'CEDEAR / Acción',
+    badgeBg: 'bg-blue-500/10',
+    badgeBorder: 'border-blue-500/25',
+    badgeText: 'text-blue-400',
+    icon: TrendingUp,
+  },
+  CURRENCY: {
+    label: 'Divisa USD',
+    badgeBg: 'bg-cyan-500/10',
+    badgeBorder: 'border-cyan-500/25',
+    badgeText: 'text-cyan-400',
+    icon: Wallet,
+  },
   CRYPTO: {
     label: 'Criptomoneda',
     badgeBg: 'bg-orange-500/10',

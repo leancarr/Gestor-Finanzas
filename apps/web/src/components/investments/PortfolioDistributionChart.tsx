@@ -29,8 +29,10 @@ interface TypeMeta {
 
 const TYPE_METAS: Record<AssetType, TypeMeta> = {
   CEDEAR: { label: 'CEDEARs / Acciones', color: '#3b82f6' },
+  STOCK: { label: 'CEDEARs / Acciones', color: '#3b82f6' },
   CRYPTO: { label: 'Criptomonedas', color: '#f97316' },
   CASH_USD: { label: 'Dólares Líquidos', color: '#06b6d4' },
+  CURRENCY: { label: 'Divisa / USD', color: '#06b6d4' },
   CASH_ARS: { label: 'Pesos / Liquidez', color: '#10b981' },
   FIXED_TERM: { label: 'Plazos Fijos', color: '#f59e0b' },
   OTHER: { label: 'Otros Activos', color: '#8b5cf6' },
