@@ -4,30 +4,23 @@ import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   BarChart3,
-  ArrowLeft,
   RefreshCw,
   Sparkles,
   Calendar,
-  Layers,
   Coins,
   ShieldCheck,
   AlertCircle,
   Plus,
   ArrowRight,
   TrendingUp,
-  Repeat,
-  Target,
-  Users,
-  Bot,
-  Award,
+  TrendingDown,
+  Receipt,
   FileText,
   CalendarDays,
   X,
 } from 'lucide-react';
-import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { StreakBadge } from '@/components/gamification/StreakBadge';
-import { UserStatus } from '@/components/auth/UserStatus';
+import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import {
   getAnalytics,
   AnalyticsData,
@@ -45,9 +38,22 @@ import {
   CURRENCY_LIST,
   FALLBACK_RATES,
   getRates,
+  formatCurrency,
+  convertCurrencyLocal,
 } from '@/utils/api/rates';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
+
+function formatItemDate(dateStr?: string) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
+  if (isNaN(d.getTime())) return dateStr;
+  return new Intl.DateTimeFormat('es-AR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(d);
+}
 
 const RANGE_OPTIONS: Array<{
   id: AnalyticsRange;
@@ -184,41 +190,133 @@ export default function AnaliticasPage() {
     };
   }, [user, range, currency, rates, reloadKey, selectedDate, activeVaultId]);
 
-  // Movimientos filtrados por el período activo (para reportes y exportación CSV/PDF)
+  // Movimientos filtrados por el período activo (para reportes, analíticas de impacto y exportación CSV/PDF)
   const periodExpenses = useMemo(() => {
     if (!allExpenses || allExpenses.length === 0) return [];
 
+    // Caso 1: Filtro de día puntual seleccionado con CustomDatePicker
     if (selectedDate) {
       return allExpenses.filter((item) => {
-        const itemDateStr = item.date
-          ? item.date.includes('T')
-            ? item.date.split('T')[0]
-            : item.date
-          : '';
-        return itemDateStr === selectedDate;
+        if (!item.date) return false;
+        if (item.date.startsWith(selectedDate)) return true;
+
+        const d = new Date(item.date);
+        if (isNaN(d.getTime())) return false;
+
+        const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (localDateStr === selectedDate) return true;
+
+        const utcDateStr = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        return utcDateStr === selectedDate;
       });
     }
 
+    // Caso 2: Rango predeterminado ('month' | '7d' | '30d')
     const now = new Date();
-    let start: Date;
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
 
-    if (range === '7d') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
-    } else if (range === '30d') {
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0, 0);
-    } else {
-      // 'month'
-      start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    if (range === 'month') {
+      // Mes completo: abarca desde el primer día a las 00:00:00 hasta el último día del mes a las 23:59:59.999
+      const startLocal = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0).getTime();
+      const endLocal = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999).getTime();
+
+      const startUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0);
+      const endUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999);
+
+      const targetMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+      const targetUtcMonthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+
+      return allExpenses.filter((item) => {
+        if (!item.date) return false;
+        if (item.date.startsWith(targetMonthKey) || item.date.startsWith(targetUtcMonthKey)) return true;
+
+        const d = new Date(item.date);
+        if (isNaN(d.getTime())) return false;
+        const time = d.getTime();
+
+        return (
+          (time >= startLocal && time <= endLocal) ||
+          (time >= startUtc && time <= endUtc) ||
+          (d.getFullYear() === currentYear && d.getMonth() === currentMonth) ||
+          (d.getUTCFullYear() === now.getUTCFullYear() && d.getUTCMonth() === now.getUTCMonth())
+        );
+      });
     }
 
+    // Para 7 días y 30 días móviles:
+    const daysOffset = range === '7d' ? 6 : 29;
+
+    const startLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysOffset, 0, 0, 0, 0).getTime();
+    const endLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+
+    const startUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysOffset, 0, 0, 0, 0);
+    const endUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999);
+
+    const bufferMs = 14 * 60 * 60 * 1000; // Margen de 14 horas para compensar desfases de husos horarios
+
     return allExpenses.filter((item) => {
-      const dateStr = item.date;
-      if (!dateStr) return false;
-      const itemDate = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
-      return !isNaN(itemDate.getTime()) && itemDate >= start && itemDate <= end;
+      if (!item.date) return false;
+      const d = new Date(item.date);
+      if (isNaN(d.getTime())) return false;
+      const time = d.getTime();
+
+      if (
+        (time >= startLocal && time <= endLocal) ||
+        (time >= startUtc && time <= endUtc) ||
+        (time >= startLocal - bufferMs && time <= endLocal + bufferMs)
+      ) {
+        return true;
+      }
+
+      const rawDateStr = item.date.includes('T') ? item.date.split('T')[0] : item.date.slice(0, 10);
+      const localDayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const startKey = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysOffset).toISOString().split('T')[0];
+      const endKey = now.toISOString().split('T')[0];
+
+      return (
+        (rawDateStr >= startKey && rawDateStr <= endKey) ||
+        (localDayKey >= startKey && localDayKey <= endKey)
+      );
     });
   }, [allExpenses, selectedDate, range]);
+
+  // Movimientos de Mayor Impacto en el período activo (Top 5 Gastos y Top 5 Ingresos)
+  const highestImpactTransactions = useMemo(() => {
+    if (!periodExpenses || periodExpenses.length === 0) {
+      return { topExpenses: [], topIncomes: [] };
+    }
+
+    const normalized = periodExpenses.map((exp) => {
+      const rawAmount =
+        typeof exp.amount === 'number'
+          ? exp.amount
+          : parseFloat(String(exp.amount)) || 0;
+      const expCurrency = (exp.currency || 'ARS').toUpperCase() as SupportedCurrency;
+      const convertedAmount =
+        expCurrency === currency
+          ? rawAmount
+          : convertCurrencyLocal(rawAmount, expCurrency, currency, rates);
+
+      return {
+        ...exp,
+        rawAmount,
+        convertedAmount,
+      };
+    });
+
+    const topExpenses = normalized
+      .filter((e) => (e.type || 'EXPENSE') === 'EXPENSE')
+      .sort((a, b) => b.convertedAmount - a.convertedAmount)
+      .slice(0, 5);
+
+    const topIncomes = normalized
+      .filter((e) => e.type === 'INCOME')
+      .sort((a, b) => b.convertedAmount - a.convertedAmount)
+      .slice(0, 5);
+
+    return { topExpenses, topIncomes };
+  }, [periodExpenses, currency, rates]);
 
   // Etiqueta legible del período seleccionado
   const periodLabel = useMemo(() => {
@@ -247,30 +345,25 @@ export default function AnaliticasPage() {
     <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* ========================================================================= */}
-        {/* HEADER & NAVEGACIÓN SUPERIOR                                             */}
+        {/* HEADER LIMPIO (INTEGRADO AL NAVBAR GLOBAL)                                */}
         {/* ========================================================================= */}
-        <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center">
+        <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-800/80 pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
-              <Link
-                href="/"
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
-                title="Volver al Inicio"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shadow-md shadow-emerald-950/40">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shadow-md shadow-emerald-950/40">
                 <BarChart3 className="h-5 w-5" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                Tableros Analíticos
-              </h1>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+                  Tableros Analíticos
+                </h1>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Análisis comparativo de KPIs mes a mes, curva de gastos vs ingresos y concentración de presupuesto
+                </p>
+              </div>
             </div>
-            <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
-              Análisis comparativo de KPIs mes a mes, curva de gastos vs ingresos y concentración de presupuesto
-            </p>
             {activeVault && (
-              <div className="mt-2.5 flex items-center gap-2">
+              <div className="mt-3 flex items-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-teal-500/15 border border-emerald-500/30 px-3 py-1.5 text-xs font-semibold text-emerald-300 shadow-sm shadow-emerald-950/20 backdrop-blur">
                   <span>🏛️ Analíticas del Espacio: <strong>{activeVault.name}</strong></span>
                   <button
@@ -286,69 +379,21 @@ export default function AnaliticasPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <VaultSelector />
-            <StreakBadge />
+          {/* Acciones rápidas contextuales integradas con el Navbar */}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/gastos/nuevo"
+              className="inline-flex items-center gap-1.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nuevo Gasto</span>
+            </Link>
             <Link
               href="/gastos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+              className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
             >
-              Movimientos
+              <span>Ver Movimientos</span>
             </Link>
-            <Link
-              href="/bovedas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Users className="h-3.5 w-3.5 text-emerald-400" />
-              Bóvedas
-            </Link>
-            <Link
-              href="/inversiones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              Inversiones
-            </Link>
-            <Link
-              href="/metas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Award className="h-3.5 w-3.5 text-emerald-400" />
-              Metas
-            </Link>
-            <Link
-              href="/presupuestos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Target className="h-3.5 w-3.5 text-emerald-400" />
-              Presupuestos
-            </Link>
-            <Link
-              href="/suscripciones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
-              Suscripciones
-            </Link>
-            <Link
-              href="/categorias"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Layers className="h-3.5 w-3.5 text-slate-400" />
-              Categorías
-            </Link>
-            <Link
-              href="/asistente"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer shadow-sm"
-            >
-              <Bot className="h-3.5 w-3.5 text-emerald-400" />
-              Asistente
-            </Link>
-            <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              SEI-30: Analytics
-            </div>
-            <UserStatus />
           </div>
         </header>
 
@@ -384,7 +429,7 @@ export default function AnaliticasPage() {
         {user && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Toolbar: Pestañas + Selector de Rango/Día + Selector de Moneda */}
-            <div className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+            <div className="relative z-30 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
               {/* Fila 1: Pestañas principales (Tableros vs Reportes) y Selector de Moneda */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
                 {/* Tabs switcher */}
@@ -490,10 +535,10 @@ export default function AnaliticasPage() {
                     })}
                   </div>
 
-                  {/* Selector de día específico con CustomDatePicker */}
-                  <div className="flex items-center gap-2">
+                  {/* Selector de día específico con CustomDatePicker con stacking context asegurado */}
+                  <div className="relative z-30 flex items-center gap-2">
                     <span className="text-xs text-slate-500 font-medium">o</span>
-                    <div className="w-52">
+                    <div className="relative z-30 w-52">
                       <CustomDatePicker
                         value={selectedDate}
                         onChange={handleDateChange}
@@ -598,7 +643,172 @@ export default function AnaliticasPage() {
                   />
                 </section>
 
-                {/* 3. SECCIÓN DE DESGLOSE POR CATEGORÍAS */}
+                {/* 3. SECCIÓN DE MOVIMIENTOS DE MAYOR IMPACTO */}
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+                        Movimientos de Mayor Impacto
+                      </h2>
+                    </div>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Top transacciones por volumen ({periodLabel})
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Top 5 Gastos Más Agresivos */}
+                    <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl flex flex-col justify-between space-y-4">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                            <TrendingDown className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Gastos Más Agresivos</h3>
+                            <p className="text-[11px] text-slate-400">Mayores salidas de capital registradas</p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-[11px] font-semibold text-rose-400">
+                          {highestImpactTransactions.topExpenses.length} / 5
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5 flex-1">
+                        {highestImpactTransactions.topExpenses.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500">
+                            <Receipt className="h-8 w-8 mb-2 opacity-40" />
+                            <p className="text-xs">No hay gastos registrados en este período</p>
+                          </div>
+                        ) : (
+                          highestImpactTransactions.topExpenses.map((exp, idx) => {
+                            const catColor = exp.category?.color || '#EF4444';
+                            return (
+                              <div
+                                key={exp.id || `exp-${idx}`}
+                                className="group flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.05] hover:border-white/10 transition-all"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-xs font-black text-slate-500 w-4 text-center shrink-0">
+                                    {idx + 1}
+                                  </span>
+                                  <div
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 shadow-sm"
+                                    style={{
+                                      backgroundColor: `${catColor}18`,
+                                      borderColor: `${catColor}35`,
+                                      color: catColor,
+                                    }}
+                                  >
+                                    <CategoryIcon name={exp.category?.icon} className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs group-hover:text-rose-200 transition">
+                                      {exp.description || 'Gasto'}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                      <span className="truncate">{exp.category?.name || 'Sin categoría'}</span>
+                                      <span>•</span>
+                                      <span>{formatItemDate(exp.date)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="text-right shrink-0">
+                                  <span className="text-xs sm:text-sm font-black text-rose-400">
+                                    - {formatCurrency(exp.convertedAmount, currency)}
+                                  </span>
+                                  {exp.currency && exp.currency.toUpperCase() !== currency && (
+                                    <span className="block text-[10px] text-slate-500">
+                                      orig: {formatCurrency(exp.rawAmount, exp.currency)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Top 5 Mayores Ingresos */}
+                    <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl flex flex-col justify-between space-y-4">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <TrendingUp className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Mayores Ingresos</h3>
+                            <p className="text-[11px] text-slate-400">Mayores entradas de capital registradas</p>
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-400">
+                          {highestImpactTransactions.topIncomes.length} / 5
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5 flex-1">
+                        {highestImpactTransactions.topIncomes.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-8 text-center text-slate-500">
+                            <Receipt className="h-8 w-8 mb-2 opacity-40" />
+                            <p className="text-xs">No hay ingresos registrados en este período</p>
+                          </div>
+                        ) : (
+                          highestImpactTransactions.topIncomes.map((inc, idx) => {
+                            const catColor = inc.category?.color || '#10B981';
+                            return (
+                              <div
+                                key={inc.id || `inc-${idx}`}
+                                className="group flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.05] hover:border-white/10 transition-all"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-xs font-black text-slate-500 w-4 text-center shrink-0">
+                                    {idx + 1}
+                                  </span>
+                                  <div
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 shadow-sm"
+                                    style={{
+                                      backgroundColor: `${catColor}18`,
+                                      borderColor: `${catColor}35`,
+                                      color: catColor,
+                                    }}
+                                  >
+                                    <CategoryIcon name={inc.category?.icon} className="h-4 w-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-white truncate max-w-[150px] sm:max-w-xs group-hover:text-emerald-200 transition">
+                                      {inc.description || 'Ingreso'}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                      <span className="truncate">{inc.category?.name || 'Sin categoría'}</span>
+                                      <span>•</span>
+                                      <span>{formatItemDate(inc.date)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="text-right shrink-0">
+                                  <span className="text-xs sm:text-sm font-black text-emerald-400">
+                                    + {formatCurrency(inc.convertedAmount, currency)}
+                                  </span>
+                                  {inc.currency && inc.currency.toUpperCase() !== currency && (
+                                    <span className="block text-[10px] text-slate-500">
+                                      orig: {formatCurrency(inc.rawAmount, inc.currency)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 4. SECCIÓN DE DESGLOSE POR CATEGORÍAS */}
                 <section className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full bg-purple-400" />
