@@ -323,70 +323,14 @@ export default function GastosPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <VaultSelector />
-            <StreakBadge />
+          <div className="flex items-center gap-2">
             <Link
-              href="/metas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
+              href="/gastos/nuevo"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
             >
-              <Award className="h-3.5 w-3.5 text-emerald-400" />
-              Metas
+              <Plus className="h-3.5 w-3.5" />
+              Nuevo Gasto
             </Link>
-            <Link
-              href="/bovedas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Users className="h-3.5 w-3.5 text-emerald-400" />
-              Bóvedas
-            </Link>
-            <Link
-              href="/analiticas"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <BarChart3 className="h-3.5 w-3.5 text-emerald-400" />
-              Analíticas
-            </Link>
-            <Link
-              href="/suscripciones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Repeat className="h-3.5 w-3.5 text-emerald-400" />
-              Suscripciones
-            </Link>
-            <Link
-              href="/presupuestos"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Target className="h-3.5 w-3.5 text-emerald-400" />
-              Presupuestos
-            </Link>
-            <Link
-              href="/inversiones"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-              Inversiones
-            </Link>
-            <Link
-              href="/categorias"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition cursor-pointer shadow-sm"
-            >
-              <Layers className="h-3.5 w-3.5 text-emerald-400" />
-              Categorías
-            </Link>
-            <Link
-              href="/asistente"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/60 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition cursor-pointer shadow-sm"
-            >
-              <Bot className="h-3.5 w-3.5 text-emerald-400" />
-              Asistente
-            </Link>
-            <div className="flex items-center gap-2 rounded-full bg-slate-900/80 px-3.5 py-1.5 text-xs font-medium text-slate-300 ring-1 ring-slate-800 backdrop-blur">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              SEI-25: Multi-moneda & Impuestos
-            </div>
-            <UserStatus />
           </div>
         </div>
 
