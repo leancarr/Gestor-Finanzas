@@ -181,6 +181,37 @@ export function createClient() {
         };
       }
 
+      if (prop === 'updateUser') {
+        return async (attributes: any, options?: any) => {
+          const devSession = getDevSession();
+          if (devSession || !isSupabaseConfigured) {
+            if (devSession) {
+              const updatedMetadata = {
+                ...(devSession.user.user_metadata || {}),
+                ...(attributes?.data || {}),
+              };
+              const updatedUser: User = {
+                ...devSession.user,
+                user_metadata: updatedMetadata,
+                ...(attributes?.email ? { email: attributes.email } : {}),
+              };
+              const updatedSession: DevAuthSession = {
+                ...devSession,
+                user: updatedUser,
+              };
+              setDevSession(updatedSession);
+              return { data: { user: updatedUser }, error: null };
+            }
+            return { data: { user: null }, error: new Error('No hay sesión de usuario activa en modo dev') as any };
+          }
+          try {
+            return await target.updateUser(attributes, options);
+          } catch (err) {
+            return { data: { user: null }, error: err as any };
+          }
+        };
+      }
+
       if (prop === 'onAuthStateChange') {
         return (callback: (event: any, session: any) => void) => {
           const devSession = getDevSession();
