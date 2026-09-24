@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Trash2,
-  RefreshCw,
   X,
-  AlertTriangle,
   RotateCcw,
   Clock,
   Tag,
@@ -22,6 +21,7 @@ import {
   purgeTrashItem,
   purgeAllTrash,
 } from '@/utils/api/trash';
+import { ConfirmActionModal } from '@/components/ui/ConfirmActionModal';
 
 interface TrashModalProps {
   isOpen: boolean;
@@ -34,6 +34,15 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
   const [isLoading, setIsLoading] = useState(true);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // States for custom confirmation modals
+  const [itemToPurge, setItemToPurge] = useState<TrashItem | null>(null);
+  const [isPurgeAllConfirmOpen, setIsPurgeAllConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchItems = async () => {
     try {
@@ -53,7 +62,15 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen && !itemToPurge && !isPurgeAllConfirmOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, itemToPurge, isPurgeAllConfirmOpen, onClose]);
 
   const handleRestore = async (item: TrashItem) => {
     setActionInProgress(item.id);
@@ -70,15 +87,15 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
     }
   };
 
-  const handlePurge = async (item: TrashItem) => {
-    if (!confirm(`¿Eliminar definitivamente "${item.title}"? Esta acción no se puede deshacer.`)) {
-      return;
-    }
+  const confirmPurgeItem = async () => {
+    if (!itemToPurge) return;
+    const item = itemToPurge;
     setActionInProgress(item.id);
     try {
       await purgeTrashItem(item.id);
       setItems((prev) => prev.filter((i) => i.id !== item.id));
       setMessage(`"${item.title}" eliminado definitivamente.`);
+      setItemToPurge(null);
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error(err);
@@ -87,15 +104,13 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
     }
   };
 
-  const handlePurgeAll = async () => {
-    if (!confirm('¿Vaciar toda la papelera definitivamente? Todos los elementos se destruirán de forma irreversible.')) {
-      return;
-    }
+  const confirmPurgeAll = async () => {
     setActionInProgress('all');
     try {
       await purgeAllTrash();
       setItems([]);
       setMessage('Papelera vaciada por completo.');
+      setIsPurgeAllConfirmOpen(false);
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {
       console.error(err);
@@ -139,9 +154,20 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-      <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl flex flex-col">
+  if (!isOpen || !mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+
+      <div
+        className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -165,7 +191,7 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
             {items.length > 0 && (
               <button
                 type="button"
-                onClick={handlePurgeAll}
+                onClick={() => setIsPurgeAllConfirmOpen(true)}
                 disabled={actionInProgress !== null}
                 className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
               >
@@ -247,7 +273,7 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
 
                   <button
                     type="button"
-                    onClick={() => handlePurge(item)}
+                    onClick={() => setItemToPurge(item)}
                     disabled={actionInProgress === item.id}
                     title="Eliminar definitivamente"
                     className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
@@ -260,6 +286,39 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
           )}
         </div>
       </div>
-    </div>
+
+      {/* Confirmation modal for single item purge */}
+      <ConfirmActionModal
+        isOpen={itemToPurge !== null}
+        onClose={() => setItemToPurge(null)}
+        onConfirm={confirmPurgeItem}
+        title="¿Eliminar definitivamente?"
+        description={
+          itemToPurge ? (
+            <>
+              Estás a punto de eliminar de forma permanente{' '}
+              <strong className="text-white">&ldquo;{itemToPurge.title}&rdquo;</strong>.
+              Esta acción no se puede deshacer y el registro no podrá ser recuperado.
+            </>
+          ) : null
+        }
+        confirmText="Eliminar Definitivamente"
+        cancelText="Cancelar"
+        isLoading={actionInProgress === itemToPurge?.id}
+      />
+
+      {/* Confirmation modal for purge all */}
+      <ConfirmActionModal
+        isOpen={isPurgeAllConfirmOpen}
+        onClose={() => setIsPurgeAllConfirmOpen(false)}
+        onConfirm={confirmPurgeAll}
+        title="¿Vaciar toda la papelera?"
+        description="¿Estás seguro de que deseás vaciar toda la papelera definitivamente? Todos los elementos se destruirán de forma irreversible."
+        confirmText="Vaciar Todo"
+        cancelText="Cancelar"
+        isLoading={actionInProgress === 'all'}
+      />
+    </div>,
+    document.body,
   );
 }

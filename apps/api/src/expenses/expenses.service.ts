@@ -3,9 +3,12 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RatesService } from '../rates/rates.service.js';
+import type { RatesResponse } from '../rates/rates.interface.js';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
 import { QueryExpenseDto } from './dto/query-expense.dto.js';
@@ -116,7 +119,54 @@ export function normalizeTags(tags?: string[], description?: string): string[] {
 export class ExpensesService {
   private readonly logger = new Logger(ExpensesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly ratesService?: RatesService,
+  ) {}
+
+  /**
+   * Convierte un monto entre divisas utilizando las tasas vigentes o fallback seguro.
+   */
+  public convertCurrencyAmount(
+    amount: number,
+    fromCurrency: string,
+    toCurrency: string,
+    rates?: RatesResponse | null,
+    rateType: string = 'blue',
+  ): number {
+    const from = (fromCurrency || 'ARS').toUpperCase().trim();
+    const to = (toCurrency || 'ARS').toUpperCase().trim();
+
+    if (from === to || to === 'ALL' || !to) {
+      return amount;
+    }
+
+    const getRateInArs = (curr: string): number => {
+      switch (curr) {
+        case 'ARS':
+          return 1;
+        case 'EUR':
+          return rates?.eur?.sell ?? 1350;
+        case 'USDT':
+          return rates?.usdt?.sell ?? 1240;
+        case 'USD': {
+          const type = (rateType || 'blue').toLowerCase();
+          return rates?.usd?.[type]?.sell ?? rates?.usd?.blue?.sell ?? 1250;
+        }
+        default:
+          return 1;
+      }
+    };
+
+    const fromInArs = getRateInArs(from);
+    const toInArs = getRateInArs(to);
+
+    if (toInArs === 0) return amount;
+
+    const converted = (amount * fromInArs) / toInArs;
+    const precision = to === 'ARS' ? 2 : 4;
+    return Number(converted.toFixed(precision));
+  }
 
   /**
    * Valida que el usuario tenga acceso a la bóveda especificada (propietario o miembro).
@@ -491,9 +541,10 @@ export class ExpensesService {
         whereClause.vaultId = null;
       }
 
-      if (query?.currency && query.currency.toUpperCase() !== 'ALL') {
-        whereClause.currency = query.currency.toUpperCase();
-      }
+      const targetCurrency =
+        query?.currency && query.currency.toUpperCase() !== 'ALL'
+          ? query.currency.toUpperCase()
+          : 'ARS';
 
       const expenses = await tx.expense.findMany({
         where: whereClause,
@@ -504,6 +555,13 @@ export class ExpensesService {
           date: 'desc',
         },
       });
+
+      let rates: RatesResponse | null = null;
+      try {
+        rates = (await this.ratesService?.getRates()) ?? null;
+      } catch (err) {
+        this.logger.warn(`Could not fetch rates in getSummary, using fallback: ${err}`);
+      }
 
       let totalExpenses = 0;
       let totalIncome = 0;
@@ -524,7 +582,14 @@ export class ExpensesService {
       >();
 
       for (const exp of expenses) {
-        const amount = Number(exp.amount);
+        const rawAmount = Number(exp.amount);
+        const expCurrency = (exp.currency || 'ARS').toUpperCase();
+        const amount = this.convertCurrencyAmount(
+          rawAmount,
+          expCurrency,
+          targetCurrency,
+          rates,
+        );
         const isIncome = exp.type === TransactionType.INCOME;
 
         if (isIncome) {
@@ -568,7 +633,7 @@ export class ExpensesService {
       return {
         month: targetMonth,
         year: targetYear,
-        currency: query?.currency ? query.currency.toUpperCase() : 'ARS',
+        currency: targetCurrency,
         totalExpenses: Math.round(totalExpenses * 100) / 100,
         totalIncome: Math.round(totalIncome * 100) / 100,
         balance: Math.round(balance * 100) / 100,
@@ -598,11 +663,6 @@ export class ExpensesService {
     );
 
     return this.prisma.withUser(userId, async (tx) => {
-      const currencyFilter =
-        targetCurrency && targetCurrency !== 'ALL'
-          ? { currency: targetCurrency }
-          : {};
-
       const baseFilter: any = {};
       if (query?.vaultId) {
         await this.assertVaultAccess(tx, userId, query.vaultId);
@@ -616,7 +676,6 @@ export class ExpensesService {
         tx.expense.findMany({
           where: {
             ...baseFilter,
-            ...currencyFilter,
             date: {
               gte: currentStart,
               lte: currentEnd,
@@ -632,14 +691,23 @@ export class ExpensesService {
         tx.expense.findMany({
           where: {
             ...baseFilter,
-            ...currencyFilter,
             date: {
               gte: prevStart,
               lte: prevEnd,
             },
           },
+          include: {
+            category: true,
+          },
         }),
       ]);
+
+      let rates: RatesResponse | null = null;
+      try {
+        rates = (await this.ratesService?.getRates()) ?? null;
+      } catch (err) {
+        this.logger.warn(`Could not fetch rates in getAnalytics, using fallback: ${err}`);
+      }
 
       // 1. Inicializar timeline continuo para cada día del rango actual
       const timelineMap = new Map<
@@ -682,7 +750,14 @@ export class ExpensesService {
       >();
 
       for (const exp of currentExpenses) {
-        const amount = Number(exp.amount);
+        const rawAmount = Number(exp.amount);
+        const expCurrency = (exp.currency || 'ARS').toUpperCase();
+        const amount = this.convertCurrencyAmount(
+          rawAmount,
+          expCurrency,
+          targetCurrency,
+          rates,
+        );
         const dateKey = toISODateString(new Date(exp.date));
         const isIncome = exp.type === TransactionType.INCOME;
 
@@ -757,7 +832,14 @@ export class ExpensesService {
       let prevTotalIncome = 0;
 
       for (const exp of prevExpenses) {
-        const amount = Number(exp.amount);
+        const rawAmount = Number(exp.amount);
+        const expCurrency = (exp.currency || 'ARS').toUpperCase();
+        const amount = this.convertCurrencyAmount(
+          rawAmount,
+          expCurrency,
+          targetCurrency,
+          rates,
+        );
         if (exp.type === TransactionType.INCOME) {
           prevTotalIncome += amount;
         } else {

@@ -25,6 +25,7 @@ interface ExpensesDonutChartProps {
   loading?: boolean;
   currency?: SupportedCurrency;
   rates?: Record<SupportedCurrency, number>;
+  summaryCurrency?: string;
 }
 
 interface ChartItem {
@@ -93,6 +94,7 @@ export function ExpensesDonutChart({
   loading = false,
   currency = 'ARS',
   rates = FALLBACK_RATES,
+  summaryCurrency,
 }: ExpensesDonutChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
@@ -100,10 +102,12 @@ export function ExpensesDonutChart({
     return formatCurrencyWithRates(val, currency);
   };
 
+  const baseCurrency = (summaryCurrency || currency || 'ARS').toUpperCase() as SupportedCurrency;
+
   const convertedTotal =
-    currency === 'ARS'
+    baseCurrency === currency
       ? totalAmount
-      : convertCurrencyLocal(totalAmount, 'ARS', currency, rates);
+      : convertCurrencyLocal(totalAmount, baseCurrency, currency, rates);
 
   if (loading) {
     return (
@@ -112,7 +116,7 @@ export function ExpensesDonutChart({
           <div className="h-5 w-48 rounded bg-slate-800 animate-pulse" />
           <div className="h-5 w-24 rounded bg-slate-800 animate-pulse" />
         </div>
-        <div className="mt-6 flex flex-col items-center justify-center h-64">
+        <div className="mt-6 flex flex-col items-center justify-center h-72">
           <div className="h-44 w-44 rounded-full border-4 border-slate-800 border-t-emerald-500 animate-spin" />
         </div>
       </div>
@@ -123,9 +127,9 @@ export function ExpensesDonutChart({
   const chartData: ChartItem[] = categories.map((cat, idx) => ({
     name: cat.categoryName,
     value:
-      currency === 'ARS'
+      baseCurrency === currency
         ? cat.total
-        : convertCurrencyLocal(cat.total, 'ARS', currency, rates),
+        : convertCurrencyLocal(cat.total, baseCurrency, currency, rates),
     percentage: cat.percentage,
     color: cat.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
     icon: cat.icon,
@@ -133,7 +137,7 @@ export function ExpensesDonutChart({
     categoryId: cat.categoryId,
   }));
 
-  const hasData = chartData.length > 0 && convertedTotal > 0;
+  const hasData = chartData.length > 0 && (convertedTotal > 0 || totalAmount > 0);
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col justify-between">
@@ -183,7 +187,7 @@ export function ExpensesDonutChart({
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center lg:items-start">
           {/* Donut Chart Visualization */}
           <div className="lg:col-span-6 relative flex flex-col items-center justify-center">
-            <div className="h-64 w-full">
+            <div className="h-72 sm:h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Tooltip content={<CustomTooltip currency={currency} />} />
@@ -191,8 +195,8 @@ export function ExpensesDonutChart({
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={65}
-                    outerRadius={95}
+                    innerRadius={78}
+                    outerRadius={112}
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
@@ -219,8 +223,8 @@ export function ExpensesDonutChart({
 
             {/* Donut Center Info */}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[11px] font-medium text-slate-400">Total</span>
-              <span className="text-sm sm:text-base font-extrabold text-white tracking-tight">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Gastos</span>
+              <span className="text-base sm:text-xl font-black text-white tracking-tight mt-0.5">
                 {format(convertedTotal)}
               </span>
             </div>

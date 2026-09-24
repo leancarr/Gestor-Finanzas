@@ -42,7 +42,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
 export function Navbar() {
   const pathname = usePathname();
   const [isTrashOpen, setIsTrashOpen] = React.useState(false);
-  if (pathname === '/') return null;
+  if (pathname === '/' || pathname === '/auth') return null;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
@@ -65,8 +65,8 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Navigation Links (Immutable Order) */}
-          <nav className="hidden lg:flex items-center gap-1 overflow-x-auto py-1">
+          {/* Navigation Links with Sleek Pill Design */}
+          <nav className="hidden lg:flex items-center gap-1.5 p-1 rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-md shadow-inner text-xs overflow-x-auto scrollbar-none">
             {PRIMARY_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive =
@@ -80,8 +80,8 @@ export function Navbar() {
                   href={item.href}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/10'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-900 border border-transparent'
+                      ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/10'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/80 border border-transparent'
                   }`}
                 >
                   <Icon
@@ -120,8 +120,8 @@ export function Navbar() {
 
         <TrashModal isOpen={isTrashOpen} onClose={() => setIsTrashOpen(false)} />
 
-        {/* Mobile Subnavigation bar */}
-        <div className="lg:hidden flex items-center gap-1 overflow-x-auto py-2 border-t border-slate-900 scrollbar-none">
+        {/* Mobile Subnavigation bar with Sleek Pills */}
+        <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-2 border-t border-slate-900 scrollbar-none">
           {PRIMARY_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -133,13 +133,13 @@ export function Navbar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`inline-flex items-center gap-1 whitespace-nowrap px-2.5 py-1 rounded-lg text-[11px] font-medium transition shrink-0 ${
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-semibold transition shrink-0 ${
                   isActive
-                    ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300'
-                    : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+                    ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-500/10'
+                    : 'text-slate-300 hover:text-white bg-slate-900/80 border border-slate-800'
                 }`}
               >
-                <Icon className="h-3 w-3" />
+                <Icon className="h-3.5 w-3.5 text-emerald-400" />
                 <span>{item.name}</span>
               </Link>
             );

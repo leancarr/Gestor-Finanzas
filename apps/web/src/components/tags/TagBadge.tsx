@@ -45,7 +45,9 @@ export function TagBadge({
   showHashIcon = false,
 }: TagBadgeProps) {
   const cleanTag = tag.startsWith('#') ? tag : `#${tag}`;
-  const palette = getPaletteForTag(cleanTag);
+  const isRecurring = cleanTag.toLowerCase().startsWith('#recurring:');
+  const displayTag = isRecurring ? '#Recurrente' : cleanTag;
+  const palette = getPaletteForTag(displayTag);
 
   const sizeClasses = {
     xs: 'text-[10px] py-0.5 px-2 gap-1 rounded-md',
@@ -59,6 +61,12 @@ export function TagBadge({
 
   const Comp = onClick ? 'button' : 'span';
 
+  const badgeTitle = isRecurring
+    ? 'Gasto recurrente automatizado'
+    : onClick
+      ? `Filtrar por evento ${displayTag}`
+      : undefined;
+
   return (
     <Comp
       type={onClick ? 'button' : undefined}
@@ -66,12 +74,12 @@ export function TagBadge({
       className={`inline-flex items-center font-medium border backdrop-blur-sm transition-all shadow-xs shrink-0 select-none ${
         onClick ? 'cursor-pointer' : ''
       } ${sizeClasses} ${currentTheme} ${className}`}
-      title={onClick ? `Filtrar por evento ${cleanTag}` : undefined}
+      title={badgeTitle}
     >
       {showHashIcon ? (
         <Hash className="h-3 w-3 opacity-70 shrink-0" />
       ) : null}
-      <span className="truncate">{cleanTag}</span>
+      <span className="truncate">{displayTag}</span>
 
       {onRemove && (
         <span
@@ -82,7 +90,7 @@ export function TagBadge({
             onRemove(cleanTag);
           }}
           className="ml-0.5 -mr-1 rounded-md p-0.5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
-          title={`Quitar ${cleanTag}`}
+          title={`Quitar ${displayTag}`}
         >
           <X className="h-3 w-3" />
         </span>

@@ -60,6 +60,33 @@ export interface RatesResponse {
   source?: 'api' | 'fallback';
 }
 
+export interface DolarQuoteDetail {
+  currency: string;
+  name: string;
+  type?: string;
+  buy: number;
+  sell: number;
+  average: number;
+  updatedAt: string;
+  isFallback?: boolean;
+}
+
+export interface DetailedRatesResponse {
+  base: SupportedCurrency;
+  rates: Record<SupportedCurrency, number>;
+  usd: {
+    blue: DolarQuoteDetail;
+    mep: DolarQuoteDetail;
+    oficial: DolarQuoteDetail;
+    tarjeta: DolarQuoteDetail;
+    [key: string]: DolarQuoteDetail;
+  };
+  eur: DolarQuoteDetail;
+  usdt: DolarQuoteDetail;
+  lastUpdated: string;
+  source: 'api' | 'fallback';
+}
+
 export interface ConvertResponse {
   amount: number;
   from: SupportedCurrency;
@@ -202,6 +229,93 @@ export async function getRates(base: SupportedCurrency = 'ARS'): Promise<RatesRe
     lastUpdated: new Date().toISOString(),
     source: 'fallback',
   };
+}
+
+/**
+ * Consulta las cotizaciones detalladas completas (Blue, MEP, Oficial, Tarjeta, Cripto).
+ */
+export async function getFullRates(): Promise<DetailedRatesResponse> {
+  const fallbackDetail = (name: string, type: string, rate: number): DolarQuoteDetail => ({
+    currency: 'USD',
+    name,
+    type,
+    buy: Math.round(rate * 0.98 * 100) / 100,
+    sell: rate,
+    average: Math.round(rate * 0.99 * 100) / 100,
+    updatedAt: new Date().toISOString(),
+    isFallback: true,
+  });
+
+  const fallbackResult: DetailedRatesResponse = {
+    base: 'ARS',
+    rates: { ...FALLBACK_RATES },
+    usd: {
+      blue: fallbackDetail('Dólar Blue', 'blue', FALLBACK_RATES.USD),
+      mep: fallbackDetail('Dólar MEP / Bolsa', 'mep', 1160),
+      oficial: fallbackDetail('Dólar Oficial', 'oficial', 980),
+      tarjeta: fallbackDetail('Dólar Tarjeta', 'tarjeta', 1568),
+    },
+    eur: {
+      currency: 'EUR',
+      name: 'Euro Oficial',
+      type: 'oficial',
+      buy: Math.round(FALLBACK_RATES.EUR * 0.98 * 100) / 100,
+      sell: FALLBACK_RATES.EUR,
+      average: Math.round(FALLBACK_RATES.EUR * 0.99 * 100) / 100,
+      updatedAt: new Date().toISOString(),
+      isFallback: true,
+    },
+    usdt: {
+      currency: 'USDT',
+      name: 'Dólar Cripto (USDT)',
+      type: 'crypto',
+      buy: Math.round(FALLBACK_RATES.USDT * 0.98 * 100) / 100,
+      sell: FALLBACK_RATES.USDT,
+      average: Math.round(FALLBACK_RATES.USDT * 0.99 * 100) / 100,
+      updatedAt: new Date().toISOString(),
+      isFallback: true,
+    },
+    lastUpdated: new Date().toISOString(),
+    source: 'fallback',
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/rates`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.usd) {
+        return {
+          base: 'ARS',
+          rates: {
+            ARS: 1,
+            USD: data.usd?.blue?.sell || FALLBACK_RATES.USD,
+            EUR: data.eur?.sell || FALLBACK_RATES.EUR,
+            USDT: data.usdt?.sell || FALLBACK_RATES.USDT,
+          },
+          usd: {
+            blue: data.usd?.blue || fallbackResult.usd.blue,
+            mep: data.usd?.mep || fallbackResult.usd.mep,
+            oficial: data.usd?.oficial || fallbackResult.usd.oficial,
+            tarjeta: data.usd?.tarjeta || fallbackResult.usd.tarjeta,
+          },
+          eur: data.eur || fallbackResult.eur,
+          usdt: data.usdt || fallbackResult.usdt,
+          lastUpdated: data.timestamp || data.lastUpdated || new Date().toISOString(),
+          source: (data.source as 'api' | 'fallback') || 'api',
+        };
+      }
+    }
+  } catch {
+    // Retorna fallbackResult si falla la conexión
+  }
+
+  return fallbackResult;
 }
 
 /**

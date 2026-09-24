@@ -632,8 +632,18 @@ describe('ExpensesService', () => {
       expect(result.byCategory).toEqual([]);
     });
 
-    it('should filter by currency when currency is specified (SEI-25)', async () => {
-      mockTx.expense.findMany.mockResolvedValue([]);
+    it('should convert and return requested currency when currency is specified (SEI-25 / SEI-66)', async () => {
+      mockTx.expense.findMany.mockResolvedValue([
+        {
+          id: 'exp-ars',
+          amount: 250000,
+          currency: 'ARS',
+          type: TransactionType.EXPENSE,
+          categoryId: 'cat-1',
+          category: mockCategory,
+          date: new Date('2026-09-05T12:00:00.000Z'),
+        },
+      ]);
 
       const result = await service.getSummary('user-123', { month: 9, year: 2026, currency: 'USD' });
 
@@ -643,10 +653,11 @@ describe('ExpensesService', () => {
           where: expect.objectContaining({
             userId: 'user-123',
             vaultId: null,
-            currency: 'USD',
           }),
         }),
       );
+      // 250,000 ARS / 1250 fallback = 200 USD
+      expect(result.totalExpenses).toBe(200);
     });
 
     it('should get summary with vaultId without filtering by userId (SEI-44)', async () => {
@@ -895,7 +906,6 @@ describe('ExpensesService', () => {
         where: {
           userId: 'user-123',
           vaultId: null,
-          currency: 'ARS',
           date: {
             gte: new Date(Date.UTC(2026, 8, 12, 0, 0, 0, 0)),
             lte: new Date(Date.UTC(2026, 8, 18, 23, 59, 59, 999)),
@@ -909,12 +919,12 @@ describe('ExpensesService', () => {
         where: {
           userId: 'user-123',
           vaultId: null,
-          currency: 'ARS',
           date: {
             gte: new Date(Date.UTC(2026, 8, 5, 0, 0, 0, 0)),
             lte: new Date(Date.UTC(2026, 8, 11, 23, 59, 59, 999)),
           },
         },
+        include: { category: true },
       });
 
       // Verify response structure
@@ -1059,15 +1069,17 @@ describe('ExpensesService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      await service.getAnalytics(
+      const resultUsd = await service.getAnalytics(
         'user-123',
         { range: 'month', currency: 'USD' },
         fixedNow,
       );
 
+      expect(resultUsd.currency).toBe('USD');
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
         where: expect.objectContaining({
-          currency: 'USD',
+          userId: 'user-123',
+          vaultId: null,
         }),
       }));
 
@@ -1076,12 +1088,13 @@ describe('ExpensesService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      await service.getAnalytics(
+      const resultAll = await service.getAnalytics(
         'user-123',
         { range: 'month', currency: 'ALL' },
         fixedNow,
       );
 
+      expect(resultAll.currency).toBe('ALL');
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(3, {
         where: {
           userId: 'user-123',
@@ -1117,13 +1130,11 @@ describe('ExpensesService', () => {
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
         where: expect.objectContaining({
           vaultId: 'vault-1',
-          currency: 'ARS',
         }),
       }));
       expect(mockTx.expense.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
         where: expect.objectContaining({
           vaultId: 'vault-1',
-          currency: 'ARS',
         }),
       }));
     });

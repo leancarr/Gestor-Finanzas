@@ -1,3 +1,6 @@
+import { createExpense } from './expenses';
+import { getCategories, createCategory } from './categories';
+
 export type GoalCurrency = 'ARS' | 'USD';
 
 export interface GoalDeposit {
@@ -294,6 +297,51 @@ export async function addGoalDeposit(
     localStorage.setItem(STORAGE_KEY_GOALS, JSON.stringify(currentGoals));
   }
   notifyGoalsUpdated(currentGoals);
+
+  // Crear egreso automático en Gastos / Transacciones en categoría 'Ahorro & Metas'
+  try {
+    let categoryId: string | null = null;
+    try {
+      const categories = await getCategories();
+      let cat = categories.find(
+        (c) =>
+          c.name.toLowerCase() === 'ahorro & metas' ||
+          c.name.toLowerCase() === 'ahorro y metas' ||
+          c.name.toLowerCase() === 'inversiones & ahorro',
+      );
+      if (!cat) {
+        cat = categories.find((c) => c.name.toLowerCase().includes('ahorro'));
+      }
+      if (!cat) {
+        try {
+          cat = await createCategory({
+            name: 'Ahorro & Metas',
+            icon: 'Target',
+            color: '#10B981',
+          });
+        } catch {
+          // Ignorar si no se pudo crear la categoría
+        }
+      }
+      if (cat) {
+        categoryId = cat.id;
+      }
+    } catch {
+      // Ignorar fallo al buscar/crear categoría
+    }
+
+    await createExpense({
+      amount: depositAmount,
+      description: note || `Aporte a meta: ${target.name}`,
+      type: 'EXPENSE',
+      currency: target.currency || 'ARS',
+      categoryId,
+      date: now.split('T')[0],
+      tags: ['#ahorro', '#metas'],
+    });
+  } catch (expenseErr) {
+    console.warn('Aviso: no se pudo registrar el gasto automático para la meta:', expenseErr);
+  }
 
   return updatedGoal;
 }

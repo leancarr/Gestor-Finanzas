@@ -22,7 +22,6 @@ import {
   addGoalDeposit,
   calculateGoalMetrics,
 } from '@/utils/api/goals';
-import { createExpense } from '@/utils/api/expenses';
 import { formatCurrency } from '@/utils/api/rates';
 
 interface GoalCardProps {
@@ -89,27 +88,14 @@ export function GoalCard({
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      // 1. Inyectar depósito a la meta (localStorage)
+      // 1. Inyectar depósito a la meta y registrar egreso automático en Gastos (Ahorro & Metas)
       const updated = await addGoalDeposit(
         goal.id,
         amount,
         `Inyección rápida a ${goal.name}`,
       );
 
-      // 2. Registrar egreso automático en Gastos / Transacciones
-      try {
-        await createExpense({
-          description: `Aporte a meta: ${goal.name}`,
-          amount,
-          currency: goal.currency || 'ARS',
-          type: 'EXPENSE',
-          date: today,
-        });
-      } catch (expenseErr) {
-        console.warn('Gasto no pudo sincronizarse o se guardó offline:', expenseErr);
-      }
-
-      // 3. Feedback visual inmediato
+      // 2. Feedback visual inmediato
       setFeedbackDeposit({ amount, id: Date.now() });
       setTimeout(() => {
         setFeedbackDeposit((prev) => (prev?.amount === amount ? null : prev));
