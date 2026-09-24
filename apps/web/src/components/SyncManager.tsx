@@ -65,7 +65,7 @@ export default function SyncManager() {
 
   if (offlineCount === 0 && isOnline) {
     return (
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/40 backdrop-blur-md border border-white/10 text-xs font-medium text-slate-300 shadow-xl">
+      <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/40 backdrop-blur-md border border-white/10 text-xs font-medium text-slate-300 shadow-xl">
         <Cloud className="w-4 h-4 text-emerald-400" />
         <span>Sincronizado</span>
       </div>
@@ -73,7 +73,7 @@ export default function SyncManager() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-md border border-rose-500/30 text-xs font-medium text-slate-100 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
+    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/60 backdrop-blur-md border border-rose-500/30 text-xs font-medium text-slate-100 shadow-[0_0_15px_rgba(244,63,94,0.2)]">
       {!isOnline ? (
         <CloudOff className="w-4 h-4 text-rose-400" />
       ) : isSyncing ? (
