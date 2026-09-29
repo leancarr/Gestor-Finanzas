@@ -292,3 +292,11 @@ pnpm --filter api run prisma:push
     - Frontend Typecheck: `tsc --noEmit` aprobado con **0 errores**.
     - Frontend Lint: ESLint aprobado con **0 errores y 0 warnings**.
 
+- **Ticket SEI-70: [CSV Import] Fail-fast en errores de sintaxis estructurales y validación de 0 filas válidas** `[COMPLETADO]`
+  - Detección de comillas sin cerrar RFC 4180 en `csvParser.ts` con indicación de número de línea.
+  - Fail-fast en `CsvImportModal.tsx`: aborta el paso a mapeo si el archivo está corrupto o tiene 0 filas válidas, mostrando alerta descriptiva.
+  - Inferencia inteligente de tipo `typeMode` (`'auto'`) que respeta ingresos (sueldos, cobros) y egresos sin forzar a gastos.
+  - Botón de importación deshabilitado con estilo accesible cuando no hay transacciones válidas.
+  - Configuración de `GEMINI_API_KEY` en `.env` para GuitaBot y escáner de tickets con Vision AI.
+  - Suite de pruebas completa: 8 tests unitarios nuevos en frontend (`csvParser.spec.ts`) y 331 tests backend pasando al 100%.
+
