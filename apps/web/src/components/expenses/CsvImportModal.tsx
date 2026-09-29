@@ -21,6 +21,7 @@ import {
 import {
   parseCsvString,
   guessColumnMapping,
+  guessInitialTypeMode,
   normalizeRows,
   ColumnMapping,
   ImportTypeMode,
@@ -64,7 +65,7 @@ export function CsvImportModal({
 
   // Import options
   const [currency, setCurrency] = useState<SupportedCurrency>('ARS');
-  const [typeMode, setTypeMode] = useState<ImportTypeMode>('all_expenses');
+  const [typeMode, setTypeMode] = useState<ImportTypeMode>('auto');
   const [defaultCategoryId, setDefaultCategoryId] = useState<string>('');
 
   // Progress state
@@ -83,6 +84,7 @@ export function CsvImportModal({
     setRawHeaders([]);
     setRawRows([]);
     setError(null);
+    setTypeMode('auto');
     setProgressPercent(0);
     setProcessedCount(0);
     setTotalToProcess(0);
@@ -135,13 +137,41 @@ export function CsvImportModal({
           return;
         }
 
-        setRawHeaders(parsed.headers);
-        setRawRows(parsed.rows);
-        setDetectedDelimiter(parsed.delimiter);
-
         // Guessed mapping
         const guessed = guessColumnMapping(parsed.headers);
         setMapping(guessed);
+
+        // Smart type mode initialization
+        const initialTypeMode = guessInitialTypeMode(parsed.rows, parsed.headers, guessed);
+        setTypeMode(initialTypeMode);
+
+        // Pre-evaluación fail-fast: si el 100% de las filas son inválidas, rebotar en la pantalla de carga
+        const initialNormalized = normalizeRows(
+          parsed.rows,
+          parsed.headers,
+          guessed,
+          initialTypeMode,
+        );
+        const validCount = initialNormalized.filter((r) => r.isValid).length;
+
+        if (validCount === 0) {
+          const sampleErrors = Array.from(
+            new Set(initialNormalized.map((r) => r.validationError).filter(Boolean)),
+          )
+            .slice(0, 3)
+            .join(' • ');
+
+          setError(
+            `El archivo no contiene filas válidas para importar (${parsed.rows.length} detectadas, 0 válidas). ${
+              sampleErrors ? `Causa: ${sampleErrors}.` : ''
+            } Verifique que el archivo contenga montos mayores a 0 y descripciones válidas antes de continuar.`,
+          );
+          return;
+        }
+
+        setRawHeaders(parsed.headers);
+        setRawRows(parsed.rows);
+        setDetectedDelimiter(parsed.delimiter);
 
         setStep('mapping');
       } catch (err: unknown) {
@@ -553,6 +583,16 @@ export function CsvImportModal({
 
               {/* Preview Table */}
               <div className="space-y-2.5">
+                {validRows.length === 0 && (
+                  <div className="flex items-center gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-300">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+                    <span>
+                      Ninguna fila cumple con los criterios de validación con las columnas seleccionadas.
+                      Ajusta el mapeo de columnas arriba para habilitar la importación.
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <h4 className="text-xs font-bold text-white uppercase tracking-wider">
@@ -730,9 +770,17 @@ export function CsvImportModal({
               type="button"
               onClick={handleStartImport}
               disabled={validRows.length === 0}
-              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 text-xs font-bold text-white shadow-xl shadow-emerald-950/50 transition cursor-pointer disabled:opacity-50"
+              className={`inline-flex items-center gap-2 rounded-2xl px-6 py-2.5 text-xs font-bold transition shadow-xl ${
+                validRows.length === 0
+                  ? 'border border-slate-800 bg-slate-900/80 text-slate-500 cursor-not-allowed shadow-none'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/50 cursor-pointer'
+              }`}
             >
-              <span>Importar {validRows.length} Movimientos</span>
+              <span>
+                {validRows.length === 0
+                  ? 'Sin movimientos válidos para importar'
+                  : `Importar ${validRows.length} Movimientos`}
+              </span>
               <ArrowRight className="h-4 w-4" />
             </button>
           )}

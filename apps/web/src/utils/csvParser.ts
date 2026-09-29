@@ -92,16 +92,25 @@ export function parseCsvString(
   let currentRow: string[] = [];
   let currentField = '';
   let inQuotes = false;
+  let quoteOpenedLine = 1;
+  let currentLine = 1;
 
   for (let i = 0; i < cleanContent.length; i++) {
     const char = cleanContent[i];
     const nextChar = cleanContent[i + 1];
+
+    if (char === '\n') {
+      currentLine++;
+    }
 
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
         currentField += '"';
         i++; // Saltar comilla de escape
       } else {
+        if (!inQuotes) {
+          quoteOpenedLine = currentLine;
+        }
         inQuotes = !inQuotes;
       }
     } else if (char === delimiter && !inQuotes) {
@@ -110,6 +119,7 @@ export function parseCsvString(
     } else if ((char === '\r' || char === '\n') && !inQuotes) {
       if (char === '\r' && nextChar === '\n') {
         i++; // Manejar salto \r\n
+        currentLine++;
       }
       currentRow.push(currentField.trim());
       currentField = '';
@@ -120,6 +130,13 @@ export function parseCsvString(
     } else {
       currentField += char;
     }
+  }
+
+  // Validación estructural: si hay una comilla sin cerrar, el archivo está corrupto
+  if (inQuotes) {
+    throw new Error(
+      `Error de formato en el archivo CSV: Se detectó una comilla abierta sin cerrar (alrededor de la línea ${quoteOpenedLine}). Verifique la integridad del archivo antes de importar.`,
+    );
   }
 
   // Último campo / fila remanente
@@ -365,6 +382,42 @@ export function guessColumnMapping(headers: string[]): ColumnMapping {
 }
 
 /**
+ * Determina inteligentemente el modo inicial de tipo (auto vs all_expenses).
+ * Si hay columna de Tipo o si los datos contienen signos mixtos (+/-) o palabras clave de ingreso/débito,
+ * prioriza 'auto' para respetar las transacciones reales.
+ */
+export function guessInitialTypeMode(
+  rows: string[][],
+  headers: string[],
+  mapping: ColumnMapping,
+): ImportTypeMode {
+  if (mapping.typeColumn) {
+    return 'auto';
+  }
+
+  const amountIdx = headers.indexOf(mapping.amountColumn);
+  const descIdx = headers.indexOf(mapping.descriptionColumn);
+
+  for (const r of rows.slice(0, 30)) {
+    const rawAmt = amountIdx >= 0 ? (r[amountIdx] ?? '') : '';
+    const desc = descIdx >= 0 ? (r[descIdx] ?? '') : '';
+
+    const parsed = cleanAmount(rawAmt);
+    if (parsed.value > 0) {
+      if (
+        parsed.isNegative ||
+        rawAmt.includes('+') ||
+        /sueldo|haberes|transferencia recibida|acreditaci|deposito|depósito|cobro/i.test(desc)
+      ) {
+        return 'auto';
+      }
+    }
+  }
+
+  return 'auto';
+}
+
+/**
  * Normaliza y valida una lista de filas tabulares a objetos `NormalizedExpenseRow`.
  */
 export function normalizeRows(
@@ -388,7 +441,7 @@ export function normalizeRows(
 
     const parsedAmt = cleanAmount(rawAmt);
     const normalizedDate = normalizeDate(rawDate);
-    const description = rawDesc.trim() || 'Movimiento importado';
+    const rawTrimmedDesc = rawDesc.trim();
 
     // Determinar tipo de transacción
     let type: 'EXPENSE' | 'INCOME' = 'EXPENSE';
@@ -424,7 +477,7 @@ export function normalizeRows(
         } else if (
           rawAmt.includes('+') ||
           /sueldo|haberes|transferencia recibida|acreditaci|deposito|depósito|cobro/i.test(
-            description,
+            rawTrimmedDesc,
           )
         ) {
           type = 'INCOME';
@@ -441,10 +494,12 @@ export function normalizeRows(
     if (parsedAmt.value <= 0) {
       isValid = false;
       validationError = 'El monto debe ser mayor a 0.';
-    } else if (!description) {
+    } else if (!rawTrimmedDesc) {
       isValid = false;
       validationError = 'La descripción es obligatoria.';
     }
+
+    const description = rawTrimmedDesc || 'Sin descripción';
 
     return {
       index: idx + 1,
