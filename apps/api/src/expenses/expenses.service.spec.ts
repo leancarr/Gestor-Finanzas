@@ -1015,6 +1015,7 @@ describe('ExpensesService', () => {
         color: '#10B981',
         icon: 'ShoppingCart',
         total: 1000,
+        count: 1,
         percentage: 47.62,
       });
       // uncategorized: 600 / 2100 = 28.57%
@@ -1024,6 +1025,7 @@ describe('ExpensesService', () => {
         color: '#64748B',
         icon: null,
         total: 600,
+        count: 1,
         percentage: 28.57,
       });
       // cat-2: 500 / 2100 = 23.81%
@@ -1033,6 +1035,7 @@ describe('ExpensesService', () => {
         color: '#3B82F6',
         icon: 'Bus',
         total: 500,
+        count: 1,
         percentage: 23.81,
       });
     });
