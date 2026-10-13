@@ -15,6 +15,7 @@ import { QueryExpenseDto } from './dto/query-expense.dto.js';
 import { SummaryExpenseDto } from './dto/summary-expense.dto.js';
 import { QueryAnalyticsDto } from './dto/query-analytics.dto.js';
 import { GoogleGenAI, Type } from '@google/genai';
+import { TrashService } from '../trash/trash.service.js';
 
 /**
  * Formatea un objeto Date en cadena ISO 'YYYY-MM-DD' en tiempo UTC.
@@ -122,6 +123,7 @@ export class ExpensesService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly ratesService?: RatesService,
+    @Optional() private readonly trashService?: TrashService,
   ) {}
 
   /**
@@ -500,6 +502,17 @@ export class ExpensesService {
             });
           }
         }
+      }
+
+      if (this.trashService) {
+        await this.trashService.addToTrash(
+          userId,
+          'EXPENSE',
+          existing.description,
+          existing,
+          Number(existing.amount),
+          existing.currency,
+        );
       }
 
       await tx.expense.delete({

@@ -513,12 +513,32 @@ describe('ExpensesService', () => {
       });
     });
 
-    it('should throw NotFoundException if deleting non-existent expense', async () => {
-      mockTx.expense.findFirst.mockResolvedValue(null);
-
-      await expect(service.remove('user-123', 'exp-999')).rejects.toThrow(
-        NotFoundException,
+    it('should send expense to trash service when trashService is provided (SEI-76)', async () => {
+      const mockTrashService = {
+        addToTrash: vi.fn().mockResolvedValue({ id: 'trash-1' }),
+      };
+      const serviceWithTrash = new ExpensesService(
+        mockPrismaService as any,
+        undefined,
+        mockTrashService as any,
       );
+
+      mockTx.expense.findFirst.mockResolvedValue(mockExpense);
+      mockTx.expense.delete.mockResolvedValue(mockExpense);
+
+      await serviceWithTrash.remove('user-123', 'exp-1');
+
+      expect(mockTrashService.addToTrash).toHaveBeenCalledWith(
+        'user-123',
+        'EXPENSE',
+        mockExpense.description,
+        mockExpense,
+        Number(mockExpense.amount),
+        mockExpense.currency,
+      );
+      expect(mockTx.expense.delete).toHaveBeenCalledWith({
+        where: { id: 'exp-1' },
+      });
     });
   });
 
