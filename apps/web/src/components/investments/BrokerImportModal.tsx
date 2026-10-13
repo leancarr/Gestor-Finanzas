@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   ScanLine,
@@ -126,10 +127,25 @@ export function BrokerImportModal({
   const [scanStatusText, setScanStatusText] = useState('');
   const [detectedAssets, setDetectedAssets] = useState<CreateAssetInput[] | null>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'scan'>('info');
+  const [mounted, setMounted] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -197,8 +213,8 @@ export function BrokerImportModal({
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-hidden">
       {/* Backdrop con desenfoque de cristal */}
       <div
         className="fixed inset-0 bg-slate-950/80 backdrop-blur-md transition-opacity"
@@ -206,13 +222,13 @@ export function BrokerImportModal({
       />
 
       {/* Contenedor del Modal con Glassmorphism */}
-      <div className="relative w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-900/90 shadow-2xl backdrop-blur-2xl p-6 sm:p-8 z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+      <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl border border-white/10 bg-slate-900/95 shadow-2xl backdrop-blur-2xl z-10 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
         {/* Glow orbs decorativos de fondo */}
         <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl" />
 
-        {/* Encabezado */}
-        <div className="relative z-10 flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+        {/* Encabezado fijo */}
+        <div className="relative z-10 flex items-start justify-between gap-4 border-b border-white/10 px-5 sm:px-7 py-4.5 bg-slate-900/60 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 text-emerald-400 ring-1 ring-emerald-500/30 shadow-inner">
               <ScanLine className="h-6 w-6" />
@@ -243,33 +259,38 @@ export function BrokerImportModal({
           </button>
         </div>
 
-        {/* Selector de Pestañas (Explicación vs Escáner) */}
-        <div className="relative z-10 mt-5 flex rounded-2xl bg-slate-950/60 p-1 border border-white/10">
-          <button
-            type="button"
-            onClick={() => setActiveTab('info')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'info'
-                ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Building className="h-3.5 w-3.5" />
-            <span>Brokers Compatibles & Cómo Funciona</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('scan')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'scan'
-                ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <UploadCloud className="h-3.5 w-3.5" />
-            <span>Subir Captura o Probar Demo</span>
-          </button>
+        {/* Selector de Pestañas (Fijo) */}
+        <div className="relative z-10 px-5 sm:px-7 pt-4 pb-2 shrink-0 bg-slate-900/40">
+          <div className="flex rounded-2xl bg-slate-950/60 p-1 border border-white/10">
+            <button
+              type="button"
+              onClick={() => setActiveTab('info')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'info'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Building className="h-3.5 w-3.5" />
+              <span>Brokers Compatibles & Cómo Funciona</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('scan')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'scan'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <UploadCloud className="h-3.5 w-3.5" />
+              <span>Subir Captura o Probar Demo</span>
+            </button>
+          </div>
         </div>
+
+        {/* Contenido scrolleable */}
+        <div className="relative z-10 flex-1 overflow-y-auto px-5 sm:px-7 py-4 space-y-6">
 
         {/* ========================================================================= */}
         {/* PESTAÑA 1: CÓMO FUNCIONA & BROKERS SOPORTADOS                            */}
@@ -520,7 +541,10 @@ export function BrokerImportModal({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
