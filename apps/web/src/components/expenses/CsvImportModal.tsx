@@ -288,9 +288,6 @@ export function CsvImportModal({
                 <h3 className="text-base font-bold text-white tracking-tight">
                   Importación Masiva de CSV
                 </h3>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                  SEI-57
-                </span>
               </div>
               <p className="text-xs text-slate-400">
                 Carga extractos bancarios o resúmenes de tarjetas y mapea tus columnas
