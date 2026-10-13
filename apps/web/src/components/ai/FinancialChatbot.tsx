@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Bot,
   Sparkles,
@@ -135,6 +136,7 @@ function parseInlineMarkdown(text: string): React.ReactNode[] {
 }
 
 export function FinancialChatbot({ initialOpen = false }: FinancialChatbotProps) {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -167,6 +169,8 @@ export function FinancialChatbot({ initialOpen = false }: FinancialChatbotProps)
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [isOpen]);
+
+  if (pathname === '/' || pathname === '/auth') return null;
 
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || inputMessage).trim();
