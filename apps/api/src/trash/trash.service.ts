@@ -128,7 +128,12 @@ export class TrashService {
               amount: item.data.amount || item.amount || 0,
               currency: item.data.currency || item.currency || 'ARS',
               type: item.data.type || 'EXPENSE',
-              date: new Date(),
+              date: item.data.date ? new Date(item.data.date) : new Date(),
+              categoryId: item.data.categoryId || null,
+              vaultId: item.data.vaultId || null,
+              exchangeRate: item.data.exchangeRate || null,
+              isTaxable: item.data.isTaxable ?? false,
+              tags: item.data.tags || [],
               userId,
             },
           });

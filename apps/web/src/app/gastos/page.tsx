@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Award,
   FileSpreadsheet,
+  RotateCcw,
 } from 'lucide-react';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -38,7 +39,8 @@ import { EventTagFilter } from '@/components/tags/EventTagFilter';
 import { EventsSummaryModal } from '@/components/tags/EventsSummaryModal';
 import { getTagsSummary, TagSummary } from '@/utils/api/gamification';
 import ExportMenu from '@/components/dashboard/ExportMenu';
-import { getExpenses, ExpenseItem } from '@/utils/api/expenses';
+import { getExpenses, createExpense, ExpenseItem } from '@/utils/api/expenses';
+import { getTrashItems, restoreTrashItem } from '@/utils/api/trash';
 import { getCategories, CategoryItem } from '@/utils/api/categories';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
@@ -61,6 +63,7 @@ export default function GastosPage() {
   const [toastMessage, setToastMessage] = useState<{
     type: 'success' | 'error';
     text: string;
+    undoAction?: () => void;
   } | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -184,11 +187,42 @@ export default function GastosPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteSuccess = (deletedId: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== deletedId));
+  const handleDeleteSuccess = (deletedExpense: ExpenseItem) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== deletedExpense.id));
     setToastMessage({
       type: 'success',
-      text: 'Movimiento eliminado con éxito.',
+      text: `Movimiento "${deletedExpense.description}" enviado a la papelera.`,
+      undoAction: async () => {
+        try {
+          const items = await getTrashItems();
+          const match = items.find(
+            (i) =>
+              i.title === deletedExpense.description ||
+              i.amount === Number(deletedExpense.amount),
+          );
+          if (match) {
+            await restoreTrashItem(match.id);
+          } else {
+            await createExpense({
+              description: deletedExpense.description,
+              amount: Number(deletedExpense.amount),
+              currency: deletedExpense.currency,
+              type: deletedExpense.type,
+              categoryId: deletedExpense.categoryId,
+              vaultId: deletedExpense.vaultId,
+              tags: deletedExpense.tags,
+              date: deletedExpense.date,
+            });
+          }
+          await loadData();
+          setToastMessage({
+            type: 'success',
+            text: `Movimiento "${deletedExpense.description}" restaurado exitosamente.`,
+          });
+        } catch (err) {
+          console.error('Error al deshacer eliminación:', err);
+        }
+      },
     });
   };
 
@@ -374,7 +408,7 @@ export default function GastosPage() {
         {/* Toast Feedback Notification */}
         {toastMessage && (
           <div
-            className={`mt-6 flex items-center justify-between rounded-2xl p-4 text-xs shadow-xl border animate-in fade-in slide-in-from-top-2 duration-300 ${
+            className={`mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4 text-xs shadow-xl border animate-in fade-in slide-in-from-top-2 duration-300 ${
               toastMessage.type === 'success'
                 ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
                 : 'border-red-500/30 bg-red-500/10 text-red-300'
@@ -388,12 +422,28 @@ export default function GastosPage() {
               )}
               <span className="font-medium">{toastMessage.text}</span>
             </div>
-            <button
-              onClick={() => setToastMessage(null)}
-              className="text-slate-400 hover:text-white cursor-pointer ml-4"
-            >
-              &times;
-            </button>
+            <div className="flex items-center gap-2">
+              {toastMessage.undoAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const undo = toastMessage.undoAction;
+                    setToastMessage(null);
+                    undo?.();
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 hover:text-white font-bold text-xs border border-emerald-500/30 transition cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Deshacer
+                </button>
+              )}
+              <button
+                onClick={() => setToastMessage(null)}
+                className="text-slate-400 hover:text-white cursor-pointer ml-1 text-base leading-none"
+              >
+                &times;
+              </button>
+            </div>
           </div>
         )}
 

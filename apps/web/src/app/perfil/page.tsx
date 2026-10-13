@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import {
   User as UserIcon,
@@ -57,7 +57,7 @@ export default function PerfilPage() {
   // Modal de zona de peligro
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Escuchar estado de sesión
   useEffect(() => {
@@ -86,8 +86,12 @@ export default function PerfilPage() {
 
   // Cargar perfil del usuario
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setIsDataLoading(false);
+      return;
+    }
     let isMounted = true;
+    setIsDataLoading(true);
 
     getProfile()
       .then((data) => {
