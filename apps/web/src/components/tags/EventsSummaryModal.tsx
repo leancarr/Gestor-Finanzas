@@ -146,9 +146,6 @@ export function EventsSummaryModal({
             <div className="min-w-0">
               <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2 truncate">
                 <span>Resumen de Eventos & Hashtags</span>
-                <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold text-indigo-400 shrink-0">
-                  SEI-41
-                </span>
               </h2>
               <p className="text-xs text-slate-400 truncate">
                 Presupuesto consolidado y costo total de viajes, festejos y proyectos especiales

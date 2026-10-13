@@ -509,18 +509,6 @@ export default function SuscripcionesPage() {
                     <span>Cobrar Vencidas ({dueAutoDebitCount})</span>
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRecurringToEdit(null);
-                    setIsFormModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition transform hover:-translate-y-0.5 cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Nueva Suscripción</span>
-                </button>
               </div>
             </div>
 

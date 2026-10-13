@@ -188,8 +188,8 @@ export function PortfolioDistributionChart({
                     data={chartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={65}
-                    outerRadius={95}
+                    innerRadius={76}
+                    outerRadius={104}
                     paddingAngle={3}
                     dataKey="value"
                     onMouseEnter={(_, index) => setActiveIndex(index)}
@@ -217,16 +217,32 @@ export function PortfolioDistributionChart({
             )}
 
             {/* Donut Center Overlay */}
-            <div className="pointer-events-none absolute flex flex-col items-center justify-center text-center">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                {activeItem ? activeItem.label : 'Patrimonio'}
-              </span>
-              <span className="text-sm sm:text-base font-black text-white font-mono">
-                {activeItem
-                  ? `${activeItem.percentage}%`
-                  : formatCurrency(totalValue, selectedCurrency)}
-              </span>
-            </div>
+            {(() => {
+              const formattedTotal = formatCurrency(totalValue, selectedCurrency);
+              const getFontSizeClass = (val: string) => {
+                if (val.length > 15) return 'text-[11px] sm:text-xs tracking-tighter leading-tight';
+                if (val.length > 12) return 'text-xs sm:text-sm tracking-tight leading-tight';
+                return 'text-sm sm:text-base';
+              };
+
+              return (
+                <div className="pointer-events-none absolute flex flex-col items-center justify-center text-center max-w-[144px] px-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    {activeItem ? activeItem.label : 'Patrimonio'}
+                  </span>
+                  <span
+                    className={`font-black text-white font-mono break-words ${
+                      activeItem
+                        ? 'text-sm sm:text-base'
+                        : getFontSizeClass(formattedTotal)
+                    }`}
+                    title={formattedTotal}
+                  >
+                    {activeItem ? `${activeItem.percentage}%` : formattedTotal}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Interactive Legend List */}
