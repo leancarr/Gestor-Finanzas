@@ -153,20 +153,37 @@ export default function AnaliticasPage() {
     let isMounted = true;
     setIsDataLoading(true);
 
-    Promise.all([
-      getExpenses({
-        limit: 1000,
-        vaultId: activeVaultId || undefined,
-      }).catch(() => [] as ExpenseItem[]),
-      getAnalytics({
-        range,
-        currency,
-        rates,
-        selectedDate: selectedDate || undefined,
-        vaultId: activeVaultId || undefined,
-      }),
-    ])
-      .then(([expensesList, analyticsData]) => {
+    getExpenses({
+      limit: 1000,
+      vaultId: activeVaultId || undefined,
+    })
+      .then((res) => {
+        if (res && res.length > 0 && typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('cached_expenses_analytics', JSON.stringify(res));
+          } catch {}
+        }
+        return res;
+      })
+      .catch(() => {
+        if (typeof window !== 'undefined') {
+          try {
+            const cached = sessionStorage.getItem('cached_expenses_analytics');
+            if (cached) return JSON.parse(cached) as ExpenseItem[];
+          } catch {}
+        }
+        return [] as ExpenseItem[];
+      })
+      .then(async (expensesList) => {
+        const analyticsData = await getAnalytics({
+          range,
+          currency,
+          rates,
+          selectedDate: selectedDate || undefined,
+          vaultId: activeVaultId || undefined,
+          expenses: expensesList,
+        });
+
         if (isMounted) {
           setAllExpenses(expensesList);
           setData(analyticsData);
@@ -306,12 +323,12 @@ export default function AnaliticasPage() {
     });
 
     const topExpenses = normalized
-      .filter((e) => (e.type || 'EXPENSE') === 'EXPENSE')
+      .filter((e) => (e.type || 'EXPENSE').toUpperCase() === 'EXPENSE')
       .sort((a, b) => b.convertedAmount - a.convertedAmount)
       .slice(0, 5);
 
     const topIncomes = normalized
-      .filter((e) => e.type === 'INCOME')
+      .filter((e) => (e.type || '').toUpperCase() === 'INCOME')
       .sort((a, b) => b.convertedAmount - a.convertedAmount)
       .slice(0, 5);
 

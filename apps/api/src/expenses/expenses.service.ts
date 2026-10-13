@@ -746,6 +746,7 @@ export class ExpensesService {
           icon: string | null;
           color: string | null;
           total: number;
+          count: number;
         }
       >();
 
@@ -790,9 +791,11 @@ export class ExpensesService {
               icon: exp.category ? exp.category.icon : null,
               color: exp.category ? exp.category.color : '#64748B',
               total: 0,
+              count: 0,
             });
           }
           categoryMap.get(catKey)!.total += amount;
+          categoryMap.get(catKey)!.count += 1;
         }
       }
 
@@ -820,6 +823,7 @@ export class ExpensesService {
           color: cat.color,
           icon: cat.icon,
           total: Math.round(cat.total * 100) / 100,
+          count: cat.count,
           percentage:
             totalExpenses > 0
               ? Math.round((cat.total / totalExpenses) * 10000) / 100
