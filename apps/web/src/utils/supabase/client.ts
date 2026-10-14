@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
-import type { User, Session } from '@supabase/supabase-js';
+import type { User, Session, SupabaseClient } from '@supabase/supabase-js';
 
 const DEV_SESSION_KEY = 'gestor_guita_dev_session';
 const DEV_COOKIE_NAME = 'gestor_guita_dev_token';
@@ -84,20 +84,26 @@ export async function loginWithDevAccount(email?: string, name?: string): Promis
   return session;
 }
 
-export function createClient() {
+let cachedBrowserClient: SupabaseClient | null = null;
+
+export function createClient(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+
+  // Si no está en el navegador, devolvemos el cliente estándar
+  if (typeof window === 'undefined') {
+    return createBrowserClient(supabaseUrl, supabaseAnonKey);
+  }
+
+  if (cachedBrowserClient) {
+    return cachedBrowserClient;
+  }
 
   const realClient = createBrowserClient(supabaseUrl, supabaseAnonKey);
   const isSupabaseConfigured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('your-project-id');
-
-  // Si no está en el navegador, devolvemos el cliente estándar
-  if (typeof window === 'undefined') {
-    return realClient;
-  }
 
   // Interceptar auth para soportar el modo Dev/Mock con Neon
   const wrappedAuth = new Proxy(realClient.auth, {
@@ -228,18 +234,24 @@ export function createClient() {
 
           window.addEventListener('gestor_guita_auth_change', handleCustom);
 
-          const { data: sub } = target.onAuthStateChange((event, session) => {
-            if (!getDevSession()) {
-              callback(event, session);
-            }
-          });
+          let realSub: { subscription: { unsubscribe: () => void } } | null = null;
+          if (isSupabaseConfigured) {
+            const { data } = target.onAuthStateChange((event, session) => {
+              if (!getDevSession()) {
+                callback(event, session);
+              }
+            });
+            realSub = data;
+          }
 
           return {
             data: {
               subscription: {
                 unsubscribe: () => {
                   window.removeEventListener('gestor_guita_auth_change', handleCustom);
-                  sub.subscription.unsubscribe();
+                  if (realSub?.subscription) {
+                    realSub.subscription.unsubscribe();
+                  }
                 },
               },
             },
@@ -251,12 +263,14 @@ export function createClient() {
     },
   });
 
-  return new Proxy(realClient, {
+  cachedBrowserClient = new Proxy(realClient, {
     get(target, prop, receiver) {
       if (prop === 'auth') {
         return wrappedAuth;
       }
       return Reflect.get(target, prop, receiver);
     },
-  });
+  }) as unknown as SupabaseClient;
+
+  return cachedBrowserClient;
 }

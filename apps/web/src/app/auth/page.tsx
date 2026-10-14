@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useTransition } from 'react';
+import React, { useEffect, useState, useTransition, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
@@ -32,7 +32,7 @@ export default function AuthPage() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const isEnvConfigured =
     Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL?.includes('placeholder') &&
@@ -48,7 +48,7 @@ export default function AuthPage() {
         const name = customName || (email.includes('demo2') ? 'Flor Demo' : 'Demo User');
         await loginWithDevAccount(email, name);
         setSuccessMessage(`¡Sesión iniciada como ${name}! Redirigiendo al dashboard...`);
-        router.push('/');
+        router.push('/dashboard');
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Error al iniciar sesión';
         setErrorMessage(msg);
@@ -57,25 +57,35 @@ export default function AuthPage() {
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-      setLoadingInitial(false);
-    }).catch(() => {
-      setUser(null);
-      setLoadingInitial(false);
-    });
+    let isMounted = true;
+
+    supabase.auth
+      .getUser()
+      .then(({ data: { user } }) => {
+        if (isMounted) {
+          setUser(user);
+          setLoadingInitial(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setUser(null);
+          setLoadingInitial(false);
+        }
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
+      if (isMounted) {
+        setUser(session?.user ?? null);
         setLoadingInitial(false);
       }
     });
 
     return () => {
-      subscription.unsubscribe();
+      isMounted = false;
+      subscription?.unsubscribe?.();
     };
   }, [supabase]);
 
@@ -128,7 +138,7 @@ export default function AuthPage() {
 
           if (data.session) {
             setSuccessMessage('¡Cuenta creada y sesión iniciada exitosamente!');
-            router.push('/');
+            router.push('/dashboard');
           } else {
             setSuccessMessage(
               '¡Registro exitoso! Revisa tu bandeja de correo para confirmar tu cuenta.'
@@ -150,7 +160,7 @@ export default function AuthPage() {
           }
 
           setSuccessMessage('¡Inicio de sesión exitoso!');
-          router.push('/');
+          router.push('/dashboard');
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Ocurrió un error inesperado';
@@ -271,7 +281,7 @@ export default function AuthPage() {
 
               <div className="flex flex-col gap-3 pt-2">
                 <Link
-                  href="/"
+                  href="/dashboard"
                   className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/50 hover:bg-emerald-500 transition-colors"
                 >
                   <Sparkles className="h-4 w-4" />
