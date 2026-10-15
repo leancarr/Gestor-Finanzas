@@ -188,6 +188,8 @@ const es = {
       vault: "Bóveda de pareja",
       reports: "Reportes",
       security: "Seguridad",
+      assistant: "Contador IA",
+      profile: "Mi Perfil",
     },
     tagline: "Finanzas personales",
     offlineT: "Modo sin conexión",
@@ -349,7 +351,7 @@ const en: Dict = {
   },
   app: {
     groups: { log: "Log", understand: "Understand", share: "Share" },
-    items: { log: "Natural input", tx: "Transactions", rec: "Recurring", home: "Home", budgets: "Budgets", fx: "Multi-currency", cal: "Calendar", goals: "Goals", rules: "Rules", vault: "Couples vault", reports: "Reports", security: "Security" },
+    items: { log: "Natural input", tx: "Transactions", rec: "Recurring", home: "Home", budgets: "Budgets", fx: "Multi-currency", cal: "Calendar", goals: "Goals", rules: "Rules", vault: "Couples vault", reports: "Reports", security: "Security", assistant: "AI Advisor", profile: "My Profile" },
     tagline: "Personal finance",
     offlineT: "Offline mode",
     offlineP: "Whatever you log without signal is saved and syncs on its own.",
