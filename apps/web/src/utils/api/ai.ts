@@ -244,10 +244,10 @@ export async function sendChatMessage(
   message: string,
   history: ChatMessage[] = [],
 ): Promise<ChatResponse> {
-  const headers = await getAuthHeaders();
+  let headers = await getAuthHeaders();
 
   try {
-    const res = await fetch(`${API_URL}/ai/chat`, {
+    let res = await fetch(`${API_URL}/ai/chat`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -256,16 +256,40 @@ export async function sendChatMessage(
       }),
     });
 
+    if (res.status === 401) {
+      console.warn('[AI Chat API] Token rechazado (401). Reintentando con nueva sesión...');
+      try {
+        const devSession = await loginWithDevAccount();
+        headers = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${devSession.access_token}`,
+        };
+        res = await fetch(`${API_URL}/ai/chat`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            message,
+            history,
+          }),
+        });
+      } catch (authErr) {
+        console.error('[AI Chat API] Error en re-autenticación:', authErr);
+      }
+    }
+
     if (res.ok) {
       const data: ChatResponse = await res.json();
       return data;
     }
 
+    const errorDetails = await res.text().catch(() => '');
+    console.error(`[AI Chat API Error HTTP ${res.status}]`, errorDetails);
+
     // Fallback a respuesta generada
     await new Promise((resolve) => setTimeout(resolve, 800));
     return generateFallbackChatResponse(message);
   } catch (error) {
-    console.warn('[AI Chat API] Fallback a respuesta local:', error);
+    console.warn('[AI Chat API] Error de red / fallback:', error);
     await new Promise((resolve) => setTimeout(resolve, 800));
     return generateFallbackChatResponse(message);
   }

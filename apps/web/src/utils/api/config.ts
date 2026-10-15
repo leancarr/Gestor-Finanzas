@@ -6,11 +6,7 @@
  */
 export function getApiUrl(): string {
   if (typeof window !== 'undefined') {
-    if (
-      process.env.NEXT_PUBLIC_API_URL &&
-      !process.env.NEXT_PUBLIC_API_URL.includes('localhost') &&
-      !process.env.NEXT_PUBLIC_API_URL.includes('127.0.0.1')
-    ) {
+    if (process.env.NEXT_PUBLIC_API_URL) {
       return process.env.NEXT_PUBLIC_API_URL;
     }
     return `${window.location.origin}/api`;
