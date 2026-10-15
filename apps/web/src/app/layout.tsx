@@ -25,7 +25,6 @@ import SyncManager from "@/components/SyncManager";
 import { FinancialChatbot } from "@/components/ai/FinancialChatbot";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { PREFS_BOOT_SCRIPT } from "@/lib/prefs";
 
 export default function RootLayout({
   children,
@@ -38,9 +37,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
-      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AppShell>
           <AuthGuard>{children}</AuthGuard>
