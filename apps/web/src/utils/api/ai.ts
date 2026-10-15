@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/client';
+import { createClient, getDevSession, loginWithDevAccount } from '@/utils/supabase/client';
 import { DYNAMIC_API_URL } from './config';
 
 export interface ReceiptItem {
@@ -35,20 +35,42 @@ export interface ChatResponse {
 const API_URL = DYNAMIC_API_URL;
 
 /**
- * Obtiene las cabeceras de autorización con el JWT de Supabase si existe una sesión activa.
+ * Obtiene las cabeceras de autorización con el JWT de Supabase o sesión de desarrollo.
  */
 async function getAuthHeaders(): Promise<HeadersInit> {
   const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  let token: string | undefined;
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    token = session?.access_token;
+  } catch {
+    // Ignorar error al consultar sesión
+  }
+
+  if (!token && typeof window !== 'undefined') {
+    const dev = getDevSession();
+    token = dev?.access_token;
+
+    // Si aún no hay token en modo desarrollo, autologin con dev account
+    if (!token && process.env.NODE_ENV === 'development') {
+      try {
+        const autoDev = await loginWithDevAccount();
+        token = autoDev.access_token;
+      } catch (err) {
+        console.warn('Auto dev-login falló:', err);
+      }
+    }
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (session?.access_token) {
-    headers['Authorization'] = `Bearer ${session.access_token}`;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   return headers;

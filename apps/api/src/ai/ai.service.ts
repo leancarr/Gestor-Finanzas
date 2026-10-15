@@ -180,11 +180,13 @@ ${categoriesContext}
 
     // 5. Modelos candidatos con fallback progresivo
     const candidateModels = [
+      "gemini-flash-latest",
       "gemini-3.8-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-2.5-flash",
-      "gemini-2.5-pro",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-lite-latest",
     ];
 
     let lastError: Error | null = null;
@@ -444,11 +446,13 @@ Si el usuario pregunta algo fuera de finanzas, recordale amablemente tu rol. Si 
     ];
 
     const candidateModels = [
+      "gemini-flash-latest",
       "gemini-3.8-flash",
-      "gemini-2.0-flash",
-      "gemini-1.5-flash",
-      "gemini-2.5-flash",
-      "gemini-2.5-pro",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-lite-latest",
     ];
 
     let lastError: Error | null = null;
