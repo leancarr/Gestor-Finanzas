@@ -9,6 +9,10 @@ export class ChatHistoryItemDto {
   @IsNotEmpty({ message: "El texto del mensaje no puede estar vacío" })
   @IsString({ message: "El texto del mensaje debe ser un string" })
   text: string;
+
+  @IsOptional()
+  @IsString({ message: "El timestamp debe ser una cadena de texto" })
+  timestamp?: string;
 }
 
 export class ChatMessageDto {

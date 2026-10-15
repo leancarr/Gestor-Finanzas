@@ -246,13 +246,18 @@ export async function sendChatMessage(
 ): Promise<ChatResponse> {
   let headers = await getAuthHeaders();
 
+  const cleanHistory = history.map((item) => ({
+    role: item.role,
+    text: item.text,
+  }));
+
   try {
     let res = await fetch(`${API_URL}/ai/chat`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         message,
-        history,
+        history: cleanHistory,
       }),
     });
 
@@ -269,7 +274,7 @@ export async function sendChatMessage(
           headers,
           body: JSON.stringify({
             message,
-            history,
+            history: cleanHistory,
           }),
         });
       } catch (authErr) {
