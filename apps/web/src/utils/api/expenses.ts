@@ -123,6 +123,32 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 }
 
 /**
+ * Realiza una petición fetch con reintento automático ante caídas transitorias de red
+ * o arranques en frío (cold-starts) del backend / Neon Postgres (HTTP 500, 502, 503).
+ */
+async function fetchWithRetry(
+  input: string | URL,
+  init?: RequestInit,
+  retries = 1,
+  delayMs = 1500,
+): Promise<Response> {
+  try {
+    const res = await fetch(input, init);
+    if (!res.ok && (res.status === 500 || res.status === 502 || res.status === 503) && retries > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      return fetchWithRetry(input, init, retries - 1, delayMs);
+    }
+    return res;
+  } catch (error) {
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      return fetchWithRetry(input, init, retries - 1, delayMs);
+    }
+    throw error;
+  }
+}
+
+/**
  * Obtiene la lista de gastos del usuario autenticado con filtros opcionales.
  */
 export async function getExpenses(
@@ -159,7 +185,7 @@ export async function getExpenses(
     url.searchParams.set('vaultId', query.vaultId);
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await fetchWithRetry(url.toString(), {
     method: 'GET',
     headers,
     cache: 'no-store',
@@ -178,7 +204,7 @@ export async function getExpenses(
  */
 export async function getExpense(id: string): Promise<ExpenseItem> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}/expenses/${id}`, {
+  const res = await fetchWithRetry(`${API_URL}/expenses/${id}`, {
     method: 'GET',
     headers,
   });
@@ -361,7 +387,7 @@ export async function getExpensesSummary(
     url.searchParams.set('vaultId', v);
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await fetchWithRetry(url.toString(), {
     method: 'GET',
     headers,
     cache: 'no-store',
@@ -393,7 +419,7 @@ export async function getRecentExpenses(
     url.searchParams.set('vaultId', vaultId);
   }
 
-  const res = await fetch(url.toString(), {
+  const res = await fetchWithRetry(url.toString(), {
     method: 'GET',
     headers,
     cache: 'no-store',

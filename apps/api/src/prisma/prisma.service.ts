@@ -26,22 +26,40 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     userId: string,
     callback: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.$transaction(
-      async (tx) => {
-        // 1. Establece el rol de conexión a 'authenticated' (sujeto a RLS)
-        await tx.$executeRawUnsafe(`SET LOCAL ROLE authenticated;`);
+    const runTransaction = () =>
+      this.$transaction(
+        async (tx) => {
+          // 1. Establece el rol de conexión a 'authenticated' (sujeto a RLS)
+          await tx.$executeRawUnsafe(`SET LOCAL ROLE authenticated;`);
 
-        // 2. Inyecta la identidad del usuario para auth.uid() en Postgres
-        await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
+          // 2. Inyecta la identidad del usuario para auth.uid() en Postgres
+          await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
 
-        // 3. Ejecuta la consulta protegida por RLS
-        return callback(tx);
-      },
-      {
-        maxWait: 15000, // 15s para adquirir conexión con DB remota (Neon)
-        timeout: 30000, // 30s de tiempo límite por transacción
-      },
-    );
+          // 3. Ejecuta la consulta protegida por RLS
+          return callback(tx);
+        },
+        {
+          maxWait: 20000, // 20s para absorber cold-start de Neon
+          timeout: 30000, // 30s de tiempo límite por transacción
+        },
+      );
+
+    try {
+      return await runTransaction();
+    } catch (err: any) {
+      if (
+        err?.message?.includes("Can't reach database server") ||
+        err?.code === 'P1001' ||
+        err?.message?.includes('Connection pool timeout')
+      ) {
+        this.logger.warn(
+          `Arranque en frío o reconexión de Neon detectada para usuario ${userId}. Reintentando transacción...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return await runTransaction();
+      }
+      throw err;
+    }
   }
 
   /**
@@ -56,19 +74,37 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     userId: string | null | undefined,
     callback: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.$transaction(
-      async (tx) => {
-        await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role};`);
-        if (userId) {
-          await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
-        }
-        return callback(tx);
-      },
-      {
-        maxWait: 15000,
-        timeout: 30000,
-      },
-    );
+    const runTransaction = () =>
+      this.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe(`SET LOCAL ROLE ${role};`);
+          if (userId) {
+            await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${userId}, true), set_config('app.current_user_id', ${userId}, true)`;
+          }
+          return callback(tx);
+        },
+        {
+          maxWait: 20000,
+          timeout: 30000,
+        },
+      );
+
+    try {
+      return await runTransaction();
+    } catch (err: any) {
+      if (
+        err?.message?.includes("Can't reach database server") ||
+        err?.code === 'P1001' ||
+        err?.message?.includes('Connection pool timeout')
+      ) {
+        this.logger.warn(
+          `Arranque en frío o reconexión de Neon detectada para rol ${role}. Reintentando transacción...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return await runTransaction();
+      }
+      throw err;
+    }
   }
 
   /**
