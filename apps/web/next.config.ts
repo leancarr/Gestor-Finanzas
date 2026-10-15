@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:4001/:path*',
+        destination: 'http://127.0.0.1:4001/:path*',
       },
     ];
   },
