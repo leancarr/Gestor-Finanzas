@@ -23,8 +23,9 @@ export const metadata: Metadata = {
 
 import SyncManager from "@/components/SyncManager";
 import { FinancialChatbot } from "@/components/ai/FinancialChatbot";
-import { Navbar } from "@/components/layout/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { PREFS_BOOT_SCRIPT } from "@/lib/prefs";
 
 export default function RootLayout({
   children,
@@ -35,10 +36,15 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
-        <Navbar />
-        <AuthGuard>{children}</AuthGuard>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: PREFS_BOOT_SCRIPT }} />
+      </head>
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        <AppShell>
+          <AuthGuard>{children}</AuthGuard>
+        </AppShell>
         <FinancialChatbot />
         <SyncManager />
       </body>
