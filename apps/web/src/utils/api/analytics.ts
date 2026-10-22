@@ -206,6 +206,11 @@ export function calculateLocalAnalytics(
     daysCount = dates.daysCount;
   }
 
+  const currentStartKey = toDateKey(currentStart);
+  const currentEndKey = toDateKey(currentEnd);
+  const prevStartKey = toDateKey(prevStart);
+  const prevEndKey = toDateKey(prevEnd);
+
   let currentExpenses = 0;
   let currentIncome = 0;
   let prevExpenses = 0;
@@ -215,10 +220,11 @@ export function calculateLocalAnalytics(
   const timelineMap = new Map<string, { date: string; displayDate: string; expenses: number; income: number }>();
 
   if (selectedDate) {
-    const key = toDateKey(currentStart);
-    timelineMap.set(key, {
-      date: key,
-      displayDate: toDisplayDate(currentStart),
+    const parts = selectedDate.split('-').map(Number);
+    const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+    timelineMap.set(selectedDate, {
+      date: selectedDate,
+      displayDate: toDisplayDate(dObj),
       expenses: 0,
       income: 0,
     });
@@ -251,8 +257,19 @@ export function calculateLocalAnalytics(
   >();
 
   for (const item of filteredExpenses) {
-    const itemDate = new Date(item.date);
-    if (isNaN(itemDate.getTime())) continue;
+    // Normalización de fecha a formato calendario YYYY-MM-DD para evitar desfasajes horarios UTC/UTC-3
+    let itemDayKey = '';
+    if (typeof item.date === 'string') {
+      const match = item.date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        itemDayKey = `${match[1]}-${match[2]}-${match[3]}`;
+      }
+    }
+    if (!itemDayKey) {
+      const parsedDate = new Date(item.date);
+      if (isNaN(parsedDate.getTime())) continue;
+      itemDayKey = toDateKey(parsedDate);
+    }
 
     // Normalización de monto a la moneda de visualización
     const rawAmount = typeof item.amount === 'number' ? item.amount : parseFloat(String(item.amount)) || 0;
@@ -266,10 +283,9 @@ export function calculateLocalAnalytics(
     const isExpense = (item.type || 'EXPENSE') === 'EXPENSE';
     const isIncome = item.type === 'INCOME';
 
-    // Verificar si cae en el período actual
-    if (itemDate >= currentStart && itemDate <= currentEnd) {
-      const dayKey = toDateKey(itemDate);
-      const dayPoint = timelineMap.get(dayKey);
+    // Verificar si cae en el período actual (comparación estricta por fecha calendario YYYY-MM-DD)
+    if (itemDayKey >= currentStartKey && itemDayKey <= currentEndKey) {
+      const dayPoint = timelineMap.get(itemDayKey);
 
       if (isExpense) {
         currentExpenses += amountInTarget;
@@ -296,7 +312,7 @@ export function calculateLocalAnalytics(
       }
     }
     // Verificar si cae en el período previo de comparación
-    else if (itemDate >= prevStart && itemDate <= prevEnd) {
+    else if (itemDayKey >= prevStartKey && itemDayKey <= prevEndKey) {
       if (isExpense) {
         prevExpenses += amountInTarget;
       } else if (isIncome) {

@@ -5,6 +5,8 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -17,6 +19,8 @@ import {
   Eye,
   Calendar,
   Layers,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
 
 export interface ExpenseTimelineChartProps {
@@ -101,6 +105,7 @@ export function ExpenseTimelineChart({
   loading = false,
 }: ExpenseTimelineChartProps) {
   const [visibility, setVisibility] = useState<SeriesVisibility>('all');
+  const [chartType, setChartType] = useState<'area' | 'bars'>('area');
 
   const formattedData = React.useMemo(() => {
     return (data || []).map((p) => {
@@ -179,8 +184,39 @@ export function ExpenseTimelineChart({
           </div>
         </div>
 
-        {/* Visibility Filter Buttons */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        {/* Controls: Chart Type (Curva vs Velas/Barras) & Visibility Filter Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          {/* Switch Curva vs Velas/Barras */}
+          <div className="flex items-center p-1 rounded-2xl border border-white/10 bg-slate-950/60 shadow-inner text-xs">
+            <button
+              type="button"
+              onClick={() => setChartType('area')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                chartType === 'area'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Curva continua suave"
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Curva</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setChartType('bars')}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                chartType === 'bars'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Velas / Barras Financieras"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Velas / Barras</span>
+            </button>
+          </div>
+
+          {/* Visibility Filter Buttons */}
           <div className="flex items-center p-1 rounded-2xl border border-white/10 bg-slate-950/60 shadow-inner text-xs">
             <button
               type="button"
@@ -238,99 +274,163 @@ export function ExpenseTimelineChart({
         <div className="mt-6">
           <div className="h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={formattedData}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <defs>
-                  {/* Gradiente Esmeralda para Ingresos */}
-                  <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                  </linearGradient>
+              {chartType === 'area' ? (
+                <AreaChart
+                  data={formattedData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    {/* Gradiente Esmeralda para Ingresos */}
+                    <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                    </linearGradient>
 
-                  {/* Gradiente Rose para Gastos */}
-                  <linearGradient id="expensesGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
+                    {/* Gradiente Rose para Gastos */}
+                    <linearGradient id="expensesGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
 
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#334155"
-                  opacity={0.3}
-                  vertical={false}
-                />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#334155"
+                    opacity={0.3}
+                    vertical={false}
+                  />
 
-                <XAxis
-                  dataKey="displayDate"
-                  stroke="#64748b"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={{ stroke: '#334155', opacity: 0.3 }}
-                  dy={8}
-                  interval="preserveStartEnd"
-                  minTickGap={20}
-                />
+                  <XAxis
+                    dataKey="displayDate"
+                    stroke="#64748b"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: '#334155', opacity: 0.3 }}
+                    dy={8}
+                    interval="preserveStartEnd"
+                    minTickGap={20}
+                  />
 
-                <YAxis
-                  stroke="#64748b"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={formatYAxis}
-                  dx={-5}
-                />
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatYAxis}
+                    dx={-5}
+                  />
 
-                <Tooltip
-                  content={({ active, payload }) => (
-                    <CustomTooltip
-                      active={active}
-                      payload={payload}
-                      currency={currency}
+                  <Tooltip
+                    content={({ active, payload }) => (
+                      <CustomTooltip
+                        active={active}
+                        payload={payload}
+                        currency={currency}
+                      />
+                    )}
+                  />
+
+                  {/* Serie de Ingresos */}
+                  {(visibility === 'all' || visibility === 'income') && (
+                    <Area
+                      type="monotone"
+                      dataKey="income"
+                      name="Ingresos"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#incomeGradient)"
+                      activeDot={{
+                        r: 6,
+                        stroke: '#0f172a',
+                        strokeWidth: 2,
+                        fill: '#10b981',
+                      }}
                     />
                   )}
-                />
 
-                {/* Serie de Ingresos */}
-                {(visibility === 'all' || visibility === 'income') && (
-                  <Area
-                    type="monotone"
-                    dataKey="income"
-                    name="Ingresos"
-                    stroke="#10b981"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#incomeGradient)"
-                    activeDot={{
-                      r: 6,
-                      stroke: '#0f172a',
-                      strokeWidth: 2,
-                      fill: '#10b981',
-                    }}
+                  {/* Serie de Gastos */}
+                  {(visibility === 'all' || visibility === 'expenses') && (
+                    <Area
+                      type="monotone"
+                      dataKey="expenses"
+                      name="Gastos"
+                      stroke="#f43f5e"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#expensesGradient)"
+                      activeDot={{
+                        r: 6,
+                        stroke: '#0f172a',
+                        strokeWidth: 2,
+                        fill: '#f43f5e',
+                      }}
+                    />
+                  )}
+                </AreaChart>
+              ) : (
+                <BarChart
+                  data={formattedData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#334155"
+                    opacity={0.3}
+                    vertical={false}
                   />
-                )}
 
-                {/* Serie de Gastos */}
-                {(visibility === 'all' || visibility === 'expenses') && (
-                  <Area
-                    type="monotone"
-                    dataKey="expenses"
-                    name="Gastos"
-                    stroke="#f43f5e"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#expensesGradient)"
-                    activeDot={{
-                      r: 6,
-                      stroke: '#0f172a',
-                      strokeWidth: 2,
-                      fill: '#f43f5e',
-                    }}
+                  <XAxis
+                    dataKey="displayDate"
+                    stroke="#64748b"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: '#334155', opacity: 0.3 }}
+                    dy={8}
+                    interval="preserveStartEnd"
+                    minTickGap={20}
                   />
-                )}
-              </AreaChart>
+
+                  <YAxis
+                    stroke="#64748b"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatYAxis}
+                    dx={-5}
+                  />
+
+                  <Tooltip
+                    content={({ active, payload }) => (
+                      <CustomTooltip
+                        active={active}
+                        payload={payload}
+                        currency={currency}
+                      />
+                    )}
+                  />
+
+                  {/* Velas / Barras de Ingresos */}
+                  {(visibility === 'all' || visibility === 'income') && (
+                    <Bar
+                      dataKey="income"
+                      name="Ingresos"
+                      fill="#10b981"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  )}
+
+                  {/* Velas / Barras de Gastos */}
+                  {(visibility === 'all' || visibility === 'expenses') && (
+                    <Bar
+                      dataKey="expenses"
+                      name="Gastos"
+                      fill="#f43f5e"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  )}
+                </BarChart>
+              )}
             </ResponsiveContainer>
           </div>
 

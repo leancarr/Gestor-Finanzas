@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   AlertCircle,
   Plus,
-  ArrowRight,
   TrendingUp,
   TrendingDown,
   Receipt,
@@ -360,7 +359,7 @@ export default function AnaliticasPage() {
   const activeRangeOption = RANGE_OPTIONS.find((r) => r.id === range);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="w-full px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* ========================================================================= */}
         {/* HEADER LIMPIO (INTEGRADO AL NAVBAR GLOBAL)                                */}
@@ -845,33 +844,16 @@ export default function AnaliticasPage() {
               </>
             )}
 
-            {/* Footer de navegación rápida */}
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 via-white/[0.02] to-white/5 p-6 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-4">
+            {/* Tarjeta de optimización sin botones inferiores redundantes */}
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 via-white/[0.02] to-white/5 p-5 backdrop-blur-md">
               <div className="space-y-1 text-center sm:text-left">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <h3 className="text-sm font-bold text-white flex items-center justify-center sm:justify-start gap-2">
                   <TrendingUp className="h-4 w-4 text-emerald-400" />
                   Optimiza tus decisiones financieras
                 </h3>
                 <p className="text-xs text-slate-400">
                   Compara períodos anteriores para identificar tendencias de consumo y mantener balances positivos.
                 </p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/gastos/nuevo"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  Nuevo Gasto
-                </Link>
-                <Link
-                  href="/gastos"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs font-semibold text-slate-200 hover:text-white transition cursor-pointer"
-                >
-                  Ver Todos los Gastos
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
               </div>
             </div>
           </div>
