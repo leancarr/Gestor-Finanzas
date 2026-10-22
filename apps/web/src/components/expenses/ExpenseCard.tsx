@@ -5,6 +5,7 @@ import { Calendar, Trash2, Tag, Receipt } from 'lucide-react';
 import { ExpenseItem } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { TagBadge } from '@/components/tags/TagBadge';
+import { UsdtIcon } from '@/components/icons/UsdtIcon';
 import {
   formatCurrency,
   SupportedCurrency,
@@ -120,7 +121,11 @@ export function ExpenseCard({ expense, onDelete, onTagClick }: ExpenseCardProps)
               className={`shrink-0 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
               title={`Transacción en ${currencyInfo.name}`}
             >
-              <span>{currencyInfo.flag}</span>
+              {currencyCode === 'USDT' ? (
+                <UsdtIcon className="h-3 w-3 shrink-0" />
+              ) : (
+                <span>{currencyInfo.flag}</span>
+              )}
               <span>{currencyCode}</span>
             </span>
 

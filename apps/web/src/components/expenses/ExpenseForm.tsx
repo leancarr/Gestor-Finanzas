@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { createExpense, ExpenseItem } from '@/utils/api/expenses';
+import { createExpense, getExpenses, ExpenseItem } from '@/utils/api/expenses';
+import { getTagsSummary } from '@/utils/api/gamification';
 import {
   getCategories,
   seedDefaultCategories,
@@ -121,6 +122,7 @@ export function ExpenseForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>(defaultTags || []);
+  const [historicalTags, setHistoricalTags] = useState<string[]>([]);
 
   // Live exchange rates with local fallback
   const [rates, setRates] = useState<Record<SupportedCurrency, number>>(FALLBACK_RATES);
@@ -139,6 +141,48 @@ export function ExpenseForm({
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return d.toISOString().split('T')[0];
+  }, []);
+
+  // Fetch historical tags from previous expenses and tag summary
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([
+      getTagsSummary().catch(() => []),
+      getExpenses().catch(() => []),
+    ]).then(([tagsSummaryData, expensesData]) => {
+      if (!isMounted) return;
+      const tagSet = new Set<string>();
+
+      if (Array.isArray(expensesData)) {
+        expensesData.forEach((exp) => {
+          if (Array.isArray(exp.tags)) {
+            exp.tags.forEach((t) => {
+              if (t && typeof t === 'string' && t.trim()) {
+                const formatted = t.trim().startsWith('#') ? t.trim() : `#${t.trim()}`;
+                tagSet.add(formatted);
+              }
+            });
+          }
+        });
+      }
+
+      if (Array.isArray(tagsSummaryData)) {
+        tagsSummaryData.forEach((item) => {
+          if (item?.tag) {
+            const formatted = item.tag.trim().startsWith('#') ? item.tag.trim() : `#${item.tag.trim()}`;
+            tagSet.add(formatted);
+          }
+        });
+      }
+
+      if (tagSet.size > 0) {
+        setHistoricalTags(Array.from(tagSet));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const {
@@ -641,6 +685,7 @@ export function ExpenseForm({
           <TagInput
             tags={tags}
             onChange={setTags}
+            suggestedTags={historicalTags.length > 0 ? historicalTags : undefined}
             placeholder="Ej: #ViajeBariloche, #CenaFinDeAno..."
           />
         </div>
