@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   AlertOctagon,
   TrendingUp,
+  Repeat,
 } from 'lucide-react';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
 import { BudgetItem } from '@/utils/api/budgets';
@@ -66,6 +67,19 @@ export function BudgetCard({ budget, onEdit, onDelete }: BudgetCardProps) {
     };
   }
 
+  const [isAutoRenew, setIsAutoRenew] = React.useState(false);
+  React.useEffect(() => {
+    try {
+      const raw = localStorage.getItem('gestorguita_budget_autorenew');
+      if (raw) {
+        const list: string[] = JSON.parse(raw);
+        setIsAutoRenew(list.includes(budget.categoryId));
+      }
+    } catch {
+      // LocalStorage fallback
+    }
+  }, [budget.categoryId]);
+
   const StatusIcon = statusBadge.icon;
   const progressWidth = Math.min(percentage, 100);
 
@@ -89,9 +103,20 @@ export function BudgetCard({ budget, onEdit, onDelete }: BudgetCardProps) {
               <CategoryIcon name={category.icon} className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight group-hover:text-emerald-400 transition-colors">
-                {category.name}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-white tracking-tight group-hover:text-emerald-400 transition-colors">
+                  {category.name}
+                </h3>
+                {isAutoRenew && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400"
+                    title="Renovación automática mensual activa"
+                  >
+                    <Repeat className="h-2.5 w-2.5" />
+                    Auto
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-slate-400">
                 Tope mensual de gastos
               </p>
