@@ -27,6 +27,7 @@ export interface AssetModalProps {
   onClose: () => void;
   onSuccess: (savedAsset: Asset) => void;
   assetToEdit?: Asset | null;
+  vaultId?: string | null;
 }
 
 interface TypeOption {
@@ -144,6 +145,7 @@ function AssetModalContent({
   onClose,
   onSuccess,
   assetToEdit,
+  vaultId,
 }: Omit<AssetModalProps, 'isOpen'>) {
   const [type, setType] = useState<AssetType>(assetToEdit?.type ?? 'CEDEAR');
   const [name, setName] = useState(assetToEdit?.name ?? '');
@@ -232,6 +234,7 @@ function AssetModalContent({
       interestRate:
         type === 'FIXED_TERM' && interestRate ? parseFloat(interestRate) : undefined,
       notes: notes.trim() ? notes.trim() : undefined,
+      vaultId: assetToEdit ? assetToEdit.vaultId : vaultId ?? null,
     };
 
     try {
@@ -588,6 +591,7 @@ export function AssetModal({
   onClose,
   onSuccess,
   assetToEdit,
+  vaultId,
 }: AssetModalProps) {
   if (!isOpen) return null;
 
@@ -597,6 +601,7 @@ export function AssetModal({
       onClose={onClose}
       onSuccess={onSuccess}
       assetToEdit={assetToEdit}
+      vaultId={vaultId}
     />
   );
 }

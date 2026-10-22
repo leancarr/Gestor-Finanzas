@@ -41,10 +41,12 @@ import {
   CreateAssetInput,
   getAssets,
   getPortfolioSummary,
+  calculateLocalPortfolioSummary,
   createAsset,
   deleteAsset,
 } from '@/utils/api/investments';
 import { formatCurrency } from '@/utils/api/rates';
+import { useVaultStore } from '@/stores/useVaultStore';
 
 type FilterCategory = 'ALL' | 'CASH' | 'FIXED_TERM' | 'CEDEAR' | 'CRYPTO' | 'OTHER';
 
@@ -64,6 +66,8 @@ const FILTER_TABS: FilterTab[] = [
 ];
 
 export default function InversionesPage() {
+  const { activeVault, activeVaultId } = useVaultStore();
+
   // Datos
   const [assets, setAssets] = useState<Asset[]>([]);
   const [summary, setSummary] = useState<PortfolioSummary | null>(null);
@@ -189,7 +193,10 @@ export default function InversionesPage() {
     try {
       setIsLoading(true);
       for (const assetInput of importedAssets) {
-        await createAsset(assetInput);
+        await createAsset({
+          ...assetInput,
+          vaultId: activeVaultId,
+        });
       }
       showToast(
         'success',
@@ -204,9 +211,30 @@ export default function InversionesPage() {
     }
   };
 
+  // Filtrar activos por bóveda activa (o privados si es cuenta personal)
+  const scopedAssets = useMemo(() => {
+    if (activeVaultId) {
+      return assets.filter((a) => a.vaultId === activeVaultId);
+    }
+    return assets.filter((a) => !a.vaultId);
+  }, [assets, activeVaultId]);
+
+  // Recalcular resumen consolidado en base al scope activo
+  useEffect(() => {
+    let isMounted = true;
+    calculateLocalPortfolioSummary(scopedAssets).then((scopedSummary) => {
+      if (isMounted) {
+        setSummary(scopedSummary);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [scopedAssets]);
+
   // Filtrado de activos
   const filteredAssets = useMemo(() => {
-    return assets.filter((asset) => {
+    return scopedAssets.filter((asset) => {
       // Filtro por categoría
       if (activeFilter === 'CASH') {
         if (
@@ -238,7 +266,7 @@ export default function InversionesPage() {
 
       return true;
     });
-  }, [assets, activeFilter, searchQuery]);
+  }, [scopedAssets, activeFilter, searchQuery]);
 
 interface PortfolioInsights {
   biggestAsset: Asset | null;
@@ -271,7 +299,7 @@ interface PortfolioInsights {
 
     let totalUsdExposureArs = 0;
 
-    assets.forEach((asset) => {
+    scopedAssets.forEach((asset) => {
       const qty = Number(asset.quantity) || 0;
       const curPrice = Number(asset.currentPrice) || Number(asset.purchasePrice) || 0;
       const purPrice = Number(asset.purchasePrice) || curPrice;
@@ -335,7 +363,7 @@ interface PortfolioInsights {
       nextDueDate,
       usdExposurePercent,
     };
-  }, [assets, summary]);
+  }, [scopedAssets, summary]);
 
   const biggestAsset = insights?.biggestAsset;
   const bestPerfAsset = insights?.bestPerfAsset;
@@ -369,12 +397,20 @@ interface PortfolioInsights {
               <div>
                 <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl flex items-center gap-2">
                   <span>Modo Inversiones</span>
-                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                    Patrimonio & Riqueza
-                  </span>
+                  {activeVault ? (
+                    <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
+                      Bóveda: {activeVault.name}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                      Patrimonio Personal
+                    </span>
+                  )}
                 </h1>
                 <p className="text-xs text-slate-400">
-                  Control consolidado de CEDEARs, Criptomonedas, Plazos Fijos y Liquidez
+                  {activeVault
+                    ? `Portafolio de inversión colaborativo de la bóveda "${activeVault.name}".`
+                    : 'Control consolidado de CEDEARs, Criptomonedas, Plazos Fijos y Liquidez'}
                 </p>
               </div>
             </div>
@@ -397,7 +433,7 @@ interface PortfolioInsights {
               className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/50 transition cursor-pointer"
             >
               <Plus className="h-4 w-4" />
-              <span>+ Nuevo Activo</span>
+              <span>Nuevo Activo</span>
             </button>
           </div>
         </header>
@@ -590,7 +626,7 @@ interface PortfolioInsights {
 
             <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
               <span>Total de posiciones:</span>
-              <span className="font-bold text-white font-mono">{assets.length} activos</span>
+              <span className="font-bold text-white font-mono">{scopedAssets.length} activos</span>
             </div>
           </div>
         </div>
@@ -625,39 +661,16 @@ interface PortfolioInsights {
               })}
             </div>
 
-            {/* Search Input & Action Buttons */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
-              <div className="relative flex-1 sm:w-60 md:w-64">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Buscar activo, ticker o broker..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-slate-900/80 pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsBrokerModalOpen(true)}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-cyan-500/30 bg-cyan-950/40 hover:bg-cyan-900/50 px-3.5 py-2 text-xs font-bold text-cyan-300 hover:text-white shadow-sm transition cursor-pointer"
-                  title="Importar capturas de brokers con OCR"
-                >
-                  <ScanLine className="h-4 w-4 text-cyan-400" />
-                  <span>Importar OCR</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleOpenCreate}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer shrink-0"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>+ Nuevo Activo</span>
-                </button>
-              </div>
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-72 md:w-80 w-full lg:w-auto">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <input
+                type="text"
+                placeholder="Buscar activo, ticker o broker..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-slate-900/80 pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
             </div>
           </div>
 
@@ -716,6 +729,7 @@ interface PortfolioInsights {
           onClose={() => setIsModalOpen(false)}
           onSuccess={handleAssetSaved}
           assetToEdit={assetToEdit}
+          vaultId={activeVaultId}
         />
 
         <AssetDeleteModal

@@ -27,6 +27,7 @@ export interface Asset {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  vaultId?: string | null;
 }
 
 export interface AssetDistribution {
@@ -67,6 +68,7 @@ export interface CreateAssetInput {
   dueDate?: string;
   interestRate?: number;
   notes?: string;
+  vaultId?: string | null;
 }
 
 export type UpdateAssetInput = Partial<CreateAssetInput>;
@@ -474,6 +476,7 @@ export async function createAsset(input: CreateAssetInput): Promise<Asset> {
     notes: input.notes?.trim() || undefined,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    vaultId: input.vaultId !== undefined ? input.vaultId : null,
   };
 
   try {

@@ -31,8 +31,10 @@ import {
   calculateGoalMetrics,
 } from '@/utils/api/goals';
 import { formatCurrency, FALLBACK_RATES } from '@/utils/api/rates';
+import { useVaultStore } from '@/stores/useVaultStore';
 
 export default function MetasPage() {
+  const { activeVault, activeVaultId } = useVaultStore();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,6 +139,14 @@ export default function MetasPage() {
     loadData();
   };
 
+  // Scoped Goals by active vault
+  const scopedGoals = useMemo(() => {
+    if (activeVaultId) {
+      return goals.filter((g) => g.vaultId === activeVaultId);
+    }
+    return goals.filter((g) => !g.vaultId);
+  }, [goals, activeVaultId]);
+
   // Calculations for KPIs
   const kpis = useMemo(() => {
     const usdRate = FALLBACK_RATES['USD'] || 1180;
@@ -148,7 +158,7 @@ export default function MetasPage() {
     let activeCount = 0;
     let completedCount = 0;
 
-    for (const g of goals) {
+    for (const g of scopedGoals) {
       if (g.currency === 'USD') {
         totalSavedUsd += g.currentAmount;
         totalTargetUsd += g.targetAmount;
@@ -181,13 +191,13 @@ export default function MetasPage() {
       globalProgress,
       activeCount,
       completedCount,
-      totalGoals: goals.length,
+      totalGoals: scopedGoals.length,
     };
-  }, [goals]);
+  }, [scopedGoals]);
 
   // Filtered Goals
   const filteredGoals = useMemo(() => {
-    return goals.filter((g) => {
+    return scopedGoals.filter((g) => {
       // Filter by tab
       if (filterTab === 'ACTIVE' && g.currentAmount >= g.targetAmount) return false;
       if (filterTab === 'COMPLETED' && g.currentAmount < g.targetAmount) return false;
@@ -203,7 +213,7 @@ export default function MetasPage() {
 
       return true;
     });
-  }, [goals, filterTab, searchQuery]);
+  }, [scopedGoals, filterTab, searchQuery]);
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
@@ -230,12 +240,20 @@ export default function MetasPage() {
                 <h1 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
                   Metas de Ahorro
                 </h1>
-                <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                  Patrimonio
-                </span>
+                {activeVault ? (
+                  <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
+                    Bóveda: {activeVault.name}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-slate-800/80 border border-slate-700/60 px-2.5 py-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Personal Privado
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400">
-                Fijá objetivos financieros, realizá inyecciones rápidas y automatizá el registro de egresos.
+                {activeVault
+                  ? `Metas compartidas exclusivas de la bóveda "${activeVault.name}".`
+                  : 'Fijá objetivos financieros personales, realizá inyecciones rápidas y automatizá el registro de egresos.'}
               </p>
             </div>
           </div>
@@ -489,6 +507,7 @@ export default function MetasPage() {
         }}
         onGoalCreated={handleGoalSaved}
         goalToEdit={goalToEdit}
+        vaultId={activeVaultId}
       />
 
       {/* Delete Confirmation Modal */}

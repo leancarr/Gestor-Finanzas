@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Target,
@@ -10,8 +10,11 @@ import {
   Loader2,
   AlertCircle,
   Plus,
+  Repeat,
+  Clock,
 } from 'lucide-react';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
+import { CustomSelect, SelectOption } from '@/components/ui/CustomSelect';
 import {
   BudgetItem,
   createOrUpsertBudget,
@@ -45,6 +48,13 @@ const MONTH_NAMES = [
 ];
 
 const CURRENCIES = ['ARS', 'USD', 'EUR', 'USDT'];
+
+const DURATION_OPTIONS = [
+  { value: 1, label: '1 Mes', desc: 'Estándar' },
+  { value: 3, label: 'Trimestral', desc: '3 meses' },
+  { value: 6, label: 'Semestral', desc: '6 meses' },
+  { value: 12, label: 'Anual', desc: '12 meses' },
+];
 
 interface BudgetModalFormProps {
   onClose: () => void;
@@ -82,12 +92,44 @@ function BudgetModalForm({
     return budgetToEdit?.year ?? defaultYear;
   });
 
+  const [durationMonths, setDurationMonths] = useState<number>(1);
+  const [autoRenew, setAutoRenew] = useState<boolean>(() => {
+    if (budgetToEdit?.categoryId) {
+      try {
+        const raw = localStorage.getItem('gestorguita_budget_autorenew');
+        if (raw) {
+          const list: string[] = JSON.parse(raw);
+          return list.includes(budgetToEdit.categoryId);
+        }
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
   const [currency, setCurrency] = useState<string>(() => {
     return budgetToEdit?.currency || 'ARS';
   });
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const categoryOptions: SelectOption[] = useMemo(() => {
+    return categories.map((cat) => ({
+      value: cat.id,
+      label: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+    }));
+  }, [categories]);
+
+  const monthOptions: SelectOption[] = useMemo(() => {
+    return MONTH_NAMES.map((name, idx) => ({
+      value: String(idx + 1),
+      label: name,
+    }));
+  }, []);
 
   const handleQuickAdd = (value: number) => {
     const current = parseFloat(amount) || 0;
@@ -119,13 +161,37 @@ function BudgetModalForm({
           currency,
         });
       } else {
-        saved = await createOrUpsertBudget({
-          categoryId,
-          amount: parsedAmount,
-          month,
-          year,
-          currency,
-        });
+        // Multi-month creation support
+        let firstSaved: BudgetItem | null = null;
+        for (let i = 0; i < durationMonths; i++) {
+          const targetDate = new Date(year, month - 1 + i, 1);
+          const m = targetDate.getMonth() + 1;
+          const y = targetDate.getFullYear();
+          const item = await createOrUpsertBudget({
+            categoryId,
+            amount: parsedAmount,
+            month: m,
+            year: y,
+            currency,
+          });
+          if (i === 0) firstSaved = item;
+        }
+        saved = firstSaved!;
+      }
+
+      // Persist / toggle auto-renew preference
+      try {
+        const raw = localStorage.getItem('gestorguita_budget_autorenew');
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        const nextList = autoRenew
+          ? Array.from(new Set([...list, categoryId]))
+          : list.filter((id) => id !== categoryId);
+        localStorage.setItem(
+          'gestorguita_budget_autorenew',
+          JSON.stringify(nextList),
+        );
+      } catch {
+        // LocalStorage fallback
       }
 
       onSuccess(saved);
@@ -152,7 +218,7 @@ function BudgetModalForm({
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-lg rounded-3xl border border-slate-800/90 bg-slate-900/95 p-6 shadow-2xl shadow-emerald-950/20 backdrop-blur-xl sm:p-8 z-10 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-800/90 bg-slate-900/95 p-6 shadow-2xl shadow-emerald-950/20 backdrop-blur-xl sm:p-8 z-10 animate-in fade-in zoom-in-95 duration-200 no-scrollbar">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
           <div className="flex items-center gap-3">
@@ -201,44 +267,29 @@ function BudgetModalForm({
                     color: budgetToEdit?.category?.color || '#10B981',
                   }}
                 >
-                  <CategoryIcon name={budgetToEdit?.category?.icon} className="h-4 w-4" />
+                  <CategoryIcon
+                    name={budgetToEdit?.category?.icon}
+                    className="h-4 w-4"
+                  />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-white">
                     {budgetToEdit?.category?.name}
                   </p>
                   <p className="text-[11px] text-slate-400">
-                    Mes de {MONTH_NAMES[(budgetToEdit?.month || 1) - 1]} {budgetToEdit?.year}
+                    Mes de {MONTH_NAMES[(budgetToEdit?.month || 1) - 1]}{' '}
+                    {budgetToEdit?.year}
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="relative">
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800 bg-slate-950/70 py-3 px-4 text-sm font-medium text-white shadow-inner transition focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                >
-                  {categories.length === 0 && (
-                    <option value="">No hay categorías registradas</option>
-                  )}
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id} className="bg-slate-900 text-white">
-                      {cat.name}
-                    </option>
-                  ))}
-                </select>
-
-                {selectedCategory && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: selectedCategory.color || '#10B981' }}
-                    />
-                    <span>Categoría seleccionada: <strong className="text-slate-200">{selectedCategory.name}</strong></span>
-                  </div>
-                )}
-              </div>
+              <CustomSelect
+                value={categoryId}
+                onChange={(val) => setCategoryId(val)}
+                options={categoryOptions}
+                placeholder="Seleccionar categoría..."
+                searchable={true}
+              />
             )}
           </div>
 
@@ -248,19 +299,15 @@ function BudgetModalForm({
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-emerald-400" />
-                  Mes
+                  Mes Inicial
                 </label>
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-slate-800 bg-slate-950/70 py-2.5 px-3 text-sm text-white focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                >
-                  {MONTH_NAMES.map((name, idx) => (
-                    <option key={idx + 1} value={idx + 1} className="bg-slate-900 text-white">
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={String(month)}
+                  onChange={(val) => setMonth(Number(val))}
+                  options={monthOptions}
+                  placeholder="Mes..."
+                  searchable={false}
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -278,6 +325,75 @@ function BudgetModalForm({
               </div>
             </div>
           )}
+
+          {/* Duración (Multi-mes) - Solo en creación */}
+          {!isEditing && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                Duración del Presupuesto
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {DURATION_OPTIONS.map((opt) => {
+                  const isSelected = durationMonths === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDurationMonths(opt.value)}
+                      className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition cursor-pointer ${
+                        isSelected
+                          ? 'border-emerald-500/50 bg-emerald-500/15 text-white shadow-md shadow-emerald-950/30'
+                          : 'border-slate-800 bg-slate-950/50 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                      }`}
+                    >
+                      <span className="text-xs font-bold">{opt.label}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {opt.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {durationMonths > 1 && (
+                <p className="text-[11px] text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2">
+                  Se creará automáticamente el tope para {durationMonths} meses consecutivos desde {MONTH_NAMES[month - 1]} {year}.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Renovación Automática Recurrente */}
+          <div className="flex items-center justify-between rounded-2xl border border-slate-800/80 bg-slate-950/50 p-3.5 backdrop-blur-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <Repeat className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">
+                  Renovación automática
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Renovar tope cada mes automáticamente
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoRenew}
+              onClick={() => setAutoRenew(!autoRenew)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                autoRenew ? 'bg-emerald-500' : 'bg-slate-800'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  autoRenew ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
 
           {/* Moneda y Monto */}
           <div className="space-y-2">
