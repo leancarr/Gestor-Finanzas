@@ -165,7 +165,8 @@ export default function AnaliticasPage() {
         }
         return res;
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.warn('[Analiticas] No se pudo obtener la lista completa de gastos para reportes:', err);
         if (typeof window !== 'undefined') {
           try {
             const cached = sessionStorage.getItem('cached_expenses_analytics');

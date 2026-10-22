@@ -41,7 +41,7 @@ export class QueryExpenseDto {
   @Type(() => Number)
   @IsInt({ message: 'El límite debe ser un número entero' })
   @Min(1, { message: 'El límite mínimo es 1' })
-  @Max(100, { message: 'El límite máximo es 100' })
+  @Max(2000, { message: 'El límite máximo es 2000' })
   limit?: number;
 
   @IsOptional()

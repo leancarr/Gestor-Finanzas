@@ -9,10 +9,14 @@ function formatCurrency(amount: number | string, currency: string = 'ARS') {
   }).format(Number(amount) || 0);
 }
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string | Date | unknown) {
   if (!dateStr) return '-';
-  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
-  if (isNaN(d.getTime())) return dateStr;
+  if (dateStr instanceof Date) {
+    return isNaN(dateStr.getTime()) ? '-' : dateStr.toLocaleDateString('es-AR');
+  }
+  const str = String(dateStr);
+  const d = new Date(str.includes('T') ? str : str + 'T00:00:00');
+  if (isNaN(d.getTime())) return str;
   return d.toLocaleDateString('es-AR');
 }
 
@@ -49,23 +53,36 @@ export function exportToCSV(
     return row;
   });
 
-  const csvContent =
-    headers.join(',') +
-    '\n' +
-    rows.map((e) => e.join(',')).join('\n');
+  try {
+    const csvContent =
+      headers.join(',') +
+      '\n' +
+      rows.map((e) => e.join(',')).join('\n');
 
-  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
 
-  const orgSuffix = orgName ? `_${orgName.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : '';
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${filenamePrefix}${orgSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
-  link.style.visibility = 'hidden';
-  
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const orgSuffix = orgName ? `_${orgName.toLowerCase().replace(/[^a-z0-9]/g, '_')}` : '';
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filenamePrefix}${orgSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+
+    setTimeout(() => {
+      try {
+        if (link.parentNode) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch {}
+    }, 250);
+  } catch (err) {
+    console.error('[Export CSV] Falló la exportación a CSV:', err);
+    throw err;
+  }
 }
 
 export interface ExportPDFOptions {
@@ -231,7 +248,7 @@ export function exportToPDF(
     startTableY = cardY + cardHeight + 6;
   }
 
-  // 7. Tabla estructurada con jspdf-autotable
+  // 7. Tabla estructurada con jspdf-autotable (Soporte ESM/CJS interop seguro)
   const tableData = data.map((item) => [
     formatDate(item.date),
     item.description || '-',
@@ -240,48 +257,58 @@ export function exportToPDF(
     formatCurrency(item.amount, item.currency || currency),
   ]);
 
-  autoTable(doc, {
-    startY: startTableY,
-    margin: { top: 25, bottom: 20, left: 14, right: 14 },
-    head: [['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Monto']],
-    body: tableData,
-    theme: 'grid',
-    headStyles: {
-      fillColor: [15, 23, 42], // Slate 900
-      textColor: [255, 255, 255],
-      fontSize: 8.5,
-      fontStyle: 'bold',
-      halign: 'left',
-    },
-    styles: {
-      font: 'helvetica',
-      fontSize: 8,
-      cellPadding: 2.8,
-      lineColor: [226, 232, 240], // Slate 200
-      lineWidth: 0.2,
-      textColor: [30, 41, 59], // Slate 800
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252], // Slate 50
-    },
-    columnStyles: {
-      0: { cellWidth: 24, halign: 'center' },
-      1: { cellWidth: 'auto' },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 22, halign: 'center' },
-      4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
-    },
-    didParseCell: (hookData) => {
-      if (hookData.section === 'body' && hookData.column.index === 3) {
-        if (hookData.cell.raw === 'Ingreso') {
-          hookData.cell.styles.textColor = [5, 150, 105]; // Emerald
-          hookData.cell.styles.fontStyle = 'bold';
-        } else {
-          hookData.cell.styles.textColor = [225, 29, 72]; // Rose
+  const applyAutoTable =
+    typeof autoTable === 'function'
+      ? autoTable
+      : (autoTable as any)?.default || (autoTable as any)?.autoTable || (doc as any)?.autoTable;
+
+  if (typeof applyAutoTable === 'function') {
+    applyAutoTable(doc, {
+      startY: startTableY,
+      margin: { top: 25, bottom: 20, left: 14, right: 14 },
+      head: [['Fecha', 'Descripción', 'Categoría', 'Tipo', 'Monto']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 23, 42], // Slate 900
+        textColor: [255, 255, 255],
+        fontSize: 8.5,
+        fontStyle: 'bold',
+        halign: 'left',
+      },
+      styles: {
+        font: 'helvetica',
+        fontSize: 8,
+        cellPadding: 2.8,
+        lineColor: [226, 232, 240], // Slate 200
+        lineWidth: 0.2,
+        textColor: [30, 41, 59], // Slate 800
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252], // Slate 50
+      },
+      columnStyles: {
+        0: { cellWidth: 24, halign: 'center' },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 22, halign: 'center' },
+        4: { cellWidth: 32, halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: (hookData: any) => {
+        if (hookData.section === 'body' && hookData.column.index === 3) {
+          if (hookData.cell.raw === 'Ingreso') {
+            hookData.cell.styles.textColor = [5, 150, 105]; // Emerald
+            hookData.cell.styles.fontStyle = 'bold';
+          } else {
+            hookData.cell.styles.textColor = [225, 29, 72]; // Rose
+          }
         }
-      }
-    },
-  });
+      },
+    });
+  } else {
+    console.error('[Export PDF] autoTable plugin no está disponible como función invocable');
+    throw new Error('El plugin autoTable para jsPDF no se pudo inicializar.');
+  }
 
   // 8. Marca de agua diagonal y numeración de página formal en todas las páginas
   const totalPages = doc.getNumberOfPages();

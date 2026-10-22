@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -13,6 +13,7 @@ import {
   Receipt,
   Calendar,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { SupportedCurrency, formatCurrency } from '@/utils/api/rates';
 import { AnalyticsCategoryItem } from '@/utils/api/analytics';
@@ -50,29 +51,51 @@ export function AnalyticsReportsView({
       ? Math.max(0, Math.round(((totalIncome - totalExpenses) / totalIncome) * 1000) / 10)
       : 0;
 
-  const handleExportCSV = () => {
+  const [isExporting, setIsExporting] = useState<'csv' | 'pdf' | null>(null);
+
+  const handleExportCSV = async () => {
     if (periodExpenses.length === 0) {
-      alert('No hay movimientos en este período para exportar.');
+      alert('No hay movimientos registrados en este período para exportar.');
       return;
     }
-    const safePeriod = periodLabel.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    exportToCSV(periodExpenses, `Gestor_Guita_${safePeriod}`, { vaultName });
+    if (isExporting) return;
+
+    try {
+      setIsExporting('csv');
+      const safePeriod = periodLabel.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      exportToCSV(periodExpenses, `Gestor_Guita_${safePeriod}`, { vaultName });
+    } catch (err) {
+      console.error('[AnalyticsReportsView] Error al exportar CSV:', err);
+      alert('Ocurrió un error inesperado al generar el archivo CSV.');
+    } finally {
+      setIsExporting(null);
+    }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (periodExpenses.length === 0) {
-      alert('No hay movimientos en este período para exportar.');
+      alert('No hay movimientos registrados en este período para exportar.');
       return;
     }
-    exportToPDF(periodExpenses, {
-      includeSummary: true,
-      periodLabel,
-      currency,
-      customTitle: vaultName
-        ? `REPORTE FINANCIERO EJECUTIVO - ${vaultName.toUpperCase()}`
-        : 'REPORTE FINANCIERO EJECUTIVO',
-      vaultName,
-    });
+    if (isExporting) return;
+
+    try {
+      setIsExporting('pdf');
+      exportToPDF(periodExpenses, {
+        includeSummary: true,
+        periodLabel,
+        currency,
+        customTitle: vaultName
+          ? `REPORTE FINANCIERO EJECUTIVO - ${vaultName.toUpperCase()}`
+          : 'REPORTE FINANCIERO EJECUTIVO',
+        vaultName,
+      });
+    } catch (err) {
+      console.error('[AnalyticsReportsView] Error al exportar PDF:', err);
+      alert('Ocurrió un error inesperado al generar el reporte en PDF.');
+    } finally {
+      setIsExporting(null);
+    }
   };
 
   const incomeCount = periodExpenses.filter((e) => e.type === 'INCOME').length;
@@ -125,23 +148,39 @@ export function AnalyticsReportsView({
           <button
             type="button"
             onClick={handleExportCSV}
-            disabled={periodExpenses.length === 0}
+            disabled={periodExpenses.length === 0 || isExporting !== null}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-950/50 transition cursor-pointer"
-            title="Descargar movimientos estructurados en formato CSV / Excel"
+            title={
+              periodExpenses.length === 0
+                ? 'No hay movimientos registrados en este período para exportar'
+                : 'Descargar movimientos estructurados en formato CSV / Excel'
+            }
           >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span>Exportar CSV</span>
+            {isExporting === 'csv' ? (
+              <Loader2 className="h-4 w-4 animate-spin text-white" />
+            ) : (
+              <FileSpreadsheet className="h-4 w-4" />
+            )}
+            <span>{isExporting === 'csv' ? 'Exportando...' : 'Exportar CSV'}</span>
           </button>
 
           <button
             type="button"
             onClick={handleExportPDF}
-            disabled={periodExpenses.length === 0}
+            disabled={periodExpenses.length === 0 || isExporting !== null}
             className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-xs font-bold text-slate-200 hover:text-white transition cursor-pointer"
-            title="Generar PDF ejecutivo formal con marca de agua y paginación"
+            title={
+              periodExpenses.length === 0
+                ? 'No hay movimientos registrados en este período para exportar'
+                : 'Generar PDF ejecutivo formal con marca de agua y paginación'
+            }
           >
-            <FileText className="h-4 w-4 text-emerald-400" />
-            <span>Exportar PDF</span>
+            {isExporting === 'pdf' ? (
+              <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+            ) : (
+              <FileText className="h-4 w-4 text-emerald-400" />
+            )}
+            <span>{isExporting === 'pdf' ? 'Generando PDF...' : 'Exportar PDF'}</span>
           </button>
         </div>
       </div>
