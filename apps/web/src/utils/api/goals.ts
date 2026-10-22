@@ -22,6 +22,7 @@ export interface Goal {
   createdAt: string;
   updatedAt: string;
   deposits?: GoalDeposit[];
+  vaultId?: string | null;
 }
 
 export interface CreateGoalInput {
@@ -32,6 +33,7 @@ export interface CreateGoalInput {
   color?: string;
   icon?: string;
   deadline: string;
+  vaultId?: string | null;
 }
 
 export interface UpdateGoalInput {
@@ -42,6 +44,7 @@ export interface UpdateGoalInput {
   color?: string;
   icon?: string;
   deadline?: string;
+  vaultId?: string | null;
 }
 
 export const STORAGE_KEY_GOALS = 'gestor_guita_goals';
@@ -184,6 +187,7 @@ export async function createGoal(data: CreateGoalInput): Promise<Goal> {
     createdAt: now,
     updatedAt: now,
     deposits: initialDeposits,
+    vaultId: data.vaultId !== undefined ? data.vaultId : null,
   };
 
   const updatedList = [newGoal, ...currentGoals];
@@ -227,6 +231,7 @@ export async function updateGoal(
     color: data.color !== undefined ? data.color : target.color,
     icon: data.icon !== undefined ? data.icon : target.icon,
     deadline: data.deadline !== undefined ? data.deadline : target.deadline,
+    vaultId: data.vaultId !== undefined ? data.vaultId : target.vaultId,
     updatedAt: now,
   };
 

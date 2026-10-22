@@ -38,6 +38,7 @@ interface NewGoalModalProps {
   onClose: () => void;
   onGoalCreated: (newGoal: Goal) => void;
   goalToEdit?: Goal | null;
+  vaultId?: string | null;
 }
 
 const GOAL_ICON_PRESETS = [
@@ -60,6 +61,7 @@ export function NewGoalModal({
   onClose,
   onGoalCreated,
   goalToEdit,
+  vaultId,
 }: NewGoalModalProps) {
   const [name, setName] = useState('');
   const [currency, setCurrency] = useState<GoalCurrency>('ARS');
@@ -151,6 +153,7 @@ export function NewGoalModal({
           color,
           icon,
           deadline,
+          vaultId: vaultId ?? null,
         };
         const created = await createGoal(input);
         onGoalCreated(created);
