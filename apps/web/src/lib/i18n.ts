@@ -181,7 +181,7 @@ const es = {
       rec: "Recurrentes",
       home: "Inicio",
       budgets: "Presupuestos",
-      fx: "Multimoneda",
+      fx: "Inversiones",
       cal: "Calendario",
       goals: "Metas",
       rules: "Reglas",
@@ -351,7 +351,7 @@ const en: Dict = {
   },
   app: {
     groups: { log: "Log", understand: "Understand", share: "Share" },
-    items: { log: "Natural input", tx: "Transactions", rec: "Recurring", home: "Home", budgets: "Budgets", fx: "Multi-currency", cal: "Calendar", goals: "Goals", rules: "Rules", vault: "Couples vault", reports: "Reports", security: "Security", assistant: "AI Advisor", profile: "My Profile" },
+    items: { log: "Natural input", tx: "Transactions", rec: "Recurring", home: "Home", budgets: "Budgets", fx: "Investments", cal: "Calendar", goals: "Goals", rules: "Rules", vault: "Couples vault", reports: "Reports", security: "Security", assistant: "AI Advisor", profile: "My Profile" },
     tagline: "Personal finance",
     offlineT: "Offline mode",
     offlineP: "Whatever you log without signal is saved and syncs on its own.",

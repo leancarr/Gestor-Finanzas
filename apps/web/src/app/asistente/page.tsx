@@ -22,6 +22,8 @@ import {
   User,
   Wallet,
   Award,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { UserStatus } from '@/components/auth/UserStatus';
 import { VaultSelector } from '@/components/vaults/VaultSelector';
@@ -160,6 +162,7 @@ export default function AsistentePage() {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -427,7 +430,7 @@ export default function AsistentePage() {
           </div>
 
           {/* Conversation Feed */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-6">
             {messages.map((msg, index) => {
               const isUser = msg.role === 'user';
               return (
@@ -500,25 +503,45 @@ export default function AsistentePage() {
           </div>
 
           {/* Quick Prompts Dock */}
-          <div className="border-t border-slate-900 bg-slate-950/70 px-6 py-3">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Sugerencias rápidas
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_PROMPTS.map((prompt, idx) => {
-                const Icon = prompt.icon;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleSendMessage(prompt.label)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-emerald-500/40 hover:bg-slate-800 px-3.5 py-1.5 text-xs text-slate-200 hover:text-emerald-300 transition cursor-pointer shadow-sm"
-                  >
-                    <Icon className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                    <span>{prompt.label}</span>
-                  </button>
-                );
-              })}
+          <div className="border-t border-slate-900 bg-slate-950/70 px-6 py-2.5">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setShowSuggestions((prev) => !prev)}
+                className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-slate-200 uppercase tracking-wider transition cursor-pointer"
+              >
+                <span>Sugerencias rápidas</span>
+                {showSuggestions ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+                ) : (
+                  <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSuggestions((prev) => !prev)}
+                className="text-[10px] text-slate-500 hover:text-slate-300 transition cursor-pointer"
+              >
+                {showSuggestions ? 'Ocultar' : 'Mostrar'}
+              </button>
             </div>
+            {showSuggestions && (
+              <div className="flex flex-wrap gap-2 mt-2 pt-0.5">
+                {QUICK_PROMPTS.map((prompt, idx) => {
+                  const Icon = prompt.icon;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleSendMessage(prompt.label)}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-emerald-500/40 hover:bg-slate-800 px-3.5 py-1.5 text-xs text-slate-200 hover:text-emerald-300 transition cursor-pointer shadow-sm"
+                    >
+                      <Icon className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      <span>{prompt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Input Dock */}

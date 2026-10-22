@@ -15,6 +15,8 @@ import {
   Repeat,
   Lightbulb,
   User,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { sendChatMessage, ChatMessage, ChatResponse } from '@/utils/api/ai';
 
@@ -148,6 +150,7 @@ export function FinancialChatbot({ initialOpen = false }: FinancialChatbotProps)
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -323,7 +326,7 @@ export function FinancialChatbot({ initialOpen = false }: FinancialChatbotProps)
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
             {messages.map((msg, index) => {
               const isUser = msg.role === 'user';
               return (
@@ -398,26 +401,46 @@ export function FinancialChatbot({ initialOpen = false }: FinancialChatbotProps)
           </div>
 
           {/* Suggested Prompts (chips) */}
-          {messages.length <= 3 && !isTyping && (
-            <div className="px-3 pb-2 pt-1 border-t border-slate-900 bg-slate-950/60">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 px-1">
-                Preguntas frecuentes
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {SUGGESTED_PROMPTS.map((prompt, idx) => {
-                  const Icon = prompt.icon;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleSendMessage(prompt.label)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/70 hover:border-emerald-500/40 hover:bg-slate-800/80 px-2.5 py-1 text-[11px] text-slate-300 hover:text-emerald-300 transition cursor-pointer"
-                    >
-                      <Icon className="h-3 w-3 text-emerald-400 shrink-0" />
-                      <span>{prompt.label}</span>
-                    </button>
-                  );
-                })}
+          {messages.length <= 4 && !isTyping && (
+            <div className="px-3 py-2 border-t border-slate-900 bg-slate-950/60">
+              <div className="flex items-center justify-between px-1 mb-1">
+                <button
+                  type="button"
+                  onClick={() => setShowSuggestions((prev) => !prev)}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-200 uppercase tracking-wider transition cursor-pointer"
+                >
+                  <span>Preguntas frecuentes</span>
+                  {showSuggestions ? (
+                    <ChevronDown className="h-3 w-3 text-slate-400" />
+                  ) : (
+                    <ChevronUp className="h-3 w-3 text-slate-400" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSuggestions((prev) => !prev)}
+                  className="text-[10px] text-slate-500 hover:text-slate-300 transition cursor-pointer"
+                >
+                  {showSuggestions ? 'Ocultar' : 'Mostrar'}
+                </button>
               </div>
+              {showSuggestions && (
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {SUGGESTED_PROMPTS.map((prompt, idx) => {
+                    const Icon = prompt.icon;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendMessage(prompt.label)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/70 hover:border-emerald-500/40 hover:bg-slate-800/80 px-2.5 py-1 text-[11px] text-slate-300 hover:text-emerald-300 transition cursor-pointer"
+                      >
+                        <Icon className="h-3 w-3 text-emerald-400 shrink-0" />
+                        <span>{prompt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

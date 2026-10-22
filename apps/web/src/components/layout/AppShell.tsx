@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   Coins,
   Sparkles,
@@ -17,8 +17,6 @@ import {
   Bot,
   User,
   Trash2,
-  Menu,
-  X,
   Cloud,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,42 +27,47 @@ import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { TrashModal } from '@/components/trash/TrashModal';
 import { UserStatus } from '@/components/auth/UserStatus';
 
-const GRUPOS = [
+type NavItemKey = keyof ReturnType<typeof usePrefs>['t']['app']['items'];
+
+interface NavItem {
+  href: string;
+  label: NavItemKey;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}
+
+const GRUPOS: {
+  titulo: 'log' | 'understand' | 'share';
+  items: NavItem[];
+}[] = [
   {
-    titulo: 'log' as const,
+    titulo: 'log',
     items: [
-      { href: '/gastos/nuevo', label: 'log' as const, icon: Sparkles },
-      { href: '/gastos', label: 'tx' as const, icon: Receipt },
-      { href: '/suscripciones', label: 'rec' as const, icon: Repeat },
+      { href: '/gastos/nuevo', label: 'log', icon: Sparkles },
+      { href: '/gastos', label: 'tx', icon: Receipt },
+      { href: '/suscripciones', label: 'rec', icon: Repeat },
     ],
   },
   {
-    titulo: 'understand' as const,
+    titulo: 'understand',
     items: [
-      { href: '/dashboard', label: 'home' as const, icon: LayoutDashboard },
-      { href: '/presupuestos', label: 'budgets' as const, icon: PieChart },
-      { href: '/inversiones', label: 'fx' as const, icon: Coins },
-      { href: '/metas', label: 'goals' as const, icon: Target },
-      { href: '/analiticas', label: 'reports' as const, icon: BarChart3 },
+      { href: '/dashboard', label: 'home', icon: LayoutDashboard },
+      { href: '/presupuestos', label: 'budgets', icon: PieChart },
+      { href: '/inversiones', label: 'fx', icon: Coins },
+      { href: '/metas', label: 'goals', icon: Target },
+      { href: '/analiticas', label: 'reports', icon: BarChart3 },
     ],
   },
   {
-    titulo: 'share' as const,
+    titulo: 'share',
     items: [
-      { href: '/bovedas', label: 'vault' as const, icon: Users },
-      { href: '/asistente', label: 'assistant' as const, icon: Bot },
-      { href: '/perfil', label: 'profile' as const, icon: User },
+      { href: '/bovedas', label: 'vault', icon: Users },
+      { href: '/asistente', label: 'assistant', icon: Bot },
+      { href: '/perfil', label: 'profile', icon: User },
     ],
   },
 ];
 
-const MOVIL = [
-  { href: '/dashboard', label: 'home' as const, icon: LayoutDashboard },
-  { href: '/gastos', label: 'tx' as const, icon: Receipt },
-  { href: '/gastos/nuevo', label: 'log' as const, icon: Sparkles },
-  { href: '/presupuestos', label: 'budgets' as const, icon: PieChart },
-  { href: '/analiticas', label: 'reports' as const, icon: BarChart3 },
-];
+const ALL_NAV_ITEMS: NavItem[] = GRUPOS.flatMap((g) => g.items);
 
 function NavLink({
   href,
@@ -125,7 +128,7 @@ function SidebarContent({
   const { t } = usePrefs();
 
   return (
-    <div className="flex h-full flex-col justify-between p-4 overflow-y-auto">
+    <div className="flex h-full flex-col justify-between p-4 overflow-y-auto no-scrollbar overflow-x-hidden">
       <div className="flex flex-col gap-4">
         {/* Brand header */}
         <Link
@@ -183,14 +186,19 @@ function SidebarContent({
         </div>
 
         {/* Offline sync banner card */}
-        <div className="glass-panel rounded-2xl p-2.5 text-xs text-muted-foreground">
-          <p className="font-semibold text-foreground flex items-center gap-1.5 text-[11px]">
+        <div
+          className="glass-panel rounded-xl px-2.5 py-1.5 text-xs text-muted-foreground flex items-center justify-between gap-2"
+          title={t.app.offlineP}
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
             <Cloud className="size-3.5 text-primary shrink-0" />
-            {t.app.offlineT}
-          </p>
-          <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground/80">
-            {t.app.offlineP}
-          </p>
+            <span className="font-medium text-foreground text-[11px] truncate">
+              {t.app.offlineT}
+            </span>
+          </div>
+          <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+            Sync
+          </span>
         </div>
 
         {/* User Auth status & Logout */}
@@ -209,9 +217,19 @@ function SidebarContent({
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [menu, setMenu] = useState(false);
-  const [isTrashOpen, setIsTrashOpen] = useState(false);
   const { t } = usePrefs();
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const activeItemRef = React.useRef<HTMLAnchorElement | null>(null);
+
+  React.useEffect(() => {
+    if (activeItemRef.current) {
+      activeItemRef.current.scrollIntoView({
+        behavior: 'smooth',
+        inline: 'center',
+        block: 'nearest',
+      });
+    }
+  }, [pathname]);
 
   // Public marketing & auth pages render clean without shell
   if (pathname === '/' || pathname === '/auth') {
@@ -227,22 +245,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
       {/* Mobile top header */}
       <header className="sticky top-0 z-40 flex items-center justify-between border-b border-hairline bg-background/80 px-4 py-2.5 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMenu(true)}
-            className="tap rounded-xl p-2 text-foreground hover:bg-glass border border-hairline"
-            aria-label={t.app.openMenu}
-          >
-            <Menu className="size-5" />
-          </button>
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-lime-400 to-emerald-500 text-slate-950 font-black shadow-md shadow-lime-500/20">
-              <Coins className="size-4" />
-            </span>
-            <span className="text-sm font-bold tracking-tight">Gestor Guita</span>
-          </Link>
-        </div>
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-lime-400 to-emerald-500 text-slate-950 font-black shadow-md shadow-lime-500/20">
+            <Coins className="size-4" />
+          </span>
+          <span className="text-sm font-bold tracking-tight">Gestor Guita</span>
+        </Link>
 
         <div className="flex items-center gap-2">
           <StreakBadge />
@@ -258,50 +266,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      {/* Mobile animated drawer */}
-      <AnimatePresence>
-        {menu && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setMenu(false)}
-              className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden"
-            />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-              className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r border-hairline bg-sidebar shadow-2xl lg:hidden"
-            >
-              <div className="flex items-center justify-between p-4 border-b border-hairline">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Menú
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setMenu(false)}
-                  className="rounded-lg p-1 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="size-5" />
-                </button>
-              </div>
-              <div className="h-[calc(100%-4rem)] overflow-y-auto">
-                <SidebarContent
-                  onNavigate={() => setMenu(false)}
-                  onOpenTrash={() => {
-                    setMenu(false);
-                    setIsTrashOpen(true);
-                  }}
-                />
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-
       {/* Main content container with desktop sidebar offset */}
       <div className="flex-1 min-w-0 pb-24 lg:pb-12 lg:pl-64">
         <motion.div
@@ -315,10 +279,10 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         </motion.div>
       </div>
 
-      {/* Mobile fixed bottom navigation bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-background/90 px-2 py-1.5 backdrop-blur-xl lg:hidden">
-        <ul className="flex items-center justify-around">
-          {MOVIL.map(({ href, label, icon: Icon }) => {
+      {/* Mobile fixed bottom navigation bar with horizontal carousel auto-centering */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-hairline bg-background/95 backdrop-blur-xl lg:hidden shadow-lg">
+        <div className="flex items-center overflow-x-auto no-scrollbar scroll-smooth px-2 py-2 gap-1.5">
+          {ALL_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
             const activo =
               href === '/dashboard'
                 ? pathname === '/dashboard'
@@ -327,24 +291,31 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
                 : pathname === href || pathname.startsWith(href + '/');
 
             return (
-              <li key={href} className="flex-1">
-                <Link
-                  href={href}
+              <Link
+                key={href}
+                href={href}
+                ref={activo ? activeItemRef : undefined}
+                className={cn(
+                  'tap flex flex-col items-center justify-center shrink-0 min-w-[62px] px-2 py-1.5 rounded-xl text-[10px] font-medium transition-all cursor-pointer',
+                  activo
+                    ? 'bg-primary/15 text-primary font-bold shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-glass'
+                )}
+              >
+                <Icon
                   className={cn(
-                    'tap flex flex-col items-center gap-1 rounded-2xl py-1 text-[10px] font-medium transition-colors',
-                    activo ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
+                    'size-4 shrink-0 transition-colors',
+                    activo ? 'text-primary' : 'text-muted-foreground'
                   )}
-                >
-                  <Icon
-                    className={cn('size-5', activo ? 'text-primary' : 'text-muted-foreground')}
-                    strokeWidth={1.8}
-                  />
-                  <span className="truncate max-w-[64px] text-center">{t.app.items[label]}</span>
-                </Link>
-              </li>
+                  strokeWidth={1.8}
+                />
+                <span className="truncate max-w-[68px] mt-0.5 text-[10px] leading-tight text-center">
+                  {t.app.items[label]}
+                </span>
+              </Link>
             );
           })}
-        </ul>
+        </div>
       </nav>
 
       {/* Soft Delete Trash Modal */}

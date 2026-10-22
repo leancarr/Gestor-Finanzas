@@ -8,12 +8,14 @@ import { createClient } from '@/utils/supabase/client';
 interface LogoutButtonProps {
   className?: string;
   variant?: 'danger' | 'ghost' | 'outline';
+  showText?: boolean;
   onLoggedOut?: () => void;
 }
 
 export function LogoutButton({
   className = '',
   variant = 'ghost',
+  showText = true,
   onLoggedOut,
 }: LogoutButtonProps) {
   const [loading, setLoading] = useState(false);
@@ -61,7 +63,7 @@ export function LogoutButton({
       ) : (
         <LogOut className="h-4 w-4" />
       )}
-      <span>{loading ? 'Saliendo...' : 'Cerrar Sesión'}</span>
+      {showText && <span>{loading ? 'Saliendo...' : 'Cerrar Sesión'}</span>}
     </button>
   );
 }

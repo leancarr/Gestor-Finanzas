@@ -169,6 +169,11 @@ export default function PerfilPage() {
           avatarUrl: newAvatarUrl,
         });
         setProfile(updated);
+        window.dispatchEvent(
+          new CustomEvent('gestorguita_avatar_updated', {
+            detail: { avatarUrl: newAvatarUrl },
+          })
+        );
         setFeedback({
           type: 'success',
           message: newAvatarUrl
