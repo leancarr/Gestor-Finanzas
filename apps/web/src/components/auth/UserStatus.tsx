@@ -8,11 +8,13 @@ import { getProfile } from '@/utils/api/profile';
 import { LoginButton } from './LoginButton';
 import { LogoutButton } from './LogoutButton';
 import { User as UserIcon, ShieldCheck, Settings } from 'lucide-react';
+import { usePrefs } from '@/lib/prefs';
 
 export function UserStatus() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
+  const { t } = usePrefs();
 
   useEffect(() => {
     const supabase = createClient();
@@ -66,7 +68,7 @@ export function UserStatus() {
     return (
       <div className="flex items-center gap-2 rounded-xl bg-slate-900/60 px-3 py-1.5 text-xs text-slate-400 border border-slate-800 animate-pulse w-full">
         <div className="h-4 w-4 rounded-full bg-slate-800" />
-        <span className="truncate text-[11px]">Cargando perfil...</span>
+        <span className="truncate text-[11px]">{t.session.loading}</span>
       </div>
     );
   }
@@ -83,7 +85,7 @@ export function UserStatus() {
     user.user_metadata?.name ||
     user.user_metadata?.full_name ||
     user.email?.split('@')[0] ||
-    'Usuario';
+    t.session.user;
 
   const avatarUrl =
     profileAvatar ||
@@ -96,7 +98,7 @@ export function UserStatus() {
       <Link
         href="/perfil"
         className="group flex flex-1 min-w-0 items-center gap-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-800/80 px-2.5 py-1.5 text-xs shadow-inner transition cursor-pointer"
-        title="Ver y editar mi perfil"
+        title={t.session.viewEditProfile}
       >
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

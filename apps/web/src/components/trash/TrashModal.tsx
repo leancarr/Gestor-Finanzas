@@ -22,6 +22,7 @@ import {
   purgeAllTrash,
 } from '@/utils/api/trash';
 import { ConfirmActionModal } from '@/components/ui/ConfirmActionModal';
+import { usePrefs } from '@/lib/prefs';
 
 interface TrashModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface TrashModalProps {
 }
 
 export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps) {
+  const { t } = usePrefs();
   const [items, setItems] = useState<TrashItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -176,13 +178,13 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>Papelera de Reciclaje</span>
+                <span>{t.trash.title}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">
                   Retención 30 días
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Los elementos eliminados se purgan automáticamente tras 30 días.
+                {t.trash.subtitle}
               </p>
             </div>
           </div>
@@ -195,7 +197,7 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
                 disabled={actionInProgress !== null}
                 className="px-3 py-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
               >
-                Vaciar Papelera
+                {t.trash.emptyBtn}
               </button>
             )}
             <button
@@ -226,10 +228,10 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
             <div className="text-center py-16 space-y-2">
               <Trash2 className="h-10 w-10 text-slate-600 mx-auto" />
               <p className="text-sm font-semibold text-slate-300">
-                La papelera está vacía
+                {t.trash.noItems}
               </p>
               <p className="text-xs text-slate-500">
-                No hay transacciones ni categorías eliminadas recientemente.
+                {t.trash.subtitle}
               </p>
             </div>
           ) : (
@@ -264,18 +266,18 @@ export function TrashModal({ isOpen, onClose, onItemRestored }: TrashModalProps)
                     type="button"
                     onClick={() => handleRestore(item)}
                     disabled={actionInProgress === item.id}
-                    title="Restaurar elemento"
+                    title={t.trash.restore}
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
                   >
                     <RotateCcw className="h-3 w-3" />
-                    <span>Restaurar</span>
+                    <span>{t.trash.restore}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setItemToPurge(item)}
                     disabled={actionInProgress === item.id}
-                    title="Eliminar definitivamente"
+                    title={t.trash.purge}
                     className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

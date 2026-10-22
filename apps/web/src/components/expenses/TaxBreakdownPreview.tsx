@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   SupportedCurrency,
   TaxSchemeType,
@@ -9,6 +9,8 @@ import {
   formatCurrency,
   FALLBACK_RATES,
   TaxCalculationResult,
+  getActiveCountry,
+  getTaxSchemesForCountry,
 } from '@/utils/api/rates';
 import {
   Receipt,
@@ -41,17 +43,36 @@ export function TaxBreakdownPreview({
   onSchemeChange,
   className = '',
 }: TaxBreakdownPreviewProps) {
+  const [activeCountry, setActiveCountryState] = useState(getActiveCountry());
+
+  useEffect(() => {
+    setActiveCountryState(getActiveCountry());
+
+    const handleCountryChange = () => {
+      setActiveCountryState(getActiveCountry());
+    };
+    window.addEventListener('gestorguita_country_updated', handleCountryChange);
+    return () => {
+      window.removeEventListener('gestorguita_country_updated', handleCountryChange);
+    };
+  }, []);
+
   // Local scheme override if not controlled externally
   const [internalScheme, setInternalScheme] = useState<TaxSchemeType | null>(null);
 
   // State to expand/collapse detailed breakdown
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
 
-  // Effective scheme: controlled prop -> local state -> default based on currency
+  // Effective scheme: controlled prop -> local state -> default based on active country
+  const availableSchemes = useMemo(
+    () => getTaxSchemesForCountry(activeCountry.code),
+    [activeCountry.code]
+  );
+
   const activeScheme: TaxSchemeType =
     scheme ??
     internalScheme ??
-    (currency === 'ARS' ? 'IVA_21' : 'DIGITAL_SERVICES');
+    (availableSchemes.length > 0 ? activeCountry.defaultTaxScheme : 'IVA_21');
 
   const handleSchemeSelect = (newScheme: TaxSchemeType) => {
     if (onSchemeChange) {
@@ -129,7 +150,7 @@ export function TaxBreakdownPreview({
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Percent className="h-3 w-3 text-emerald-400" />
-                Régimen Impositivo
+                Régimen Impositivo ({activeCountry.name})
               </label>
               <span className="text-[10px] text-slate-400">
                 {TAX_SCHEME_DEFINITIONS[activeScheme]?.description}
@@ -137,7 +158,7 @@ export function TaxBreakdownPreview({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {(Object.keys(TAX_SCHEME_DEFINITIONS) as TaxSchemeType[]).map((schemeKey) => {
+              {availableSchemes.map((schemeKey) => {
                 const def = TAX_SCHEME_DEFINITIONS[schemeKey];
                 const isSelected = activeScheme === schemeKey;
                 return (

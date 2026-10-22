@@ -47,7 +47,7 @@ import {
 // Validation schema with Zod
 const expenseFormSchema = z.object({
   type: z.enum(['EXPENSE', 'INCOME']).default('EXPENSE'),
-  currency: z.enum(['ARS', 'USD', 'EUR', 'USDT']).default('ARS'),
+  currency: z.custom<SupportedCurrency>().default('ARS'),
   amount: z
     .union([z.number(), z.string()])
     .transform((val) => {
@@ -536,7 +536,7 @@ export function ExpenseForm({
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
         {/* Monto (Amount) Field */}
         <div>
           <div className="flex items-center justify-between mb-2">

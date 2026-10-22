@@ -20,7 +20,7 @@ interface ExpenseCardProps {
 }
 
 const CURRENCY_BADGE_STYLES: Record<
-  SupportedCurrency,
+  string,
   { bg: string; text: string; border: string }
 > = {
   ARS: {
