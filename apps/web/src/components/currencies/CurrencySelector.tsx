@@ -8,6 +8,7 @@ import {
   FALLBACK_RATES,
 } from '@/utils/api/rates';
 import { Coins, Sparkles } from 'lucide-react';
+import { UsdtIcon } from '@/components/icons/UsdtIcon';
 
 export interface CurrencySelectorProps {
   value: SupportedCurrency;
@@ -104,21 +105,29 @@ export function CurrencySelector({
               {/* Top Row: Symbol & Code */}
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base" role="img" aria-label={info.name}>
-                    {info.flag}
-                  </span>
+                  {code === 'USDT' ? (
+                    <UsdtIcon className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <span className="text-base" role="img" aria-label={info.name}>
+                      {info.flag}
+                    </span>
+                  )}
                   <span className="font-bold text-xs tracking-wider text-white">
                     {code}
                   </span>
                 </div>
                 <span
-                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+                  className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border flex items-center justify-center ${
                     isSelected
                       ? config.badgeClass
                       : 'bg-slate-800/80 text-slate-400 border-slate-700/60'
                   }`}
                 >
-                  {info.symbol}
+                  {code === 'USDT' ? (
+                    <UsdtIcon className="h-3 w-3" colored={false} />
+                  ) : (
+                    info.symbol
+                  )}
                 </span>
               </div>
 

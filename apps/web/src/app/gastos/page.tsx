@@ -356,16 +356,6 @@ export default function GastosPage() {
               Historial y registro de ingresos y gastos multi-moneda (ARS, USD, EUR, USDT) con motor impositivo
             </p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/gastos/nuevo"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nuevo Gasto
-            </Link>
-          </div>
         </div>
 
         {/* Banner Indicador de Bóveda Activa (SEI-47) */}

@@ -25,7 +25,7 @@ export function EventTagFilter({
   }
 
   return (
-    <div className={`relative flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-2.5 backdrop-blur-md ${className}`}>
+    <div className={`relative flex items-center gap-2 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-2.5 backdrop-blur-md overflow-hidden ${className}`}>
       {/* Label Icon */}
       <div className="flex items-center gap-1.5 pl-1.5 pr-2 text-slate-400 shrink-0 border-r border-slate-800">
         <Tag className="h-3.5 w-3.5 text-indigo-400" />

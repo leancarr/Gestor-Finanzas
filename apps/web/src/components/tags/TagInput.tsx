@@ -15,6 +15,7 @@ interface TagInputProps {
 }
 
 const DEFAULT_SUGGESTIONS = [
+  '#trolito',
   '#ViajeBariloche',
   '#CenaFinDeAno',
   '#Vacaciones2026',
