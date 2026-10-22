@@ -5,12 +5,15 @@ import {
   PieChart,
   Pie,
   Cell,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
 import { CategorySummaryItem } from '@/utils/api/expenses';
 import { CategoryIcon } from '@/components/categories/CategoryIcon';
-import { PieChart as PieChartIcon, Plus } from 'lucide-react';
+import { PieChart as PieChartIcon, Disc, Gauge, Plus } from 'lucide-react';
 import Link from 'next/link';
 import {
   SupportedCurrency,
@@ -18,14 +21,18 @@ import {
   convertCurrencyLocal,
   formatCurrency as formatCurrencyWithRates,
 } from '@/utils/api/rates';
+import { cn } from '@/lib/utils';
 
-interface ExpensesDonutChartProps {
+export type ChartDisplayMode = 'radial' | 'gauge' | 'donut';
+
+interface ExpensesCategoryChartProps {
   categories: CategorySummaryItem[];
   totalAmount: number;
   loading?: boolean;
   currency?: SupportedCurrency;
   rates?: Record<SupportedCurrency, number>;
   summaryCurrency?: string;
+  defaultMode?: ChartDisplayMode;
 }
 
 interface ChartItem {
@@ -36,6 +43,7 @@ interface ChartItem {
   icon: string | null;
   count: number;
   categoryId: string | null;
+  fill?: string;
 }
 
 interface CustomTooltipProps {
@@ -65,10 +73,10 @@ function CustomTooltip({ active, payload, currency = 'ARS' }: CustomTooltipProps
     const formattedVal = formatCurrencyWithRates(data.value, currency);
 
     return (
-      <div className="rounded-2xl border border-white/10 bg-black/60 p-3.5 shadow-2xl backdrop-blur-xl text-xs">
+      <div className="rounded-2xl border border-white/10 bg-slate-950/90 p-3.5 shadow-2xl backdrop-blur-xl text-xs z-50">
         <div className="flex items-center gap-2 mb-1.5">
           <span
-            className="h-2.5 w-2.5 rounded-full"
+            className="h-2.5 w-2.5 rounded-full shrink-0"
             style={{ backgroundColor: data.color }}
           />
           <span className="font-semibold text-white">{data.name}</span>
@@ -88,15 +96,17 @@ function CustomTooltip({ active, payload, currency = 'ARS' }: CustomTooltipProps
   return null;
 }
 
-export function ExpensesDonutChart({
+export function ExpensesCategoryChart({
   categories,
   totalAmount,
   loading = false,
   currency = 'ARS',
   rates = FALLBACK_RATES,
   summaryCurrency,
-}: ExpensesDonutChartProps) {
+  defaultMode = 'radial',
+}: ExpensesCategoryChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [displayMode, setDisplayMode] = useState<ChartDisplayMode>(defaultMode);
 
   const format = (val: number) => {
     return formatCurrencyWithRates(val, currency);
@@ -124,31 +134,44 @@ export function ExpensesDonutChart({
   }
 
   // Pre-process chart data with currency conversion if needed
-  const chartData: ChartItem[] = categories.map((cat, idx) => ({
-    name: cat.categoryName,
-    value:
-      baseCurrency === currency
-        ? cat.total
-        : convertCurrencyLocal(cat.total, baseCurrency, currency, rates),
-    percentage: cat.percentage,
-    color: cat.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length],
-    icon: cat.icon,
-    count: cat.count,
-    categoryId: cat.categoryId,
-  }));
+  const chartData: ChartItem[] = categories.map((cat, idx) => {
+    const color = cat.color || DEFAULT_COLORS[idx % DEFAULT_COLORS.length];
+    return {
+      name: cat.categoryName,
+      value:
+        baseCurrency === currency
+          ? cat.total
+          : convertCurrencyLocal(cat.total, baseCurrency, currency, rates),
+      percentage: cat.percentage,
+      color,
+      fill: color,
+      icon: cat.icon,
+      count: cat.count,
+      categoryId: cat.categoryId,
+    };
+  });
 
   const hasData = chartData.length > 0 && (convertedTotal > 0 || totalAmount > 0);
+
+  // Radial Bar Data: Reordered so largest is outer or inner with clear spacing
+  const radialData = [...chartData].reverse();
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col justify-between">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
-            <PieChartIcon className="h-4 w-4" />
+            {displayMode === 'radial' ? (
+              <Disc className="h-4 w-4" />
+            ) : displayMode === 'gauge' ? (
+              <Gauge className="h-4 w-4" />
+            ) : (
+              <PieChartIcon className="h-4 w-4" />
+            )}
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
               Reparto por Categoría
             </h3>
             <p className="text-[11px] text-slate-400">
@@ -156,10 +179,61 @@ export function ExpensesDonutChart({
             </p>
           </div>
         </div>
+
+        {/* Visualization Switcher (SEI-89: Radial vs Gauge vs Donut) */}
         {hasData && (
-          <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-            {categories.length} {categories.length === 1 ? 'categoría' : 'categorías'}
-          </span>
+          <div className="flex items-center gap-1.5 self-end sm:self-auto">
+            <div className="flex items-center p-1 rounded-xl border border-slate-800 bg-slate-950/70 shadow-inner">
+              <button
+                type="button"
+                onClick={() => setDisplayMode('radial')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer',
+                  displayMode === 'radial'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+                title="Radial Bars concéntricas (Opción B)"
+              >
+                <Disc className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Radial</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDisplayMode('gauge')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer',
+                  displayMode === 'gauge'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+                title="Segmented Circular Gauge (Opción C)"
+              >
+                <Gauge className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Gauge</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDisplayMode('donut')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer',
+                  displayMode === 'donut'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+                title="Donut Clásico"
+              >
+                <PieChartIcon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Donut</span>
+              </button>
+            </div>
+
+            <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-lg shrink-0">
+              {categories.length} {categories.length === 1 ? 'cat.' : 'cats.'}
+            </span>
+          </div>
         )}
       </div>
 
@@ -185,48 +259,116 @@ export function ExpensesDonutChart({
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center lg:items-start">
-          {/* Donut Chart Visualization */}
+          {/* Main Visualizer Column */}
           <div className="lg:col-span-6 relative flex flex-col items-center justify-center">
-            <div className="h-72 sm:h-80 w-full">
+            <div className="h-72 sm:h-80 w-full relative">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Tooltip content={<CustomTooltip currency={currency} />} />
-                  <Pie
-                    data={chartData}
+                {displayMode === 'radial' ? (
+                  /* Option B: Radial Bars Concéntricas */
+                  <RadialBarChart
                     cx="50%"
                     cy="50%"
-                    innerRadius={78}
-                    outerRadius={112}
-                    paddingAngle={3}
-                    dataKey="value"
-                    nameKey="name"
-                    cornerRadius={6}
-                    onMouseEnter={(_, index) => setActiveIndex(index)}
-                    onMouseLeave={() => setActiveIndex(null)}
+                    innerRadius="28%"
+                    outerRadius="98%"
+                    barSize={10}
+                    data={radialData}
+                    startAngle={90}
+                    endAngle={-270}
                   >
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        stroke="#0f172a"
-                        strokeWidth={2}
-                        opacity={
-                          activeIndex === null || activeIndex === index ? 1 : 0.4
-                        }
-                        className="transition-opacity duration-200 cursor-pointer outline-none"
-                      />
-                    ))}
-                  </Pie>
-                </PieChart>
+                    <PolarAngleAxis
+                      type="number"
+                      domain={[0, 100]}
+                      angleAxisId={0}
+                      tick={false}
+                    />
+                    <RadialBar
+                      background={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                      dataKey="percentage"
+                      cornerRadius={8}
+                    />
+                    <Tooltip content={<CustomTooltip currency={currency} />} />
+                  </RadialBarChart>
+                ) : displayMode === 'gauge' ? (
+                  /* Option C: Segmented Circular Gauge en Semicírculo */
+                  <PieChart>
+                    <Tooltip content={<CustomTooltip currency={currency} />} />
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="70%"
+                      startAngle={180}
+                      endAngle={0}
+                      innerRadius={80}
+                      outerRadius={120}
+                      paddingAngle={4}
+                      dataKey="value"
+                      nameKey="name"
+                      cornerRadius={6}
+                      onMouseEnter={(_, index) => setActiveIndex(index)}
+                      onMouseLeave={() => setActiveIndex(null)}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-gauge-${index}`}
+                          fill={entry.color}
+                          stroke="#0a0e1a"
+                          strokeWidth={2}
+                          opacity={
+                            activeIndex === null || activeIndex === index ? 1 : 0.4
+                          }
+                          className="transition-opacity duration-200 cursor-pointer outline-none"
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                ) : (
+                  /* Option A / Classic Donut */
+                  <PieChart>
+                    <Tooltip content={<CustomTooltip currency={currency} />} />
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={78}
+                      outerRadius={112}
+                      paddingAngle={3}
+                      dataKey="value"
+                      nameKey="name"
+                      cornerRadius={6}
+                      onMouseEnter={(_, index) => setActiveIndex(index)}
+                      onMouseLeave={() => setActiveIndex(null)}
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.color}
+                          stroke="#0a0e1a"
+                          strokeWidth={2}
+                          opacity={
+                            activeIndex === null || activeIndex === index ? 1 : 0.4
+                          }
+                          className="transition-opacity duration-200 cursor-pointer outline-none"
+                        />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                )}
               </ResponsiveContainer>
-            </div>
 
-            {/* Donut Center Info */}
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Total Gastos</span>
-              <span className="text-base sm:text-xl font-black text-white tracking-tight mt-0.5">
-                {format(convertedTotal)}
-              </span>
+              {/* Center KPI Information */}
+              <div
+                className={cn(
+                  'pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center',
+                  displayMode === 'gauge' ? 'top-10' : ''
+                )}
+              >
+                <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Total Gastos
+                </span>
+                <span className="text-base sm:text-xl font-black text-white tracking-tight mt-0.5">
+                  {format(convertedTotal)}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -237,11 +379,12 @@ export function ExpensesDonutChart({
                 key={cat.categoryId || index}
                 onMouseEnter={() => setActiveIndex(index)}
                 onMouseLeave={() => setActiveIndex(null)}
-                className={`group flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                className={cn(
+                  'group flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer',
                   activeIndex === index
                     ? 'border-white/20 bg-white/10 shadow-md'
                     : 'border-white/5 bg-transparent hover:border-white/10 hover:bg-white/5'
-                }`}
+                )}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
@@ -259,7 +402,9 @@ export function ExpensesDonutChart({
                       {cat.name}
                     </p>
                     <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                      <span>{cat.count} {cat.count === 1 ? 'gasto' : 'gastos'}</span>
+                      <span>
+                        {cat.count} {cat.count === 1 ? 'gasto' : 'gastos'}
+                      </span>
                       <span>•</span>
                       <span className="font-semibold text-slate-300">
                         {cat.percentage}%
@@ -291,3 +436,6 @@ export function ExpensesDonutChart({
     </div>
   );
 }
+
+// Backward-compatibility alias
+export const ExpensesDonutChart = ExpensesCategoryChart;
