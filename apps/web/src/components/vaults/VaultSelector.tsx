@@ -130,7 +130,7 @@ export function VaultSelector({ onOpenCreateModal, className = '' }: VaultSelect
 
       {/* Dropdown flotante con Glassmorphism */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-72 origin-top-right rounded-2xl border border-slate-800 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5 focus:outline-none z-50 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 right-0 sm:right-0 sm:left-auto mt-2 w-full sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-800 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-2xl ring-1 ring-white/5 focus:outline-none z-50 animate-in fade-in zoom-in-95 duration-150">
           <div className="px-3 py-2 border-b border-slate-800/80">
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Espacio Activo
@@ -175,7 +175,7 @@ export function VaultSelector({ onOpenCreateModal, className = '' }: VaultSelect
               {isLoading && <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />}
             </div>
 
-            <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+            <div className="max-h-48 overflow-y-auto space-y-1 pr-1 no-scrollbar">
               {vaults.length === 0 && !isLoading ? (
                 <div className="px-3 py-3 text-center text-xs text-slate-400">
                   No tienes bóvedas compartidas aún.
