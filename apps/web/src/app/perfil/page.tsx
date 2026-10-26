@@ -15,18 +15,8 @@ import {
   Shield,
   ShieldAlert,
   Trash2,
-  BarChart3,
-  DollarSign,
-  Repeat,
-  Target,
-  Users,
-  Bot,
-  TrendingUp,
-  Award,
+  Globe,
 } from 'lucide-react';
-import { VaultSelector } from '@/components/vaults/VaultSelector';
-import { UserStatus } from '@/components/auth/UserStatus';
-import { StreakBadge } from '@/components/gamification/StreakBadge';
 import { AvatarUpload } from '@/components/profile/AvatarUpload';
 import { DeleteAccountModal } from '@/components/profile/DeleteAccountModal';
 import {
@@ -34,10 +24,18 @@ import {
   updateProfile,
   UserProfile,
 } from '@/utils/api/profile';
+import {
+  SUPPORTED_COUNTRIES,
+  SupportedCountryCode,
+  getActiveCountry,
+  setActiveCountry,
+} from '@/utils/api/rates';
+import { usePrefs } from '@/lib/prefs';
 import { createClient } from '@/utils/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 export default function PerfilPage() {
+  const { t, lang } = usePrefs();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -46,6 +44,7 @@ export default function PerfilPage() {
   // Form states
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [country, setCountry] = useState<SupportedCountryCode>('AR');
 
   // Status feedback
   const [isSaving, startTransition] = useTransition();
@@ -58,6 +57,21 @@ export default function PerfilPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const supabase = useMemo(() => createClient(), []);
+
+  // Inicializar país desde rates / localStorage
+  useEffect(() => {
+    const current = getActiveCountry();
+    setCountry(current.code);
+
+    const handleCountryChange = () => {
+      const active = getActiveCountry();
+      setCountry(active.code);
+    };
+    window.addEventListener('gestorguita_country_updated', handleCountryChange);
+    return () => {
+      window.removeEventListener('gestorguita_country_updated', handleCountryChange);
+    };
+  }, []);
 
   // Escuchar estado de sesión
   useEffect(() => {
@@ -99,6 +113,10 @@ export default function PerfilPage() {
           setProfile(data);
           setName(data.name || '');
           setAvatarUrl(data.avatarUrl);
+          if (data.country && SUPPORTED_COUNTRIES[data.country as SupportedCountryCode]) {
+            setCountry(data.country as SupportedCountryCode);
+            setActiveCountry(data.country as SupportedCountryCode);
+          }
         }
       })
       .catch((err: unknown) => {
@@ -106,7 +124,7 @@ export default function PerfilPage() {
           const msg =
             err instanceof Error
               ? err.message
-              : 'Error al recuperar los datos del perfil.';
+              : t.profile.feedbackError;
           setFeedback({ type: 'error', message: msg });
         }
       })
@@ -119,7 +137,7 @@ export default function PerfilPage() {
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, t.profile.feedbackError]);
 
   // Auto-ocultar feedback después de 5 segundos
   useEffect(() => {
@@ -139,20 +157,28 @@ export default function PerfilPage() {
         const updated = await updateProfile({
           name: name.trim(),
           avatarUrl,
+          country,
         });
 
         setProfile(updated);
         setName(updated.name || '');
         setAvatarUrl(updated.avatarUrl);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('gestorguita_avatar_updated', {
+              detail: { avatarUrl },
+            })
+          );
+        }
         setFeedback({
           type: 'success',
-          message: '¡Tu perfil ha sido actualizado con éxito!',
+          message: t.profile.feedbackSuccess,
         });
       } catch (err: unknown) {
         const msg =
           err instanceof Error
             ? err.message
-            : 'Ocurrió un fallo al guardar las modificaciones.';
+            : t.profile.feedbackError;
         setFeedback({ type: 'error', message: msg });
       }
     });
@@ -167,72 +193,97 @@ export default function PerfilPage() {
         const updated = await updateProfile({
           name: name.trim(),
           avatarUrl: newAvatarUrl,
+          country,
         });
         setProfile(updated);
-        window.dispatchEvent(
-          new CustomEvent('gestorguita_avatar_updated', {
-            detail: { avatarUrl: newAvatarUrl },
-          })
-        );
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('gestorguita_avatar_updated', {
+              detail: { avatarUrl: newAvatarUrl },
+            })
+          );
+        }
         setFeedback({
           type: 'success',
           message: newAvatarUrl
-            ? '¡Foto de perfil actualizada correctamente!'
-            : 'Foto de perfil eliminada.',
+            ? t.profile.avatarUpdated
+            : t.profile.avatarRemoved,
         });
       } catch (err: unknown) {
         const msg =
-          err instanceof Error ? err.message : 'Error al actualizar el avatar.';
+          err instanceof Error ? err.message : t.profile.avatarError;
         setFeedback({ type: 'error', message: msg });
       }
     });
   };
 
+  // Manejar cambio de país y régimen fiscal
+  const handleCountryChange = (code: SupportedCountryCode) => {
+    setCountry(code);
+    const updated = setActiveCountry(code);
+
+    startTransition(async () => {
+      try {
+        await updateProfile({
+          name: name.trim(),
+          avatarUrl,
+          country: code,
+        });
+        setFeedback({
+          type: 'success',
+          message: `${t.profile.countrySaved} ${updated.name} (${updated.currency})`,
+        });
+      } catch {
+        // En caso de fallo en backend, el localStorage y evento ya adaptan la sesión local
+      }
+    });
+  };
+
   const formattedRegisterDate = profile?.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString('es-AR', {
+    ? new Date(profile.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-AR', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
       })
-    : 'No disponible';
+    : t.profile.notAvailable;
 
   const formattedLastSignIn = profile?.lastSignInAt
-    ? new Date(profile.lastSignInAt).toLocaleDateString('es-AR', {
+    ? new Date(profile.lastSignInAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'es-AR', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
       })
-    : 'Reciente';
+    : t.profile.recent;
 
   const hasNameChanged = (profile?.name || '') !== name.trim();
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl space-y-8">
         {/* HEADER */}
-        <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center">
+        <header className="flex flex-col items-start justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
               <Link
                 href="/dashboard"
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
-                title="Volver al Dashboard"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-border transition cursor-pointer"
+                title={t.profile.backToDashboard}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Link>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 shadow-md shadow-emerald-950/40">
                 <UserIcon className="h-5 w-5" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                Configuración de Perfil
+              <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                {t.profile.title}
               </h1>
             </div>
-            <p className="mt-1 text-xs text-slate-400 ml-12 sm:ml-0">
-              Administra tu identidad, preferencias y derechos de privacidad GDPR
+            <p className="mt-1 text-xs text-muted-foreground ml-12 sm:ml-0">
+              {t.profile.subtitle}
             </p>
           </div>
         </header>
@@ -242,8 +293,8 @@ export default function PerfilPage() {
           <div
             className={`flex items-center justify-between rounded-2xl p-4 text-xs shadow-xl border animate-in fade-in slide-in-from-top-2 duration-300 ${
               feedback.type === 'success'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -258,7 +309,7 @@ export default function PerfilPage() {
               onClick={() => setFeedback(null)}
               className="text-xs opacity-70 hover:opacity-100 underline cursor-pointer ml-4"
             >
-              Descartar
+              {t.profile.discard}
             </button>
           </div>
         )}
@@ -267,20 +318,20 @@ export default function PerfilPage() {
         {/* ESTADO NO AUTENTICADO                                                     */}
         {/* ========================================================================= */}
         {!isAuthLoading && !user && (
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/50 p-8 text-center space-y-4 backdrop-blur-md">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800/80 text-slate-400 ring-1 ring-slate-700">
+          <div className="rounded-3xl border border-hairline bg-card p-8 text-center space-y-4 backdrop-blur-md">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-muted-foreground ring-1 ring-border">
               <Lock className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-white">Sesión Requerida</h2>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              Debes iniciar sesión para consultar y modificar la información de tu perfil o gestionar tus derechos GDPR.
+            <h2 className="text-lg font-bold text-foreground">{t.profile.sessionRequired}</h2>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              {t.profile.sessionRequiredDesc}
             </p>
             <div className="pt-2">
               <Link
                 href="/auth"
                 className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-950/40 transition cursor-pointer"
               >
-                Iniciar Sesión en Gestor Guita
+                {t.profile.signIn}
               </Link>
             </div>
           </div>
@@ -301,22 +352,75 @@ export default function PerfilPage() {
               />
             </section>
 
-            {/* Sección 2: Formulario de Datos Personales */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur-md space-y-6">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            {/* Sección 2: Selector de País y Moneda Base */}
+            <section className="rounded-3xl border border-hairline bg-card p-6 sm:p-8 backdrop-blur-md space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 gap-2">
                 <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-emerald-400" />
-                    Datos Personales
+                  <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-emerald-400" />
+                    {t.profile.countryRegion}
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Modifica cómo te identificas dentro del ecosistema de la app
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t.profile.countryRegionDesc}
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold self-start sm:self-auto">
+                  <span>{SUPPORTED_COUNTRIES[country]?.flag}</span>
+                  <span>{SUPPORTED_COUNTRIES[country]?.currency}</span>
+                  <span className="opacity-70 font-normal">({SUPPORTED_COUNTRIES[country]?.name})</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-foreground">
+                  {t.profile.accountCountry}
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  {Object.values(SUPPORTED_COUNTRIES).map((c) => {
+                    const isSelected = country === c.code;
+                    return (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => handleCountryChange(c.code)}
+                        disabled={isSaving}
+                        className={`flex items-center gap-3 p-3 rounded-2xl border text-left transition cursor-pointer disabled:opacity-50 ${
+                          isSelected
+                            ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-500/40 shadow-sm'
+                            : 'border-border/60 bg-surface/50 text-muted-foreground hover:border-border hover:text-foreground'
+                        }`}
+                      >
+                        <span className="text-2xl shrink-0" role="img" aria-label={c.name}>
+                          {c.flag}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-xs text-foreground truncate">{c.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{c.currency}</p>
+                        </div>
+                        {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 ml-auto" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
+            {/* Sección 3: Formulario de Datos Personales */}
+            <section className="rounded-3xl border border-hairline bg-card p-6 sm:p-8 backdrop-blur-md space-y-6">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                    <UserIcon className="h-4 w-4 text-emerald-400" />
+                    {t.profile.personalData}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t.profile.personalDataDesc}
                   </p>
                 </div>
                 {isDataLoading && (
-                  <div className="flex items-center gap-2 text-xs text-slate-400 animate-pulse">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
-                    <span>Cargando datos...</span>
+                    <span>{t.profile.loadingData}</span>
                   </div>
                 )}
               </div>
@@ -327,12 +431,12 @@ export default function PerfilPage() {
                   <div className="space-y-2 sm:col-span-2">
                     <label
                       htmlFor="display-name"
-                      className="block text-xs font-semibold text-slate-300"
+                      className="block text-xs font-semibold text-foreground"
                     >
-                      Nombre de Visualización
+                      {t.profile.displayName}
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
                         <UserIcon className="h-4 w-4" />
                       </div>
                       <input
@@ -340,13 +444,13 @@ export default function PerfilPage() {
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Ej. Juan Pérez"
+                        placeholder={t.profile.displayNamePlaceholder}
                         disabled={isSaving || isDataLoading}
-                        className="w-full rounded-2xl border border-white/10 bg-slate-900/60 pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition"
+                        className="w-full rounded-2xl border border-border/80 bg-surface/50 pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 transition"
                       />
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      Este nombre se mostrará en los saludos del dashboard y encabezados de la aplicación.
+                    <p className="text-[11px] text-muted-foreground">
+                      {t.profile.displayNameHint}
                     </p>
                   </div>
 
@@ -355,17 +459,17 @@ export default function PerfilPage() {
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="user-email"
-                        className="block text-xs font-semibold text-slate-300"
+                        className="block text-xs font-semibold text-foreground"
                       >
-                        Correo Electrónico
+                        {t.profile.email}
                       </label>
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                        <Lock className="h-3 w-3 text-slate-500" />
-                        Solo lectura
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                        <Lock className="h-3 w-3 text-muted-foreground" />
+                        {t.profile.readOnly}
                       </span>
                     </div>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
                         <Mail className="h-4 w-4" />
                       </div>
                       <input
@@ -373,11 +477,11 @@ export default function PerfilPage() {
                         type="email"
                         value={profile?.email || user.email || ''}
                         disabled
-                        className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/70 pl-10 pr-4 py-3 text-sm text-slate-400 cursor-not-allowed select-none font-mono"
+                        className="w-full rounded-2xl border border-border/60 bg-muted/40 pl-10 pr-4 py-3 text-sm text-muted-foreground cursor-not-allowed select-none font-mono"
                       />
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      Gestionado de forma segura por Supabase Auth.
+                    <p className="text-[11px] text-muted-foreground">
+                      {t.profile.emailHint}
                     </p>
                   </div>
 
@@ -386,17 +490,17 @@ export default function PerfilPage() {
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="created-at"
-                        className="block text-xs font-semibold text-slate-300"
+                        className="block text-xs font-semibold text-foreground"
                       >
-                        Fecha de Registro
+                        {t.profile.registerDate}
                       </label>
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                        <Calendar className="h-3 w-3 text-slate-500" />
-                        Inmutable
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        {t.profile.immutable}
                       </span>
                     </div>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-muted-foreground">
                         <Calendar className="h-4 w-4" />
                       </div>
                       <input
@@ -404,11 +508,11 @@ export default function PerfilPage() {
                         type="text"
                         value={formattedRegisterDate}
                         disabled
-                        className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/70 pl-10 pr-4 py-3 text-sm text-slate-400 cursor-not-allowed select-none"
+                        className="w-full rounded-2xl border border-border/60 bg-muted/40 pl-10 pr-4 py-3 text-sm text-muted-foreground cursor-not-allowed select-none"
                       />
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      Fecha en que se creó la cuenta en el sistema.
+                    <p className="text-[11px] text-muted-foreground">
+                      {t.profile.registerDateHint}
                     </p>
                   </div>
                 </div>
@@ -423,12 +527,12 @@ export default function PerfilPage() {
                     {isSaving ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Guardando Cambios...
+                        {t.profile.saving}
                       </>
                     ) : (
                       <>
                         <Save className="h-4 w-4" />
-                        Guardar Cambios
+                        {t.profile.saveChanges}
                       </>
                     )}
                   </button>
@@ -436,16 +540,16 @@ export default function PerfilPage() {
               </form>
             </section>
 
-            {/* Sección 3: Seguridad y Privacidad */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8 backdrop-blur-md space-y-5">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            {/* Sección 4: Seguridad y Privacidad */}
+            <section className="rounded-3xl border border-hairline bg-card p-6 sm:p-8 backdrop-blur-md space-y-5">
+              <div className="flex items-center justify-between border-b border-border pb-4">
                 <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                     <Shield className="h-4 w-4 text-emerald-400" />
-                    Seguridad & Protección de Datos
+                    {t.profile.securityTitle}
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Resguardo de tu cuenta y privacidad financiera personal
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t.profile.securitySubtitle}
                   </p>
                 </div>
               </div>
@@ -457,105 +561,103 @@ export default function PerfilPage() {
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-sm font-bold text-white tracking-wide">
-                      Cuenta protegida y blindada
+                    <span className="text-sm font-bold text-foreground tracking-wide">
+                      {t.profile.accountShielded}
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
                       <CheckCircle2 className="h-3 w-3" />
-                      Activo
+                      {t.profile.active}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    Tus movimientos, categorías y patrimonio están completamente aislados y cifrados. Solo tú tienes acceso a tu información financiera personal.
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {t.profile.accountShieldedDesc}
                   </p>
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-1">
                 {/* Estado de Protección */}
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5">
-                  <span className="text-[11px] text-slate-400 flex items-center gap-1.5 font-medium">
+                <div className="rounded-2xl border border-border/70 bg-surface/50 p-4 space-y-1.5">
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Estado de Protección
+                    {t.profile.protectionStatus}
                   </span>
-                  <p className="font-semibold text-xs text-white flex items-center gap-1.5">
-                    <span className="text-emerald-400">Blindaje de Privacidad</span>
+                  <p className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                    <span className="text-emerald-400">{t.profile.privacyShield}</span>
                   </p>
-                  <p className="text-[10px] text-slate-500">
-                    Aislamiento estricto por cuenta
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.profile.strictIsolation}
                   </p>
                 </div>
 
                 {/* Proveedor y Sesión */}
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5">
-                  <span className="text-[11px] text-slate-400 font-medium">Método de Acceso</span>
-                  <p className="font-semibold text-xs text-white capitalize flex items-center gap-1.5">
+                <div className="rounded-2xl border border-border/70 bg-surface/50 p-4 space-y-1.5">
+                  <span className="text-[11px] text-muted-foreground font-medium">{t.profile.authMethod}</span>
+                  <p className="font-semibold text-xs text-foreground capitalize flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
-                    {profile?.provider || user.app_metadata?.provider || 'Email Seguro'}
+                    {profile?.provider || user.app_metadata?.provider || t.session.secureEmail}
                   </p>
-                  <p className="text-[10px] text-slate-500">
-                    Sesión cifrada y verificada
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.profile.encryptedSession}
                   </p>
                 </div>
 
                 {/* Último Acceso */}
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4 space-y-1.5 sm:col-span-2 lg:col-span-1">
-                  <span className="text-[11px] text-slate-400 font-medium">Última Conexión Registrada</span>
-                  <p className="font-semibold text-xs text-slate-200">
+                <div className="rounded-2xl border border-border/70 bg-surface/50 p-4 space-y-1.5 sm:col-span-2 lg:col-span-1">
+                  <span className="text-[11px] text-muted-foreground font-medium">{t.profile.lastSignIn}</span>
+                  <p className="font-semibold text-xs text-foreground">
                     {formattedLastSignIn}
                   </p>
-                  <p className="text-[10px] text-slate-500">
-                    Registro de actividad reciente
+                  <p className="text-[10px] text-muted-foreground">
+                    {t.profile.recentActivity}
                   </p>
                 </div>
               </div>
             </section>
 
             {/* ========================================================================= */}
-            {/* SECCIÓN 4: ZONA DE PELIGRO (GDPR COMPLIANCE)                              */}
+            {/* SECCIÓN 5: ZONA DE PELIGRO (GDPR COMPLIANCE)                              */}
             {/* ========================================================================= */}
-            <section className="rounded-3xl border border-rose-500/30 bg-rose-950/10 p-6 sm:p-8 backdrop-blur-md space-y-6">
+            <section className="rounded-3xl border border-rose-500/30 bg-rose-500/5 p-6 sm:p-8 backdrop-blur-md space-y-6">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400 ring-1 ring-rose-500/20">
                   <ShieldAlert className="h-6 w-6" />
                 </div>
                 <div className="space-y-1">
-                  <h2 className="text-base font-bold text-white sm:text-lg">
-                    Zona de Peligro (GDPR Compliance)
+                  <h2 className="text-base font-bold text-foreground sm:text-lg">
+                    {t.profile.dangerZone}
                   </h2>
-                  <p className="text-xs text-rose-300/80 leading-relaxed">
-                    Ejercicio del <strong>Derecho al Olvido</strong> estipulado en el Artículo 17 del Reglamento General de Protección de Datos (GDPR).
+                  <p className="text-xs text-rose-400/90 leading-relaxed">
+                    {t.profile.rightToErasure}
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4 sm:p-5 text-xs text-slate-300 space-y-3 leading-relaxed">
-                <p className="text-rose-200 font-semibold">
-                  ⚠️ Aviso importante sobre la destrucción de datos:
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-950/20 p-4 sm:p-5 text-xs text-foreground space-y-3 leading-relaxed">
+                <p className="text-rose-400 font-semibold">
+                  {t.profile.warningDestruction}
                 </p>
                 <p>
-                  Al ejecutar la eliminación de tu cuenta, la operación es <strong>totalmente irreversible</strong>. Se destruirán de forma inmediata y definitiva:
+                  {t.profile.warningIrreversible}
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-slate-400 ml-2">
-                  <li>Todos los registros de gastos, compras e ingresos.</li>
-                  <li>Todas las categorías personalizadas y sus clasificaciones asociadas.</li>
-                  <li>Archivos y avatares almacenados en Supabase Storage.</li>
-                  <li>Caché sin conexión e historial encolado en IndexedDB.</li>
-                  <li>Credenciales de acceso, sesiones activas y metadatos de usuario.</li>
+                <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
+                  {t.profile.destructionItems.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
                 </ul>
               </div>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-2">
-                <div className="text-xs text-slate-400">
-                  Una vez confirmada, no será posible recuperar ningún historial financiero.
+                <div className="text-xs text-muted-foreground">
+                  {t.profile.irreversibleNotice}
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsDeleteModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600/90 hover:bg-rose-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-rose-950/60 transition cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 hover:bg-rose-500 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-rose-950/60 transition cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Eliminar mi cuenta y todos mis datos
+                  {t.profile.deleteAccount}
                 </button>
               </div>
             </section>

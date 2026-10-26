@@ -72,6 +72,14 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
 
 export function usePrefs() {
   const c = useContext(Ctx);
-  if (!c) throw new Error("usePrefs must be used inside PrefsProvider");
+  if (!c) {
+    return {
+      lang: 'es' as const,
+      theme: 'dark' as const,
+      setLang: () => {},
+      setTheme: () => {},
+      t: DICT.es,
+    };
+  }
   return c;
 }

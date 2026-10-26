@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Trash2, Loader2, AlertCircle, UploadCloud } from 'lucide-react';
 import { uploadAvatar } from '@/utils/api/profile';
+import { usePrefs } from '@/lib/prefs';
 
 interface AvatarUploadProps {
   avatarUrl: string | null;
@@ -109,6 +110,7 @@ export function AvatarUpload({
   onAvatarChange,
   disabled = false,
 }: AvatarUploadProps) {
+  const { t } = usePrefs();
   const [uploading, setUploading] = useState(false);
   const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,9 +144,16 @@ export function AvatarUpload({
 
       const publicUrl = await uploadAvatar(compressedFile);
       onAvatarChange(publicUrl);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('gestorguita_avatar_updated', {
+            detail: { avatarUrl: publicUrl },
+          })
+        );
+      }
     } catch (err: unknown) {
       const msg =
-        err instanceof Error ? err.message : 'Error al procesar o subir la imagen de avatar.';
+        err instanceof Error ? err.message : t.profile.avatarError;
       setError(msg);
     } finally {
       setCompressing(false);
@@ -159,6 +168,13 @@ export function AvatarUpload({
   const handleRemove = () => {
     setError(null);
     onAvatarChange(null);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('gestorguita_avatar_updated', {
+          detail: { avatarUrl: null },
+        })
+      );
+    }
   };
 
   const initials = name
@@ -194,7 +210,7 @@ export function AvatarUpload({
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs text-white">
               <Loader2 className="h-6 w-6 animate-spin text-emerald-400" />
               <span className="mt-1 text-[10px] font-medium text-slate-300">
-                {compressing ? 'Optimizando...' : 'Subiendo...'}
+                {compressing ? t.profile.optimizingPhoto : t.profile.uploadingPhoto}
               </span>
             </div>
           )}
@@ -206,7 +222,7 @@ export function AvatarUpload({
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || uploading}
           className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg shadow-emerald-950/50 hover:bg-emerald-500 transition-all hover:scale-110 disabled:opacity-50 cursor-pointer"
-          title="Cambiar foto de perfil"
+          title={t.profile.uploadPhoto}
         >
           <Camera className="h-4 w-4" />
         </button>
@@ -216,13 +232,13 @@ export function AvatarUpload({
       <div className="flex-1 space-y-3 text-center sm:text-left">
         <div>
           <h3 className="text-sm font-bold text-white flex items-center justify-center sm:justify-start gap-2">
-            Foto de Perfil
+            {t.profile.avatarTitle}
             <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Optimización 128x128 (&lt;40KB)
+              {t.profile.avatarBadge}
             </span>
           </h3>
           <p className="mt-1 text-xs text-slate-400 leading-relaxed max-w-md">
-            Personaliza tu identidad visual. Tu imagen es optimizada y comprimida automáticamente a 128x128 px ultra liviana (&lt;40 KB) garantizando compatibilidad total.
+            {t.profile.avatarDesc}
           </p>
         </div>
 
@@ -245,7 +261,7 @@ export function AvatarUpload({
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-950/40 transition cursor-pointer disabled:opacity-50"
           >
             <UploadCloud className="h-3.5 w-3.5" />
-            {uploading ? 'Cargando imagen...' : 'Subir nueva foto'}
+            {uploading ? t.profile.uploadingPhoto : t.profile.uploadPhoto}
           </button>
 
           {avatarUrl && (
@@ -256,7 +272,7 @@ export function AvatarUpload({
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700/90 px-3 py-2 text-xs font-medium text-slate-300 hover:text-rose-400 transition cursor-pointer disabled:opacity-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Eliminar foto
+              {t.profile.removePhoto}
             </button>
           )}
         </div>

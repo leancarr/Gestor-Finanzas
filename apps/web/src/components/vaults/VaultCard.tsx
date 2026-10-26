@@ -86,8 +86,8 @@ export function VaultCard({
     <div
       className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border p-6 backdrop-blur-xl transition-all duration-300 hover:shadow-2xl ${
         isActive
-          ? 'border-emerald-500/50 bg-gradient-to-b from-emerald-950/30 via-slate-900/90 to-slate-950 ring-1 ring-emerald-500/30 shadow-emerald-950/40'
-          : 'border-slate-800/80 bg-slate-900/60 hover:border-slate-700/80 hover:bg-slate-900/90'
+          ? 'border-emerald-500/50 bg-emerald-500/10 dark:bg-gradient-to-b dark:from-emerald-950/30 dark:via-slate-900/90 dark:to-slate-950 ring-1 ring-emerald-500/30 shadow-emerald-950/20'
+          : 'border-border bg-card hover:border-border hover:bg-surface/50'
       }`}
     >
       {/* Glow ambiental superior */}
@@ -107,7 +107,7 @@ export function VaultCard({
               className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition ${
                 isActive
                   ? 'border-emerald-500/40 bg-emerald-500/20 text-emerald-400 shadow-lg shadow-emerald-950/60'
-                  : 'border-slate-800 bg-slate-800/80 text-slate-300 group-hover:border-slate-700 group-hover:text-white'
+                  : 'border-border bg-surface text-muted-foreground group-hover:border-border group-hover:text-foreground'
               }`}
             >
               <Users className="h-6 w-6" />
@@ -116,7 +116,7 @@ export function VaultCard({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h3
-                  className="font-bold text-white text-base tracking-tight truncate max-w-full"
+                  className="font-bold text-foreground text-base tracking-tight truncate max-w-full"
                   title={vault.name}
                 >
                   {vault.name}
@@ -128,7 +128,7 @@ export function VaultCard({
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-slate-400 line-clamp-2 leading-relaxed">
+              <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                 {vault.description || 'Sin descripción adicional'}
               </p>
             </div>
@@ -145,14 +145,14 @@ export function VaultCard({
         </div>
 
         {/* Resumen de Miembros y Métricas */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-y border-slate-800/60 py-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-y border-border py-3 text-xs">
           {/* Stack de Avatares */}
           <div className="flex items-center gap-2">
             <div className="flex -space-x-2 overflow-hidden">
               {members.slice(0, 4).map((member, i) => (
                 <div
                   key={member.id || i}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-900 bg-gradient-to-tr from-emerald-600 to-teal-700 text-[10px] font-bold text-white shadow-sm"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-gradient-to-tr from-emerald-600 to-teal-700 text-[10px] font-bold text-white shadow-sm"
                   title={member.user?.name || member.user?.email || 'Miembro'}
                 >
                   {member.user?.avatarUrl ? (
@@ -170,7 +170,7 @@ export function VaultCard({
                 </div>
               ))}
               {members.length > 4 && (
-                <div className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-slate-900 bg-slate-800 text-[10px] font-bold text-slate-300">
+                <div className="inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-surface text-[10px] font-bold text-muted-foreground">
                   +{members.length - 4}
                 </div>
               )}
@@ -179,7 +179,7 @@ export function VaultCard({
             <button
               type="button"
               onClick={() => onManageMembers(vault)}
-              className="text-[11px] font-medium text-slate-400 hover:text-emerald-400 transition cursor-pointer flex items-center gap-1"
+              className="text-[11px] font-medium text-muted-foreground hover:text-emerald-500 transition cursor-pointer flex items-center gap-1"
             >
               <span>{members.length} {members.length === 1 ? 'miembro' : 'miembros'}</span>
               <UserPlus className="h-3 w-3 opacity-60" />
@@ -187,22 +187,22 @@ export function VaultCard({
           </div>
 
           {/* Gastos registrados */}
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <Receipt className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="font-semibold text-slate-200">{expensesCount}</span>
+            <span className="font-semibold text-foreground">{expensesCount}</span>
             <span className="text-[11px]">{expensesCount === 1 ? 'gasto' : 'gastos'}</span>
           </div>
         </div>
       </div>
 
       {/* Botones de Acción Inferiores */}
-      <div className="mt-5 space-y-2 pt-2 border-t border-slate-800/60">
+      <div className="mt-5 space-y-2 pt-2 border-t border-border">
         <div className="flex flex-wrap items-center gap-2">
           {/* Botón Ver Balances */}
           <button
             type="button"
             onClick={() => onSelectBalances(vault)}
-            className="flex-1 min-w-[150px] inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/80 px-3 py-2 text-xs font-semibold text-white transition cursor-pointer border border-slate-700/60 shadow-sm"
+            className="flex-1 min-w-[150px] inline-flex items-center justify-center gap-2 rounded-xl bg-surface hover:bg-surface/80 px-3 py-2 text-xs font-semibold text-foreground transition cursor-pointer border border-border shadow-sm"
           >
             <span>Ver Saldos & Balances</span>
             <ArrowRight className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
@@ -214,26 +214,26 @@ export function VaultCard({
             onClick={() => setActiveVault(isActive ? null : vault)}
             className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition cursor-pointer border ${
               isActive
-                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
-                : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-300'
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/30'
+                : 'bg-card border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-300'
             }`}
             title={isActive ? 'Desactivar modo compartido' : 'Usar como contexto activo'}
           >
-            <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`} />
+            <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-muted-foreground'}`} />
             <span>{isActive ? 'Activa' : 'Activar'}</span>
           </button>
         </div>
 
         {/* Acciones Secundarias: Editar o Eliminar si es OWNER/ADMIN */}
         {(onEdit || onDelete) && (
-          <div className="flex items-center justify-between gap-1 pt-1 text-slate-400">
-            <span className="text-[11px] text-slate-500">Gestión</span>
+          <div className="flex items-center justify-between gap-1 pt-1 text-muted-foreground">
+            <span className="text-[11px] text-muted-foreground/80">Gestión</span>
             <div className="flex items-center gap-1">
               {onEdit && (
                 <button
                   type="button"
                   onClick={() => onEdit(vault)}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white px-2 py-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-surface transition cursor-pointer"
                 >
                   <Edit2 className="h-3 w-3" />
                   Editar

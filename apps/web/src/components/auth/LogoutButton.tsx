@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
+import { usePrefs } from '@/lib/prefs';
 
 interface LogoutButtonProps {
   className?: string;
@@ -20,6 +21,7 @@ export function LogoutButton({
 }: LogoutButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = usePrefs();
 
   const handleLogout = async () => {
     try {
@@ -56,14 +58,14 @@ export function LogoutButton({
       disabled={loading}
       className={`${baseStyles} ${variants[variant]} ${className}`}
       id="logout-button"
-      title="Cerrar Sesión"
+      title={t.session.logout}
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
       ) : (
         <LogOut className="h-4 w-4" />
       )}
-      {showText && <span>{loading ? 'Saliendo...' : 'Cerrar Sesión'}</span>}
+      {showText && <span>{loading ? t.session.loggingOut : t.session.logout}</span>}
     </button>
   );
 }

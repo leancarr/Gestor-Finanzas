@@ -7,6 +7,7 @@ export interface UserProfile {
   email: string;
   name: string | null;
   avatarUrl: string | null;
+  country?: string | null;
   createdAt: string;
   lastSignInAt?: string | null;
   role?: string;
@@ -16,6 +17,7 @@ export interface UserProfile {
 export interface UpdateProfileInput {
   name?: string;
   avatarUrl?: string | null;
+  country?: string | null;
 }
 
 import { DYNAMIC_API_URL } from './config';
@@ -176,6 +178,7 @@ export async function getProfile(): Promise<UserProfile | null> {
     email: backendProfile?.email || user.email || '',
     name,
     avatarUrl,
+    country: backendProfile?.country || (user.user_metadata?.country as string) || null,
     createdAt: backendProfile?.createdAt || user.created_at,
     lastSignInAt: user.last_sign_in_at ?? null,
     role: user.role || 'authenticated',
@@ -222,6 +225,7 @@ export async function updateProfile(data: UpdateProfileInput): Promise<UserProfi
     ...currentMetadata,
     ...(data.name !== undefined ? { name: data.name.trim(), full_name: data.name.trim() } : {}),
     ...(data.avatarUrl !== undefined ? { avatar_url: data.avatarUrl } : {}),
+    ...(data.country !== undefined ? { country: data.country } : {}),
   };
 
   const { data: updatedUserResponse, error: updateError } =
@@ -248,6 +252,10 @@ export async function updateProfile(data: UpdateProfileInput): Promise<UserProfi
         : updatedUser.user_metadata?.avatar_url ||
           updatedUser.user_metadata?.picture ||
           null,
+    country:
+      backendUpdated?.country ||
+      (updatedUser.user_metadata?.country as string) ||
+      null,
     createdAt: backendUpdated?.createdAt || updatedUser.created_at,
     lastSignInAt: updatedUser.last_sign_in_at ?? null,
     role: updatedUser.role || 'authenticated',
