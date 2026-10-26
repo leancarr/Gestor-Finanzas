@@ -216,16 +216,16 @@ export default function MetasPage() {
   }, [scopedGoals, filterTab, searchQuery]);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <ConfettiReward active={showConfetti} onComplete={() => setShowConfetti(false)} />
 
       <div className="mx-auto max-w-7xl space-y-8">
         {/* Header & Navigation */}
-        <div className="flex flex-col items-start justify-between gap-4 border-b border-slate-800/80 pb-6 sm:flex-row sm:items-center">
+        <div className="flex flex-col items-start justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-border transition cursor-pointer"
               title="Volver al Dashboard"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -237,7 +237,7 @@ export default function MetasPage() {
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+                <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
                   Metas de Ahorro
                 </h1>
                 {activeVault ? (
@@ -245,12 +245,12 @@ export default function MetasPage() {
                     Bóveda: {activeVault.name}
                   </span>
                 ) : (
-                  <span className="rounded-full bg-slate-800/80 border border-slate-700/60 px-2.5 py-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span className="rounded-full bg-surface border border-border px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                     Personal Privado
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted-foreground">
                 {activeVault
                   ? `Metas compartidas exclusivas de la bóveda "${activeVault.name}".`
                   : 'Fijá objetivos financieros personales, realizá inyecciones rápidas y automatizá el registro de egresos.'}
@@ -275,9 +275,9 @@ export default function MetasPage() {
 
         {/* Toast Feedback */}
         {toastMessage && (
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-300 shadow-xl animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-600 dark:text-emerald-300 shadow-xl animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
               <span className="font-semibold">{toastMessage.text}</span>
             </div>
           </div>
@@ -286,9 +286,9 @@ export default function MetasPage() {
         {/* KPIs Grid */}
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* KPI 1: Total Ahorrado */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl">
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 backdrop-blur-xl shadow-xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Total Ahorrado
               </span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -297,11 +297,11 @@ export default function MetasPage() {
             </div>
 
             <div className="mt-3">
-              <p className="text-2xl font-black text-white tracking-tight">
+              <p className="text-2xl font-black text-foreground tracking-tight">
                 {formatCurrency(kpis.consolidatedSavedArs, 'ARS')}
               </p>
               {kpis.totalSavedUsd > 0 && (
-                <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
                   Incluye {formatCurrency(kpis.totalSavedUsd, 'USD')} al tipo de cambio de referencia
                 </p>
               )}
@@ -309,9 +309,9 @@ export default function MetasPage() {
           </div>
 
           {/* KPI 2: Objetivo Total */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl">
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 backdrop-blur-xl shadow-xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Objetivo Total
               </span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
@@ -320,11 +320,11 @@ export default function MetasPage() {
             </div>
 
             <div className="mt-3">
-              <p className="text-2xl font-black text-white tracking-tight">
+              <p className="text-2xl font-black text-foreground tracking-tight">
                 {formatCurrency(kpis.consolidatedTargetArs, 'ARS')}
               </p>
               {kpis.totalTargetUsd > 0 && (
-                <p className="mt-1 text-[11px] font-semibold text-slate-400">
+                <p className="mt-1 text-[11px] font-semibold text-muted-foreground">
                   Incluye {formatCurrency(kpis.totalTargetUsd, 'USD')} en metas en divisa
                 </p>
               )}
@@ -332,9 +332,9 @@ export default function MetasPage() {
           </div>
 
           {/* KPI 3: Progreso Global % */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl">
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 backdrop-blur-xl shadow-xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Progreso Global
               </span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -344,15 +344,15 @@ export default function MetasPage() {
 
             <div className="mt-3 space-y-2">
               <div className="flex items-baseline justify-between">
-                <p className="text-2xl font-black text-white tracking-tight">
+                <p className="text-2xl font-black text-foreground tracking-tight">
                   {kpis.globalProgress}%
                 </p>
-                <span className="text-[11px] font-semibold text-emerald-400">
+                <span className="text-[11px] font-semibold text-emerald-500 dark:text-emerald-400">
                   {kpis.completedCount} de {kpis.totalGoals} cumplidas
                 </span>
               </div>
 
-              <div className="h-2 w-full rounded-full bg-slate-950 border border-slate-800 overflow-hidden">
+              <div className="h-2 w-full rounded-full bg-surface border border-border overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 transition-all duration-700"
                   style={{ width: `${kpis.globalProgress}%` }}
@@ -362,9 +362,9 @@ export default function MetasPage() {
           </div>
 
           {/* KPI 4: Metas Activas */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/60 p-5 backdrop-blur-xl shadow-xl">
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5 backdrop-blur-xl shadow-xl">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Metas Activas
               </span>
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -373,11 +373,11 @@ export default function MetasPage() {
             </div>
 
             <div className="mt-3">
-              <p className="text-2xl font-black text-white tracking-tight">
-                {kpis.activeCount} <span className="text-sm font-semibold text-slate-400">en curso</span>
+              <p className="text-2xl font-black text-foreground tracking-tight">
+                {kpis.activeCount} <span className="text-sm font-semibold text-muted-foreground">en curso</span>
               </p>
-              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
                 <span>{kpis.completedCount} conquistadas con éxito</span>
               </div>
             </div>
@@ -385,7 +385,7 @@ export default function MetasPage() {
         </section>
 
         {/* Filter & Search Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border pb-4">
           {/* Tabs */}
           <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
             <button
@@ -393,8 +393,8 @@ export default function MetasPage() {
               onClick={() => setFilterTab('ALL')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 filterTab === 'ALL'
-                  ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm'
-                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+                  ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-600 dark:text-emerald-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground bg-card border border-border'
               }`}
             >
               Todas ({goals.length})
@@ -404,8 +404,8 @@ export default function MetasPage() {
               onClick={() => setFilterTab('ACTIVE')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 filterTab === 'ACTIVE'
-                  ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300 shadow-sm'
-                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+                  ? 'bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground bg-card border border-border'
               }`}
             >
               En Curso ({kpis.activeCount})
@@ -415,8 +415,8 @@ export default function MetasPage() {
               onClick={() => setFilterTab('COMPLETED')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 filterTab === 'COMPLETED'
-                  ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 shadow-sm'
-                  : 'text-slate-400 hover:text-white bg-slate-900/60 border border-slate-800'
+                  ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-600 dark:text-emerald-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground bg-card border border-border'
               }`}
             >
               Cumplidas ({kpis.completedCount})
@@ -425,13 +425,13 @@ export default function MetasPage() {
 
           {/* Search Input */}
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar meta..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-800 bg-slate-900/90 text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-border bg-card text-xs font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition-all"
             />
           </div>
         </div>
@@ -442,19 +442,19 @@ export default function MetasPage() {
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
-                className="h-64 rounded-3xl border border-slate-800 bg-slate-900/40 animate-pulse p-6"
+                className="h-64 rounded-3xl border border-border bg-card/40 animate-pulse p-6"
               />
             ))}
           </div>
         ) : filteredGoals.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900/20 p-12 text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-4">
+          <div className="rounded-3xl border border-dashed border-border bg-card/20 p-12 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 mb-4">
               <Award className="h-8 w-8" />
             </div>
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-foreground">
               {searchQuery ? 'No se encontraron metas con esa búsqueda' : 'No tenés metas de ahorro activas'}
             </h3>
-            <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+            <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
               {searchQuery
                 ? 'Probá modificando el término de búsqueda o seleccionando otra pestaña.'
                 : 'Fijá tu primer objetivo financiero (viaje, fondo de emergencia, tecnología) y empezá a ahorrar.'}
@@ -512,21 +512,21 @@ export default function MetasPage() {
 
       {/* Delete Confirmation Modal */}
       {goalToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 text-slate-100 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 text-foreground shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
                 <Trash2 className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Eliminar Meta</h3>
-                <p className="text-xs text-slate-400">Esta acción no se puede deshacer.</p>
+                <h3 className="text-base font-bold text-foreground">Eliminar Meta</h3>
+                <p className="text-xs text-muted-foreground">Esta acción no se puede deshacer.</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               ¿Estás seguro de que deseás eliminar la meta{' '}
-              <strong className="text-white">"{goalToDelete.name}"</strong>?
+              <strong className="text-foreground">"{goalToDelete.name}"</strong>?
               Los gastos asociados que ya fueron debitados permanecerán en tu historial financiero.
             </p>
 
@@ -535,7 +535,7 @@ export default function MetasPage() {
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setGoalToDelete(null)}
-                className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-border bg-surface hover:bg-surface/80 text-xs font-semibold text-foreground transition cursor-pointer"
               >
                 Cancelar
               </button>

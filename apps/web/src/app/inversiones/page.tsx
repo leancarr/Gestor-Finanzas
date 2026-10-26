@@ -378,15 +378,15 @@ interface PortfolioInsights {
         : 1180;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* Header */}
-        <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center">
+        <header className="flex flex-col items-start justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
               <Link
                 href="/dashboard"
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-border transition cursor-pointer"
                 title="Volver al Dashboard"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -395,19 +395,19 @@ interface PortfolioInsights {
                 <TrendingUp className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl flex items-center gap-2">
+                <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl flex items-center gap-2">
                   <span>Modo Inversiones</span>
                   {activeVault ? (
                     <span className="rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">
                       Bóveda: {activeVault.name}
                     </span>
                   ) : (
-                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider">
                       Patrimonio Personal
                     </span>
                   )}
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">
                   {activeVault
                     ? `Portafolio de inversión colaborativo de la bóveda "${activeVault.name}".`
                     : 'Control consolidado de CEDEARs, Criptomonedas, Plazos Fijos y Liquidez'}
@@ -499,17 +499,17 @@ interface PortfolioInsights {
           </div>
 
           {/* Tarjeta de Métricas e Insights Clave (5 cols) */}
-          <div className="lg:col-span-5 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-md shadow-xl flex flex-col justify-between">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          <div className="lg:col-span-5 rounded-3xl border border-border bg-card p-6 backdrop-blur-md shadow-xl flex flex-col justify-between">
+            <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
                   <Sparkles className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                  <h3 className="text-sm sm:text-base font-bold text-foreground tracking-tight">
                     Métricas Clave de la Cartera
                   </h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-muted-foreground">
                     Posiciones dominantes y cobertura patrimonial
                   </p>
                 </div>
@@ -520,26 +520,26 @@ interface PortfolioInsights {
               <div className="my-4 space-y-3.5">
                 {/* Mayor Posición */}
                 {biggestAsset && (
-                  <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-3.5">
+                  <div className="rounded-2xl border border-border bg-surface/50 p-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         Mayor Posición
                       </span>
-                      <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                      <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-500 dark:text-emerald-400">
                         Top 1
                       </span>
                     </div>
                     <div className="mt-1 flex items-baseline justify-between">
                       <div>
-                        <p className="text-sm font-bold text-white">
+                        <p className="text-sm font-bold text-foreground">
                           {biggestAsset.name}
                         </p>
-                        <p className="text-[11px] text-slate-400 font-mono">
+                        <p className="text-[11px] text-muted-foreground font-mono">
                           {biggestAsset.quantity} u.{' '}
                           {biggestAsset.ticker ? `(${biggestAsset.ticker})` : ''}
                         </p>
                       </div>
-                      <p className="text-sm font-black text-white font-mono">
+                      <p className="text-sm font-black text-foreground font-mono">
                         {formatCurrency(
                           selectedCurrency === 'USD'
                             ? insights.biggestAssetValArs / usdRate
@@ -553,20 +553,20 @@ interface PortfolioInsights {
 
                 {/* Mejor Rendimiento P&L */}
                 {bestPerfAsset && (
-                  <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-3.5">
+                  <div className="rounded-2xl border border-border bg-surface/50 p-3.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         Mejor Rendimiento
                       </span>
-                      <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                      <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-500 dark:text-emerald-400">
                         +{insights.bestPerfPercent.toFixed(1)}%
                       </span>
                     </div>
                     <div className="mt-1 flex items-baseline justify-between">
-                      <p className="text-sm font-bold text-white">
+                      <p className="text-sm font-bold text-foreground">
                         {bestPerfAsset.name}
                       </p>
-                      <p className="text-xs font-bold text-emerald-400 font-mono">
+                      <p className="text-xs font-bold text-emerald-500 dark:text-emerald-400 font-mono">
                         {bestPerfAsset.ticker || bestPerfAsset.type}
                       </p>
                     </div>
@@ -574,22 +574,22 @@ interface PortfolioInsights {
                 )}
 
                 {/* Cobertura en Moneda Dura */}
-                <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-3.5">
+                <div className="rounded-2xl border border-border bg-surface/50 p-3.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400 font-medium">
+                    <span className="text-muted-foreground font-medium">
                       Cobertura en Moneda Dura / USD:
                     </span>
-                    <span className="font-bold text-white font-mono">
+                    <span className="font-bold text-foreground font-mono">
                       {insights.usdExposurePercent}%
                     </span>
                   </div>
-                  <div className="mt-2 h-2 w-full bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                  <div className="mt-2 h-2 w-full bg-surface rounded-full overflow-hidden border border-border">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500"
                       style={{ width: `${insights.usdExposurePercent}%` }}
                     />
                   </div>
-                  <div className="mt-1 flex justify-between text-[10px] text-slate-500 font-mono">
+                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground font-mono">
                     <span>{insights.usdExposurePercent}% Dólar/Activos Globales</span>
                     <span>{(100 - insights.usdExposurePercent).toFixed(1)}% Pesos/Tasa</span>
                   </div>
@@ -597,21 +597,21 @@ interface PortfolioInsights {
 
                 {/* Próximo Vencimiento Plazo Fijo */}
                 {nextDueDate && (
-                  <div className="rounded-2xl border border-amber-500/20 bg-amber-950/20 p-3.5 flex items-center justify-between">
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-3.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <Clock className="h-4 w-4 text-amber-400 shrink-0" />
+                      <Clock className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0" />
                       <div>
-                        <p className="text-xs font-bold text-white">
+                        <p className="text-xs font-bold text-foreground">
                           {nextDueDate.asset.name}
                         </p>
-                        <p className="text-[11px] text-amber-300/80">
+                        <p className="text-[11px] text-amber-600 dark:text-amber-300/80">
                           Vence en {nextDueDate.days} días (
                           {new Date(nextDueDate.asset.dueDate!).toLocaleDateString('es-AR')})
                         </p>
                       </div>
                     </div>
                     {nextDueDate.asset.interestRate && (
-                      <span className="text-xs font-mono font-bold text-amber-300">
+                      <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-300">
                         {nextDueDate.asset.interestRate}% TNA
                       </span>
                     )}
@@ -619,14 +619,14 @@ interface PortfolioInsights {
                 )}
               </div>
             ) : (
-              <div className="py-12 text-center text-xs text-slate-500">
+              <div className="py-12 text-center text-xs text-muted-foreground">
                 Cargando métricas de la cartera...
               </div>
             )}
 
-            <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
+            <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>Total de posiciones:</span>
-              <span className="font-bold text-white font-mono">{scopedAssets.length} activos</span>
+              <span className="font-bold text-foreground font-mono">{scopedAssets.length} activos</span>
             </div>
           </div>
         </div>
@@ -638,7 +638,7 @@ interface PortfolioInsights {
           {/* Filter Bar & Search */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             {/* Filter Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-900/80 p-1.5 border border-white/10 overflow-x-auto">
+            <div className="flex flex-wrap items-center gap-1.5 rounded-2xl bg-card p-1.5 border border-border overflow-x-auto">
               {FILTER_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeFilter === tab.id;
@@ -651,7 +651,7 @@ interface PortfolioInsights {
                     className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                       isActive
                         ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-surface'
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" />
@@ -663,13 +663,13 @@ interface PortfolioInsights {
 
             {/* Search Input */}
             <div className="relative flex-1 sm:w-72 md:w-80 w-full lg:w-auto">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Buscar activo, ticker o broker..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-slate-900/80 pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-border bg-card pl-9 pr-4 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -680,21 +680,21 @@ interface PortfolioInsights {
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="h-64 rounded-3xl border border-white/5 bg-white/[0.02] animate-pulse p-6"
+                  className="h-64 rounded-3xl border border-border bg-card/40 animate-pulse p-6"
                 />
               ))}
             </div>
           ) : filteredAssets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-white/10 bg-slate-900/30 p-12 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20 mb-4 shadow-inner">
+            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card/20 p-12 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 ring-1 ring-emerald-500/20 mb-4 shadow-inner">
                 <TrendingUp className="h-8 w-8" />
               </div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-base font-bold text-foreground">
                 {searchQuery || activeFilter !== 'ALL'
                   ? 'No se encontraron activos con ese filtro'
                   : 'Aún no registraste activos en tu portafolio'}
               </h3>
-              <p className="mt-1 text-xs text-slate-400 max-w-md">
+              <p className="mt-1 text-xs text-muted-foreground max-w-md">
                 {searchQuery || activeFilter !== 'ALL'
                   ? 'Intenta buscar con otros términos o cambia la categoría de filtro seleccionada.'
                   : 'Comienza agregando tus tenencias de efectivo, plazos fijos, CEDEARs o criptomonedas para monitorear tu patrimonio neto en tiempo real.'}

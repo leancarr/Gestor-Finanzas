@@ -221,15 +221,15 @@ export default function BovedasPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-background px-4 py-8 text-foreground sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-8">
         {/* Navigation & Header */}
-        <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center">
+        <header className="flex flex-col items-start justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
               <Link
                 href="/"
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:border-border transition cursor-pointer"
                 title="Volver al Inicio"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -238,13 +238,13 @@ export default function BovedasPage() {
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <h1 className="text-xl font-black tracking-tight text-white sm:text-2xl flex items-center gap-2">
+                <h1 className="text-xl font-black tracking-tight text-foreground sm:text-2xl flex items-center gap-2">
                   <span>Bóvedas Compartidas</span>
                   <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
                     Modo Pareja / Familia
                   </span>
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">
                   Divide gastos en común, administra miembros y liquida saldos sin complicaciones
                 </p>
               </div>
@@ -299,14 +299,14 @@ export default function BovedasPage() {
 
         {/* Selector de Pestañas Principales */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900/60 p-1.5 backdrop-blur-xl">
+          <div className="flex items-center gap-2 rounded-2xl border border-hairline bg-card/60 p-1.5 backdrop-blur-xl">
             <button
               type="button"
               onClick={() => setActiveTab('vaults')}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
                 activeTab === 'vaults'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Users className="h-4 w-4" />
@@ -315,7 +315,7 @@ export default function BovedasPage() {
                 className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] ${
                   activeTab === 'vaults'
                     ? 'bg-emerald-700 text-emerald-100'
-                    : 'bg-slate-800 text-slate-400'
+                    : 'bg-surface text-muted-foreground'
                 }`}
               >
                 {vaults.length}
@@ -328,7 +328,7 @@ export default function BovedasPage() {
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
                 activeTab === 'balances'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/50'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Scale className="h-4 w-4" />
@@ -341,7 +341,7 @@ export default function BovedasPage() {
             type="button"
             onClick={loadVaults}
             disabled={isLoading}
-            className="self-end sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-400 hover:text-white hover:border-slate-700 transition cursor-pointer disabled:opacity-50"
+            className="self-end sm:self-auto inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border transition cursor-pointer disabled:opacity-50"
             title="Recargar bóvedas"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -351,9 +351,9 @@ export default function BovedasPage() {
 
         {/* Contenido según Pestaña */}
         {isLoading ? (
-          <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-800 bg-slate-900/30 p-8 backdrop-blur-xl">
+          <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-border bg-card/40 p-8 backdrop-blur-xl">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-            <span className="mt-3 text-xs font-semibold text-slate-400">
+            <span className="mt-3 text-xs font-semibold text-muted-foreground">
               Cargando bóvedas compartidas...
             </span>
           </div>
@@ -361,7 +361,7 @@ export default function BovedasPage() {
           /* PESTAÑA: MIS BÓVEDAS */
           vaults.length === 0 ? (
             /* Empty state inspirador */
-            <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/40 p-8 sm:p-12 text-center backdrop-blur-xl">
+            <div className="relative overflow-hidden rounded-3xl border border-border bg-card/40 p-8 sm:p-12 text-center backdrop-blur-xl">
               {/* Glow ambiental */}
               <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-48 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
 
@@ -371,42 +371,42 @@ export default function BovedasPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
                     Finanzas en pareja o familia sin discusiones
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                     Las Bóvedas Compartidas te permiten llevar un registro transparente de los gastos comunes (hogar, salidas, viajes) y calcular automáticamente quién le debe a quién para quedar a mano con un solo click.
                   </p>
                 </div>
 
                 {/* Tarjetas de Beneficios */}
                 <div className="grid gap-3 sm:grid-cols-3 text-left">
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-1">
+                  <div className="rounded-2xl border border-border bg-surface/60 p-3.5 space-y-1">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
                       <Heart className="h-4 w-4" />
                     </div>
-                    <div className="text-xs font-bold text-white">Modo Pareja</div>
-                    <p className="text-[11px] text-slate-400">
+                    <div className="text-xs font-bold text-foreground">Modo Pareja</div>
+                    <p className="text-[11px] text-muted-foreground">
                       Dividan el súper, servicios y salidas 50/50 o por cuota.
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-1">
+                  <div className="rounded-2xl border border-border bg-surface/60 p-3.5 space-y-1">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
                       <Home className="h-4 w-4" />
                     </div>
-                    <div className="text-xs font-bold text-white">Modo Hogar</div>
-                    <p className="text-[11px] text-slate-400">
+                    <div className="text-xs font-bold text-foreground">Modo Hogar</div>
+                    <p className="text-[11px] text-muted-foreground">
                       Presupuestos y gastos familiares con roles de visibilidad.
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3.5 space-y-1">
+                  <div className="rounded-2xl border border-border bg-surface/60 p-3.5 space-y-1">
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
                       <Scale className="h-4 w-4" />
                     </div>
-                    <div className="text-xs font-bold text-white">Compensaciones</div>
-                    <p className="text-[11px] text-slate-400">
+                    <div className="text-xs font-bold text-foreground">Compensaciones</div>
+                    <p className="text-[11px] text-muted-foreground">
                       Algoritmo inteligente de saldos: menos transferencias.
                     </p>
                   </div>
@@ -443,8 +443,8 @@ export default function BovedasPage() {
           <div className="space-y-6">
             {/* Selector de Bóveda para Balances */}
             {vaults.length > 1 && (
-              <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-4">
-                <span className="text-xs font-semibold text-slate-400 mr-2">
+              <div className="flex flex-wrap items-center gap-2 border-b border-border pb-4">
+                <span className="text-xs font-semibold text-muted-foreground mr-2">
                   Seleccionar Bóveda:
                 </span>
                 {vaults.map((v) => {
@@ -456,8 +456,8 @@ export default function BovedasPage() {
                       onClick={() => setSelectedVaultForBalances(v)}
                       className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition cursor-pointer border ${
                         isSelected
-                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-500 dark:text-emerald-300 shadow-sm'
+                          : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-border'
                       }`}
                     >
                       {v.name}
@@ -471,13 +471,13 @@ export default function BovedasPage() {
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                       <span>{selectedVaultForBalances.name}</span>
-                      <span className="text-xs text-slate-400 font-normal">
+                      <span className="text-xs text-muted-foreground font-normal">
                         ({selectedVaultForBalances.members?.length || 1} integrantes)
                       </span>
                     </h3>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       {selectedVaultForBalances.description || 'Detalle de aportes y compensaciones'}
                     </p>
                   </div>
@@ -485,7 +485,7 @@ export default function BovedasPage() {
                   <button
                     type="button"
                     onClick={() => handleOpenMembers(selectedVaultForBalances)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:border-border transition cursor-pointer"
                   >
                     <Users className="h-3.5 w-3.5 text-emerald-400" />
                     <span>Ver Integrantes</span>
@@ -500,12 +500,12 @@ export default function BovedasPage() {
                 />
               </div>
             ) : (
-              <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-8 text-center backdrop-blur-xl">
-                <Users className="mx-auto h-10 w-10 text-slate-500" />
-                <h4 className="mt-3 text-sm font-bold text-white">
+              <div className="rounded-3xl border border-border bg-card/40 p-8 text-center backdrop-blur-xl">
+                <Users className="mx-auto h-10 w-10 text-muted-foreground" />
+                <h4 className="mt-3 text-sm font-bold text-foreground">
                   No hay ninguna bóveda seleccionada
                 </h4>
-                <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
+                <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
                   Crea o selecciona una bóveda compartida para calcular las compensaciones.
                 </p>
               </div>
